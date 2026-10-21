@@ -1,0 +1,11 @@
+import { Module } from '@nestjs/common';
+import { HotelsController } from './hotels.controller';
+import { HotelsService } from './hotels.service';
+
+// TODO: register this module's schemas here with MongooseModule.forFeature([...]).
+@Module({
+  controllers: [HotelsController],
+  providers: [HotelsService],
+  exports: [HotelsService],
+})
+export class HotelsModule {}

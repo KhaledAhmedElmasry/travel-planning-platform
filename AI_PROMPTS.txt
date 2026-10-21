@@ -1,0 +1,57 @@
+AI PROMPT LOG — Travel Planning & Booking Platform
+Software Project I, Winter 2026
+
+Every team member records the prompts that materially contributed to the project,
+in chronological order, using the format below (project description, section 11).
+Add your entry in the same pull request as the work it relates to.
+
+================================================
+Date: YYYY-MM-DD
+Student: <Full name>
+Tool: <ChatGPT / Claude / Copilot / Gemini / ...>
+Related Requirement: <e.g. FLT-22>
+
+Prompt:
+<the prompt, or a summary of the important prompts in a multi-turn conversation>
+
+How the output was used:
+<what you used, what you changed, and how you verified it>
+================================================
+
+================================================
+Date: 2026-10-21
+Student: <Team leader name>
+Tool: Claude Code (Claude Opus 5.5)
+Related Requirement: All (Milestone 1 planning); ACC-03, BLG-11, NEW-01, NEW-02, NEW-04, NEW-05, NEW-07
+
+Prompt:
+Read the project description, the requirements workbook and the reference datasets,
+and explain what Milestone 1 requires and what the team leader must prepare. Identify
+requirement IDs that are referenced but not defined, and infer their meaning.
+
+How the output was used:
+Used as the basis for the Milestone 1 plan, the module split across 8 members and the
+timeline (docs/TEAM_PLAN.md). The inferred definitions of the 7 missing IDs were written to
+docs/requirements/ASSUMED_REQUIREMENTS.md and are pending TA confirmation.
+================================================
+
+================================================
+Date: 2026-10-21
+Student: <Team leader name>
+Tool: Claude Code (Claude Opus 5.5)
+Related Requirement: None implemented (project skeleton only)
+
+Prompt:
+Set up the repository structure and an empty NestJS backend skeleton so that the whole team
+can start working immediately, with no requirement implemented.
+
+How the output was used:
+Used as the initial project skeleton: folder structure, empty module/controller/service files,
+placeholder schema files, and header comments listing each module's owner, requirement IDs and
+the endpoints from section 8 of the project description. The only working code is the server
+start-up (MongoDB connection, /api prefix, Swagger) and a health-check endpoint. The AI first
+generated implementations of some shared requirements (e.g. notifications, audit log, seed);
+these were deleted before the first push so that the team writes all requirements itself.
+Also generated: README, team plan, conventions, PR/issue templates and the GitHub issues list.
+Verified by building, linting and starting the server against a local MongoDB.
+================================================

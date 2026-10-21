@@ -1,0 +1,21 @@
+import { Controller } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { AirlinesService } from './airlines.service';
+
+// Owner: Member 4 (Airlines & Flight Inventory)
+// Requirements: FLT-01, FLT-04, FLT-08, FLT-09
+// Endpoints to implement (PDF section 8):
+//   POST  /api/airlines                           FLT-01
+//   GET   /api/airlines/:id                       FLT-01
+//   PATCH /api/airlines/:id                       FLT-01
+//   PUT   /api/airlines/:id/baggage-policy        FLT-04, FLT-08
+//   PUT   /api/airlines/:id/cancellation-policy   FLT-09
+// Also needed by the requirements (not in the PDF tables):
+//   an endpoint to upload the airline logo (FLT-01, GEN-08: 1 logo per airline)
+@ApiTags('Airlines')
+@Controller('airlines')
+export class AirlinesController {
+  constructor(private readonly airlinesService: AirlinesService) {}
+
+  // TODO: add the endpoints listed above.
+}
