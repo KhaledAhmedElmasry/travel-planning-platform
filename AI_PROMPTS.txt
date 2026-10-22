@@ -22,23 +22,6 @@ How the output was used:
 Date: 2026-10-21
 Student: Khaled Ahmed
 Tool: Claude Code (Claude Opus 5.5)
-Related Requirement: All (Milestone 1 planning); ACC-03, BLG-11, NEW-01, NEW-02, NEW-04, NEW-05, NEW-07
-
-Prompt:
-Read the project description, the requirements workbook and the reference datasets,
-and explain what Milestone 1 requires and what the team leader must prepare. Identify
-requirement IDs that are referenced but not defined, and infer their meaning.
-
-How the output was used:
-Used as the basis for the Milestone 1 plan, the module split across 8 members and the
-timeline (docs/TEAM_PLAN.md). The inferred definitions of the 7 missing IDs were written to
-docs/requirements/ASSUMED_REQUIREMENTS.md and are pending TA confirmation.
-================================================
-
-================================================
-Date: 2026-10-21
-Student: Khaled Ahmed
-Tool: Claude Code (Claude Opus 5.5)
 Related Requirement: None implemented (project skeleton only)
 
 Prompt:
@@ -56,46 +39,4 @@ Also generated: README, team plan, conventions, PR/issue templates and the GitHu
 Verified by building, linting and starting the server against a local MongoDB.
 ================================================
 
-================================================
-Date: 2026-10-22
-Student: Khaled Ahmed
-Tool: Claude Code (Claude Opus 5.5)
-Related Requirement: None implemented (project skeleton only)
-
-Prompt:
-Check every file and folder against the project description and the requirements workbook,
-and make sure nothing needed for Milestone 1 is missing. Structure only, no implementation.
-Every file must say which requirements it is for, and no file may assign work to a team member.
-
-How the output was used:
-Replaced the per-file "Owner: Member N" headers with neutral "Area:" labels and removed member
-assignments from docs/TEAM_PLAN.md and docs/CONVENTIONS.md. Added placeholder DTOs that were
-missing (cities, attractions, hotel details, hotel reservations, flight bookings list, budget
-summary). Added notes for endpoints the requirements imply but the PDF tables omit (refund
-previews for FLT-26/HTL-21, POST /api/reports, notification endpoints, currencies, provider
-deactivation) and for schema fields (hidden flags, statuses, hold expiry, policy acceptance).
-Moved the timeline to start on 31 October. Still no requirement is implemented.
-================================================
-
-================================================
-Date: 2026-10-22
-Student: Khaled Ahmed
-Tool: Claude Code (Claude Opus 5.5)
-Related Requirement: All Milestone 1 endpoints (PDF section 8); no requirement implemented
-
-Prompt:
-Write the Swagger documentation of every endpoint in PDF section 8, in one separate file and
-without any implementation, so the team knows the full API before starting. Include the optional
-(bonus) endpoints, but no endpoints beyond the PDF tables. Cross-check it with the PDF.
-
-How the output was used:
-Added docs/api/openapi.yaml (OpenAPI 3.0) documenting all 117 endpoints of PDF section 8 with
-their requirement IDs, access rules, parameters, request bodies with examples and responses,
-plus the existing health check. main.ts now loads this file into Swagger UI (js-yaml added as a
-dependency). No controller, service or schema was changed. Verified with swagger-cli and Redocly
-(0 errors), by starting the server and by a script comparing the served document with the PDF
-tables (all 117 endpoints and their requirement IDs present). Updated CONVENTIONS.md, the PR
-template, TEAM_PLAN.md and docs/api/README.md: endpoints must match the file, and the file is
-updated in the same PR when an endpoint changes. Design choices written in the file (field names,
-cents for prices, the flight booking flow) can be changed by the team.
 ================================================
