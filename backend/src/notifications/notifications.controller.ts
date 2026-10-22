@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 
 // Area: Community & Cross-cutting
@@ -13,7 +12,6 @@ import { NotificationsService } from './notifications.service';
 // Notes:
 //   Other modules call NotificationsService for: booking confirmed / cancelled / refunded,
 //   flight schedule change, and account or provider suspension (GEN-01).
-@ApiTags('Notifications')
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}

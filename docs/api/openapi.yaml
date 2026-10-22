@@ -1,0 +1,5100 @@
+openapi: 3.0.3
+info:
+  title: Travel Planning & Booking Platform API
+  version: 1.0.0
+  description: |
+    Software Project I, Winter 2026, German International University. Milestone 1 backend API.
+
+    This file (`docs/api/openapi.yaml`) documents every endpoint of **PDF section 8**, grouped and
+    ordered like the PDF tables. The requirement IDs in each summary refer to the official requirements
+    workbook in `docs/requirements/`.
+
+    - **Not implemented yet?** "Try it out" returns `404 Cannot ...` until the endpoint is implemented.
+    - **Logging in:** call `POST /api/auth/login`. It sets httpOnly cookies (ACC-19) and the browser
+      sends them with every later request automatically, so the Authorize button is not needed.
+      A lock icon marks the endpoints that need login.
+    - **Errors:** every error uses the `Error` format (see Schemas at the bottom). Validation errors
+      list each invalid field in `fieldErrors` (GEN-02).
+    - **Lists:** every list returns pages of 10 items in the `PaginatedList` format; request another
+      page with `?page=2` (GEN-05). No results is an empty page, not an error (GEN-04).
+    - **Money:** flight and hotel prices, booking totals, payments and refunds are integers in cents of
+      the platform currency, e.g. `25000` = 250.00 USD (PAY-04, NEW-04). Itinerary budget amounts are
+      decimal numbers in any currency (ITN-14).
+    - **Dates and times:** dates are `YYYY-MM-DD`. Flight times are entered in each airport's local
+      time as `YYYY-MM-DDTHH:mm`, stored in UTC and shown in the airport's local time zone
+      (FLT-03, GEN-06).
+    - **[Bonus]** marks optional endpoints (PDF section 12). Remove the ones you do not implement
+      before the submission.
+    - **Keep this file up to date:** when you add or change an endpoint, update this file in the
+      same pull request.
+
+servers:
+  - url: /
+    description: The server this page is served from
+
+# Reusable YAML blocks (anchors), used below as *error, *paginated and *auth.
+x-shared:
+  error: &error
+    application/json:
+      schema:
+        $ref: '#/components/schemas/Error'
+  paginated: &paginated
+    application/json:
+      schema:
+        $ref: '#/components/schemas/PaginatedList'
+  auth: &auth
+    - cookieAuth: []
+
+tags:
+  - name: Authentication and Accounts
+    description: PDF section 8.1
+  - name: Administration
+    description: PDF section 8.2 (admin only)
+  - name: 'Airlines, Flights, and Flight Inventory'
+    description: PDF section 8.3
+  - name: Flight Booking
+    description: PDF section 8.4
+  - name: Hotels and Rooms
+    description: PDF section 8.5
+  - name: Hotel Booking and Reviews
+    description: PDF section 8.6
+  - name: Payments and Refunds
+    description: PDF section 8.7
+  - name: Itineraries
+    description: PDF section 8.8
+  - name: Blog
+    description: PDF section 8.9
+  - name: Health
+    description: Not a requirement. Checks that the server and the database connection work.
+
+paths:
+
+  # ---------------------------------------------------------------------------
+  # 8.1 Authentication and Accounts
+  # ---------------------------------------------------------------------------
+
+  /api/auth/register:
+    post:
+      tags: [Authentication and Accounts]
+      summary: 'Register a new account (ACC-01, ACC-03)'
+      description: |
+        **Access:** guests.
+
+        Creates an account with role `user` and status `active`. The email is trimmed, lowercased and
+        must be unique. The password is stored only as a salted hash (GEN-13) and is never returned.
+        A `role` sent in the body is ignored: admins are seeded (ACC-18) and moderators are created by
+        an admin (ACC-13). The time the consent was given is stored with the account.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created. Returns the profile (id, name, email, role, status, createdAt) without any password fields.
+        '400':
+          description: Invalid email, a password that breaks the rules, or consent not given. fieldErrors names each invalid field.
+          content: *error
+        '409':
+          description: The email is already registered.
+          content: *error
+
+  /api/auth/verify-email:
+    get:
+      tags: [Authentication and Accounts]
+      summary: '[Bonus] Verify the email address (ACC-02)'
+      description: |
+        **Access:** guests (the user opens the link sent by email after registration).
+
+        Marks the email as verified. Booking is blocked until the email is verified (ACC-02).
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          description: The token from the verification link.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified.
+        '400':
+          description: The token is invalid, expired or already used.
+          content: *error
+
+  /api/auth/login:
+    post:
+      tags: [Authentication and Accounts]
+      summary: 'Log in (ACC-04, ACC-05)'
+      description: |
+        **Access:** guests. Works for every role.
+
+        On success the response sets two httpOnly, Secure, SameSite cookies: `access_token` (short-lived)
+        and `refresh_token` (ACC-19, NEW-07). Tokens are never returned in the body or stored in
+        localStorage/sessionStorage. The frontend uses the returned role to open the role's home page.
+
+        After 5 consecutive failed attempts the account is locked for 15 minutes; a successful login
+        resets the counter (ACC-05).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: |
+            Logged in; the cookies are set. Returns the account: id, name, email, role, the assigned
+            airlineId or hotelId for moderators, and mustChangePassword. When mustChangePassword is
+            true (temporary password, ACC-07a and ACC-13), the account must call
+            `PATCH /api/auth/change-password` before using other endpoints.
+        '400':
+          description: Email or password missing or malformed.
+          content: *error
+        '401':
+          description: The generic message "invalid email or password". It never says which one was wrong (ACC-04).
+          content: *error
+        '403':
+          description: The account is suspended ("account suspended"), deactivated, or locked for 15 minutes after 5 failed attempts (ACC-05).
+          content: *error
+
+  /api/auth/logout:
+    post:
+      tags: [Authentication and Accounts]
+      summary: 'Log out (ACC-06)'
+      description: |
+        **Access:** logged-in accounts.
+
+        Clears both auth cookies and revokes the refresh token on the server. Separately, a session with
+        no authenticated request for 30 minutes expires and needs a new login (ACC-06, NEW-07).
+      security: *auth
+      responses:
+        '204':
+          description: Logged out; the cookies are cleared.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Authentication and Accounts]
+      summary: '[Bonus] Request a password reset link by email (ACC-07)'
+      description: |
+        **Access:** guests.
+
+        Emails a reset link that expires after 30 minutes, works once, and is invalidated by a newer
+        request. The response is the same whether or not the email exists.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Always the same message, e.g. "If the email exists, a reset link was sent".
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/reset-password:
+    post:
+      tags: [Authentication and Accounts]
+      summary: '[Bonus] Set a new password with a reset link (ACC-07)'
+      description: |
+        **Access:** guests (with the token from the reset email).
+
+        Sets the new password and revokes all sessions of the account.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password changed. The user logs in with the new password.
+        '400':
+          description: The token is invalid, expired or already used, or the new password breaks the rules.
+          content: *error
+
+  /api/admin/users/{id}/reset-password:
+    post:
+      tags: [Authentication and Accounts]
+      summary: 'Admin resets a password to a temporary one (ACC-07a)'
+      description: |
+        **Access:** admin.
+
+        Sets a temporary password for a registered user or a moderator and revokes all sessions of the
+        account (NEW-07). The account must set a new password that meets the password rules at its next
+        login (mustChangePassword). The action is written to the audit log (GEN-07).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset. The account must change it at its next login.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+        '404':
+          description: Account not found.
+          content: *error
+
+  /api/auth/change-password:
+    patch:
+      tags: [Authentication and Accounts]
+      summary: 'Change own password (ACC-08)'
+      description: |
+        **Access:** logged-in accounts, including accounts that must change a temporary password.
+
+        Needs the current password. The new password must meet the password rules (ACC-01). Clears
+        mustChangePassword (ACC-07a, ACC-13).
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed.
+        '400':
+          description: The current password is wrong, or the new password breaks the rules.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/me:
+    get:
+      tags: [Authentication and Accounts]
+      summary: 'Get the logged-in account (ACC-04, ACC-11)'
+      description: |
+        **Access:** logged-in accounts.
+
+        Returns the account of the current session, read from the httpOnly cookie. The frontend calls
+        this endpoint instead of keeping tokens or user data in JavaScript-accessible storage (ACC-19).
+      security: *auth
+      responses:
+        '200':
+          description: The account - id, name, email, role, status, the assigned airlineId or hotelId for moderators, and mustChangePassword.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/users/me:
+    get:
+      tags: [Authentication and Accounts]
+      summary: 'Get own profile (ACC-11)'
+      description: |
+        **Access:** logged-in accounts. Only the own profile can be read.
+      security: *auth
+      responses:
+        '200':
+          description: The profile - id, name, email, phone, preferredCurrency, role, status, createdAt.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Authentication and Accounts]
+      summary: 'Edit own profile (ACC-09)'
+      description: |
+        **Access:** logged-in accounts.
+
+        Edits name, phone number and preferred currency. Nothing is saved unless all sent fields pass
+        validation. The preferred currency must be in the supported currency list (GEN-12) and is
+        used only to display itinerary budgets (ITN-18, NEW-04).
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: The updated profile.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags: [Authentication and Accounts]
+      summary: 'Deactivate own account (ACC-12)'
+      description: |
+        **Access:** registered users (role `user`). The frontend asks for confirmation first (GEN-03).
+
+        Blocked while the user has upcoming Confirmed bookings (a flight not yet departed, or a stay not
+        yet started). After deactivation the user cannot log in and all sessions are revoked; their
+        posts and public itineraries are hidden, and their comments and reviews are shown as
+        "Deleted user".
+      security: *auth
+      responses:
+        '204':
+          description: Account deactivated; the cookies are cleared.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content: *error
+        '409':
+          description: The user still has upcoming Confirmed bookings.
+          content: *error
+
+  # ---------------------------------------------------------------------------
+  # 8.2 Administration
+  # ---------------------------------------------------------------------------
+
+  /api/admin/moderators:
+    post:
+      tags: [Administration]
+      summary: 'Create a hotel or airline moderator (ACC-13)'
+      description: |
+        **Access:** admin.
+
+        Creates a moderator account linked to exactly one existing airline or hotel, with a temporary
+        password set by the admin. The moderator must change the password at first login. The action
+        is written to the audit log (GEN-07).
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModeratorRequest'
+      responses:
+        '201':
+          description: Moderator created. Returns the account (id, name, email, role, airlineId or hotelId, status) without the password.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+        '404':
+          description: The airline or hotel does not exist.
+          content: *error
+        '409':
+          description: The email is already registered.
+          content: *error
+
+  /api/admin/accounts:
+    get:
+      tags: [Administration]
+      summary: 'List all accounts (ACC-14)'
+      description: |
+        **Access:** admin.
+
+        Paginated list of all accounts. Search by name or email, and filter by role and status.
+      security: *auth
+      parameters:
+        - name: search
+          in: query
+          description: Part of the name or email (case-insensitive).
+          schema:
+            type: string
+            example: mona
+        - name: role
+          in: query
+          schema:
+            $ref: '#/components/schemas/Role'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/AccountStatus'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - id, name, email, role, status, registration date.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+
+  /api/admin/accounts/{id}/suspend:
+    patch:
+      tags: [Administration]
+      summary: 'Suspend a user or moderator (ACC-15, ACC-16)'
+      description: |
+        **Access:** admin. Admin accounts cannot be suspended.
+
+        A suspended account cannot log in and all its sessions are revoked (NEW-07). Its existing
+        bookings remain valid, and its content stays visible unless hidden through GEN-10 (ACC-16).
+        The account gets an in-app notification (GEN-01) and the action is written to the audit log
+        (GEN-07).
+
+        Note: ACC-15 also covers deactivating and reactivating a hotel or airline. The PDF has no
+        endpoint for that; add one to this file when it is designed.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminActionRequest'
+      responses:
+        '200':
+          description: The account with status `suspended`.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin, or the target is an admin.
+          content: *error
+        '404':
+          description: Account not found.
+          content: *error
+        '409':
+          description: The account is not active (already suspended or deactivated).
+          content: *error
+
+  /api/admin/accounts/{id}/reactivate:
+    patch:
+      tags: [Administration]
+      summary: 'Reactivate a suspended user or moderator (ACC-15, ACC-16)'
+      description: |
+        **Access:** admin.
+
+        The account can log in again. It gets an in-app notification (GEN-01) and the action is written
+        to the audit log (GEN-07).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminActionRequest'
+      responses:
+        '200':
+          description: The account with status `active`.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+        '404':
+          description: Account not found.
+          content: *error
+        '409':
+          description: The account is not suspended.
+          content: *error
+
+  /api/admin/bookings:
+    get:
+      tags: [Administration]
+      summary: 'List all flight and hotel bookings (ACC-17)'
+      description: |
+        **Access:** admin. Read-only.
+
+        All bookings of the platform, filterable by type, status and date range.
+      security: *auth
+      parameters:
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/BookingType'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+        - name: from
+          in: query
+          description: First travel date (flight departure or hotel check-in), inclusive.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-01'
+        - name: to
+          in: query
+          description: Last travel date, inclusive.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-31'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - type, booking reference, user, provider (airline or hotel), dates, amount, status.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+
+  /api/admin/reports:
+    get:
+      tags: [Administration]
+      summary: 'List reported content (GEN-09, GEN-10)'
+      description: |
+        **Access:** admin.
+
+        Reports created by users about a post, comment, review or itinerary (GEN-09). Shows open reports
+        unless another status is requested.
+      security: *auth
+      parameters:
+        - name: status
+          in: query
+          description: Defaults to `open`.
+          schema:
+            $ref: '#/components/schemas/ReportStatus'
+        - name: contentType
+          in: query
+          schema:
+            $ref: '#/components/schemas/ContentType'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - id, content type and id, a short preview of the content, reporter, reason, date, status.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+
+  /api/admin/reports/{id}:
+    patch:
+      tags: [Administration]
+      summary: 'Resolve a report (GEN-10)'
+      description: |
+        **Access:** admin.
+
+        Resolves the report by dismissing it, hiding the content, or deleting the content. Hidden
+        content is visible only to its author and admins. Other open reports about the same content
+        are resolved with it. The action is written to the audit log (GEN-07).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveReportRequest'
+      responses:
+        '200':
+          description: The report with its new status.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+        '404':
+          description: Report not found.
+          content: *error
+        '409':
+          description: The report is already resolved.
+          content: *error
+
+  /api/admin/content/{type}/{id}:
+    delete:
+      tags: [Administration]
+      summary: 'Delete a post, comment, review or itinerary (GEN-10)'
+      description: |
+        **Access:** admin. The frontend asks for confirmation first (GEN-03).
+
+        Deletes inappropriate content directly, with or without a report. Open reports about it are
+        closed as `content_deleted`. The action is written to the audit log (GEN-07).
+
+        Note: GEN-10 also lets the admin hide content directly. The PDF has no endpoint for that; add
+        one to this file when it is designed.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/ContentTypePath'
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Content deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+        '404':
+          description: Content not found.
+          content: *error
+
+  /api/admin/audit-logs:
+    get:
+      tags: [Administration]
+      summary: 'View the audit log of admin actions (GEN-07)'
+      description: |
+        **Access:** admin.
+
+        Admin actions such as suspensions, reactivations, password resets and content deletions,
+        newest first.
+      security: *auth
+      parameters:
+        - name: action
+          in: query
+          schema:
+            $ref: '#/components/schemas/AuditAction'
+        - name: from
+          in: query
+          description: First date, inclusive.
+          schema:
+            type: string
+            format: date
+            example: '2026-11-01'
+        - name: to
+          in: query
+          description: Last date, inclusive.
+          schema:
+            type: string
+            format: date
+            example: '2026-11-30'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - admin, action, target type and id, reason or details, date.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+
+  # ---------------------------------------------------------------------------
+  # 8.3 Airlines, Flights, and Flight Inventory
+  # ---------------------------------------------------------------------------
+
+  /api/airlines:
+    post:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Create an airline profile (FLT-01)'
+      description: |
+        **Access:** admin.
+
+        Creates an active airline with a name, a unique code and an optional logo. The logo follows the
+        shared upload rule: JPG or PNG, at most 5 MB, one logo per airline (GEN-08). An airline
+        moderator is then created with `POST /api/admin/moderators` (ACC-13).
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AirlineForm'
+      responses:
+        '201':
+          description: Airline created. Returns id, name, code, logo URL and status.
+        '400':
+          description: Invalid fields, or a logo that is not JPG/PNG or is larger than 5 MB.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+        '409':
+          description: Another airline already uses this code.
+          content: *error
+
+  /api/airlines/{id}:
+    get:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Get an airline profile (FLT-01)'
+      description: |
+        **Access:** everyone, including guests.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Name, code, logo URL, extra-baggage policy (FLT-08) and cancellation tiers (FLT-09).
+        '404':
+          description: Airline not found, or deactivated (ACC-15).
+          content: *error
+    patch:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Edit own airline profile (FLT-01)'
+      description: |
+        **Access:** the airline moderator assigned to this airline (ACC-11, ACC-13).
+
+        Edits name, code and logo. Send only the fields to change. A new logo replaces the old one
+        (one logo per airline, GEN-08).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AirlineUpdateForm'
+      responses:
+        '200':
+          description: The updated airline.
+        '400':
+          description: Invalid fields, or a logo that is not JPG/PNG or is larger than 5 MB.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this airline.
+          content: *error
+        '404':
+          description: Airline not found.
+          content: *error
+        '409':
+          description: Another airline already uses this code.
+          content: *error
+
+  /api/airports:
+    get:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'List airports (FLT-02, FLT-03, FLT-11)'
+      description: |
+        **Access:** everyone, including guests.
+
+        The predefined, read-only airport list loaded at setup from the official dataset, with an IANA
+        time zone added for each airport (FLT-02, GEN-12). Flight creation and flight search accept only
+        airports from this list.
+      security: []
+      parameters:
+        - name: search
+          in: query
+          description: Part of the IATA code, airport name or city name (case-insensitive).
+          schema:
+            type: string
+            example: cai
+        - name: city
+          in: query
+          description: city_id from the official cities dataset.
+          schema:
+            type: string
+            example: cairo
+        - name: country
+          in: query
+          description: Country code from the official countries dataset.
+          schema:
+            type: string
+            example: EG
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - iataCode, name, cityId, city name, countryCode, timeZone (e.g. Africa/Cairo).
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/flights:
+    post:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Create a flight (FLT-03)'
+      description: |
+        **Access:** airline moderators. The flight belongs to the moderator's own airline.
+
+        Departure and arrival are entered in each airport's local time and stored in UTC (GEN-06). The
+        new flight has status `scheduled` (FLT-30) and no cabins yet; add them with
+        `POST /api/flights/{id}/cabins`.
+
+        Rejected when: an airport is not in the airport list (FLT-02), the two airports are identical,
+        the arrival is not after the departure (compared in UTC), the departure is in the past, or the
+        airline already has this flight number on the same departure date.
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFlightRequest'
+      responses:
+        '201':
+          description: Flight created. Returns the flight with local and UTC times.
+        '400':
+          description: Invalid fields or one of the rules above is broken.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an airline moderator.
+          content: *error
+        '409':
+          description: The airline already has this flight number on that departure date.
+          content: *error
+
+  /api/flights/search:
+    get:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Search flights (FLT-11, FLT-12, FLT-15)'
+      description: |
+        **Access:** everyone, including guests.
+
+        Lists `scheduled` flights of active airlines on the departure date (the local date at the
+        departure airport) whose available seats (total - booked - held) cover the passengers in the
+        chosen cabin, or in at least one cabin when no cabin is given. Adults and children need a seat;
+        infants do not (FLT-12).
+
+        - **Round trip:** returns outbound and return options. They are booked together as one booking
+          with two segments, one payment and one reference (FLT-12).
+        - **Passengers:** at least one adult, and no more infants than adults.
+        - **Price filter:** inclusive minimum and maximum of the cabin fare. `minPrice` greater than
+          `maxPrice` gives 400 (FLT-15).
+        - **Sorting:** by price, duration or departure time (FLT-15).
+        - No match gives an empty list, shown as "no flights found" (GEN-04).
+      security: []
+      parameters:
+        - name: origin
+          in: query
+          required: true
+          description: IATA code of the departure airport.
+          schema:
+            type: string
+            example: CAI
+        - name: destination
+          in: query
+          required: true
+          description: IATA code of the arrival airport.
+          schema:
+            type: string
+            example: DXB
+        - name: departureDate
+          in: query
+          required: true
+          description: Local date at the departure airport.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-01'
+        - name: tripType
+          in: query
+          description: Defaults to `one_way`.
+          schema:
+            $ref: '#/components/schemas/TripType'
+        - name: returnDate
+          in: query
+          description: Required for `round_trip`. Not before departureDate.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-10'
+        - name: adults
+          in: query
+          description: Passengers aged 12 or more. At least 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: children
+          in: query
+          description: Passengers aged 2 to 11.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: infants
+          in: query
+          description: Passengers under 2. No more than adults.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: cabinClass
+          in: query
+          description: Optional cabin filter (FLT-12).
+          schema:
+            $ref: '#/components/schemas/CabinClass'
+        - name: minPrice
+          in: query
+          description: Minimum fare in cents, inclusive.
+          schema:
+            type: integer
+            minimum: 0
+            example: 10000
+        - name: maxPrice
+          in: query
+          description: Maximum fare in cents, inclusive.
+          schema:
+            type: integer
+            minimum: 0
+            example: 50000
+        - name: sortBy
+          in: query
+          schema:
+            $ref: '#/components/schemas/FlightSortBy'
+        - name: sortOrder
+          in: query
+          description: Defaults to `asc`.
+          schema:
+            $ref: '#/components/schemas/SortOrder'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: |
+            One-way: a paginated list. Round trip: an object with an `outbound` and a `return` list,
+            each in the same paginated format.
+
+            Each flight - id, airline (name, code, logo), flight number, departure and arrival airports,
+            local departure and arrival times with time zones, duration, and each matching cabin with
+            its fare and seats available.
+          content: *paginated
+        '400':
+          description: Missing or invalid search fields, an airport not in the list, minPrice greater than maxPrice, more infants than adults, or round trip without returnDate.
+          content: *error
+
+  /api/flights/{id}:
+    get:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Get flight details (FLT-17)'
+      description: |
+        **Access:** everyone, including guests.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: |
+            Airline, flight number, airports, local departure and arrival times with time zones (GEN-06),
+            duration, status, each cabin with its fare, seats remaining and free baggage allowance, the
+            extra-baggage policy (FLT-08) and the airline's cancellation policy (FLT-09).
+        '404':
+          description: Flight not found.
+          content: *error
+    patch:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Edit a flight (FLT-05)'
+      description: |
+        **Access:** the airline moderator of the flight's airline.
+
+        Only `scheduled` flights can be edited. Send only the fields to change; the FLT-03 rules still
+        apply. Airports cannot be changed once the flight has any booking.
+
+        Time changes apply to existing bookings, and passengers with Confirmed bookings get an in-app
+        notification (GEN-01, NEW-02). Fares and seat counts are edited per cabin with
+        `PATCH /api/flights/{id}/cabins/{cabinId}`.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFlightRequest'
+      responses:
+        '200':
+          description: The updated flight.
+        '400':
+          description: Invalid fields or an FLT-03 rule is broken.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this flight's airline.
+          content: *error
+        '404':
+          description: Flight not found.
+          content: *error
+        '409':
+          description: The flight is not scheduled, or the airports cannot change because the flight has bookings.
+          content: *error
+
+  /api/flights/{id}/cancel:
+    post:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Cancel a flight (FLT-06)'
+      description: |
+        **Access:** the airline moderator of the flight's airline. The frontend asks for confirmation
+        first (GEN-03).
+
+        The flight becomes `cancelled` and is hidden from search. All its Confirmed bookings become
+        Cancelled with a 100% refund (PAY-03). Pending Payment bookings expire and their held seats are
+        released. Passengers get an in-app notification (GEN-01). A round-trip booking is cancelled as
+        a whole when either of its flights is cancelled (NEW-02).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The cancelled flight and the number of bookings that were cancelled.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this flight's airline.
+          content: *error
+        '404':
+          description: Flight not found.
+          content: *error
+        '409':
+          description: The flight is not scheduled (already cancelled or departed).
+          content: *error
+
+  /api/flights/{id}/cabins:
+    post:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Add a cabin category to a flight (FLT-04)'
+      description: |
+        **Access:** the airline moderator of the flight's airline.
+
+        Cabin classes come from the fixed set economy, premium_economy, business and first, and each
+        is used at most once per flight. Each cabin has a seat count, a fare and a free baggage
+        allowance (number of bags and maximum weight per bag).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCabinRequest'
+      responses:
+        '201':
+          description: The flight with its cabins (each cabin has an id).
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this flight's airline.
+          content: *error
+        '404':
+          description: Flight not found.
+          content: *error
+        '409':
+          description: The flight already has this cabin class, or the flight is not scheduled.
+          content: *error
+
+  /api/flights/{id}/cabins/{cabinId}:
+    patch:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Edit a cabin category (FLT-04, FLT-05)'
+      description: |
+        **Access:** the airline moderator of the flight's airline.
+
+        Edits the seat count, fare and free baggage allowance of a cabin on a `scheduled` flight. The
+        seat count cannot be reduced below the seats already booked or held. Fare changes do not affect
+        existing bookings, which keep their agreed price (NEW-02).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/CabinId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCabinRequest'
+      responses:
+        '200':
+          description: The flight with its updated cabins.
+        '400':
+          description: Invalid fields, or a seat count below the seats already booked or held.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this flight's airline.
+          content: *error
+        '404':
+          description: Flight or cabin not found.
+          content: *error
+        '409':
+          description: The flight is not scheduled.
+          content: *error
+
+  /api/airlines/{id}/baggage-policy:
+    put:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Set the extra-baggage policy (FLT-04, FLT-08)'
+      description: |
+        **Access:** the airline moderator assigned to this airline.
+
+        Sets the price per extra bag and the maximum number of extra bags per passenger for all the
+        airline's flights. Each extra bag has the same maximum weight as the cabin's free baggage
+        allowance (FLT-08). The free allowance itself is set per cabin (FLT-04).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaggagePolicyRequest'
+      responses:
+        '200':
+          description: The saved baggage policy.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this airline.
+          content: *error
+        '404':
+          description: Airline not found.
+          content: *error
+
+  /api/airlines/{id}/cancellation-policy:
+    put:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Set the cancellation tiers (FLT-09)'
+      description: |
+        **Access:** the airline moderator assigned to this airline.
+
+        Replaces all cancellation tiers of the airline. Each tier has a unique days-before-departure
+        threshold (integer of 0 or more) and a refund percentage from 0 to 100.
+
+        **Refund rule:** a cancellation uses the tier with the highest threshold that does not exceed
+        the days remaining before departure. If no tier applies, the refund is 0%.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancellationPolicyRequest'
+      responses:
+        '200':
+          description: The saved tiers, sorted by threshold.
+        '400':
+          description: Invalid tiers, or the same threshold used twice.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this airline.
+          content: *error
+        '404':
+          description: Airline not found.
+          content: *error
+
+  /api/flights/{id}/bookings:
+    get:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'View the bookings of a flight (FLT-29)'
+      description: |
+        **Access:** the airline moderator of the flight's airline (ACC-11).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: status
+          in: query
+          description: Only `confirmed` or `cancelled` bookings are listed.
+          schema:
+            type: string
+            enum: [confirmed, cancelled]
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: |
+            The seats remaining per cabin, and a paginated list of the bookings - booking reference,
+            passenger names, cabin, number of seats, status (confirmed or cancelled).
+          content: *paginated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this flight's airline.
+          content: *error
+        '404':
+          description: Flight not found.
+          content: *error
+
+  /api/flights/{id}/passengers/export:
+    get:
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'Export the passenger list as CSV (FLT-29)'
+      description: |
+        **Access:** the airline moderator of the flight's airline.
+
+        Downloads a CSV file with one row per passenger of the flight's Confirmed bookings.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: CSV file with the columns booking reference, passenger name, passenger type, cabin, status.
+          content:
+            text/csv:
+              schema:
+                type: string
+                example: |
+                  reference,passengerName,type,cabin,status
+                  TP7K2Q,Mona Adel,adult,economy,confirmed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this flight's airline.
+          content: *error
+        '404':
+          description: Flight not found.
+          content: *error
+
+  # ---------------------------------------------------------------------------
+  # 8.4 Flight Booking
+  # ---------------------------------------------------------------------------
+
+  /api/flight-bookings/hold:
+    post:
+      tags: [Flight Booking]
+      summary: 'Proceed to payment - hold the seats for 10 minutes (FLT-22)'
+      description: |
+        **Access:** registered users (role `user`). A guest gets 401 and the frontend sends them to
+        login and back (ACC-10).
+
+        Send the same body as `POST /api/flight-bookings` after the user has reviewed the summary.
+        The seats are reserved atomically and only if enough remain, so concurrent requests can never
+        book more seats than available. The booking is created with status `pending_payment` and a
+        10-minute hold (`holdExpiresAt`). The prices agreed now are stored on the booking (NEW-02).
+
+        Next steps: `GET /api/bookings/flight/{id}/policies`, accept them, then `POST /api/payments`.
+        If the payment does not succeed within the hold, the booking becomes `expired` and the seats
+        are released (NEW-01).
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlightBookingRequest'
+      responses:
+        '201':
+          description: Booking created - id, status pending_payment, holdExpiresAt, segments, passengers, extra baggage and total in cents.
+        '400':
+          description: Invalid passengers or baggage (same rules as POST /api/flight-bookings).
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content: *error
+        '404':
+          description: Flight not found.
+          content: *error
+        '409':
+          description: Not enough seats left, or the flight is not scheduled, or its airline is deactivated.
+          content: *error
+
+  /api/flight-bookings:
+    post:
+      tags: [Flight Booking]
+      summary: 'Enter passengers and baggage and get the booking summary (FLT-19, FLT-21)'
+      description: |
+        **Access:** registered users (role `user`).
+
+        Validates the passenger details and extra baggage and returns the booking summary to show before
+        payment (flights, passengers, baggage, total). **Nothing is reserved or saved yet**: when the
+        user continues, the frontend sends the same body to `POST /api/flight-bookings/hold`.
+
+        - Each passenger has a full name, date of birth and passport or ID number (FLT-19).
+        - The passenger type must match the date of birth on the departure date: adult 12+, child 2-11,
+          infant under 2. At least one adult, and no more infants than adults (FLT-12).
+        - Adults and children pay the cabin fare and take a seat; infants pay 10% of the fare and take
+          no seat (FLT-12).
+        - Extra bags per passenger are limited by the airline's maximum, and each bag's weight by the
+          cabin's maximum bag weight; their fees are added to the total (FLT-08, FLT-19).
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlightBookingRequest'
+      responses:
+        '200':
+          description: |
+            The summary - each segment's flight (number, airports, local times) and cabin, each
+            passenger with type and extra bags, the fare per passenger, baggage fees, and the total in
+            cents.
+        '400':
+          description: Invalid passengers or baggage, or one of the rules above is broken.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content: *error
+        '404':
+          description: Flight not found.
+          content: *error
+        '409':
+          description: The flight is not scheduled, or not enough seats are left.
+          content: *error
+    get:
+      tags: [Flight Booking]
+      summary: 'List own flight bookings (FLT-25)'
+      description: |
+        **Access:** registered users. Only the user's own bookings are listed (ACC-11).
+
+        Grouped as Upcoming, Past and Cancelled: choose the group with `group`.
+      security: *auth
+      parameters:
+        - name: group
+          in: query
+          description: Defaults to `upcoming`.
+          schema:
+            $ref: '#/components/schemas/BookingGroup'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - id, booking reference, flight(s), departure date, number of passengers, cabin, status.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/flight-bookings/{id}:
+    get:
+      tags: [Flight Booking]
+      summary: 'Get own flight booking details (FLT-25)'
+      description: |
+        **Access:** the user who made the booking (ACC-11).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: |
+            Full details - reference (after confirmation), status, holdExpiresAt (while pending),
+            segments with local times, passengers, extra baggage, agreed prices and total, the time the
+            policies were accepted, the payment status, and the refund with its status (PAY-03).
+            For an upcoming Confirmed booking it also shows the refund the user would get if they
+            cancelled now, computed from the airline's tiers (FLT-26).
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Booking not found, or it belongs to another user.
+          content: *error
+
+  /api/flight-bookings/{id}/cancel:
+    post:
+      tags: [Flight Booking]
+      summary: 'Cancel own flight booking (FLT-26)'
+      description: |
+        **Access:** the user who made the booking. The user first sees the refund amount (shown in the
+        booking details) and confirms (GEN-03).
+
+        Only a Confirmed booking, and only before departure. The booking becomes `cancelled`, its seats
+        return to inventory, and a refund is created from the airline's tiers on the days remaining
+        before departure (FLT-09, PAY-03). A round trip is cancelled as a whole using the outbound
+        segment's tier (FLT-12). The user gets an in-app notification (GEN-01).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The cancelled booking with its refund (amount in cents and status).
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Booking not found, or it belongs to another user.
+          content: *error
+        '409':
+          description: The booking is not Confirmed, or the flight has already departed.
+          content: *error
+
+  /api/flight-bookings/{id}/change-flight:
+    patch:
+      tags: [Flight Booking]
+      summary: '[Bonus] Change the date or flight of a booking (FLT-27)'
+      description: |
+        **Access:** the user who made the booking.
+
+        Moves one segment of a Confirmed booking to another flight on the same route and in the same
+        cabin, subject to seat availability. A higher fare is paid through Stripe; a lower fare is
+        refunded.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeFlightRequest'
+      responses:
+        '200':
+          description: The updated booking, with the fare difference to pay or refund.
+        '400':
+          description: The new flight is not on the same route.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Booking or flight not found.
+          content: *error
+        '409':
+          description: The booking is not Confirmed, or the new flight has no seats left in that cabin.
+          content: *error
+
+  /api/flight-bookings/{id}/e-ticket:
+    get:
+      tags: [Flight Booking]
+      summary: 'Download the e-ticket as PDF (FLT-23)'
+      description: |
+        **Access:** the user who made the booking. Only for Confirmed bookings.
+
+        The e-ticket shows the booking reference, passengers, flights with local times, cabin and
+        baggage.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The e-ticket PDF file.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Booking not found, or it belongs to another user.
+          content: *error
+        '409':
+          description: The booking is not Confirmed.
+          content: *error
+
+  /api/flight-bookings/{id}/seat:
+    patch:
+      tags: [Flight Booking]
+      summary: '[Bonus] Select a seat (FLT-28)'
+      description: |
+        **Access:** the user who made the booking.
+
+        Chooses a seat for one passenger on one segment. Infants have no seat.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectSeatRequest'
+      responses:
+        '200':
+          description: The booking with the selected seat.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Booking not found, or it belongs to another user.
+          content: *error
+        '409':
+          description: The seat is already taken.
+          content: *error
+
+  # ---------------------------------------------------------------------------
+  # 8.5 Hotels and Rooms
+  # ---------------------------------------------------------------------------
+
+  /api/hotels:
+    post:
+      tags: [Hotels and Rooms]
+      summary: 'Create a hotel profile (HTL-01)'
+      description: |
+        **Access:** admin.
+
+        Creates an active hotel. The city and country come from the predefined lists, and the city must
+        belong to the country (NEW-05). Photos follow the shared upload rule: JPG or PNG, at most 5 MB
+        each, up to 5 per hotel (GEN-08). The check-in/check-out times and cancellation tiers are set by
+        the hotel moderator with `PUT /api/hotels/{id}/policies`. A hotel moderator is then created with
+        `POST /api/admin/moderators` (ACC-13).
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HotelForm'
+      responses:
+        '201':
+          description: Hotel created. Returns the hotel with its photo URLs.
+        '400':
+          description: Invalid fields, an unknown city or country, a city outside the country, or photos that break the upload rule.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content: *error
+
+  /api/hotels/search:
+    get:
+      tags: [Hotels and Rooms]
+      summary: 'Search hotels (HTL-11, HTL-12)'
+      description: |
+        **Access:** everyone, including guests.
+
+        Lists active hotels that have at least `rooms` active rooms free for the whole stay (inside a
+        bookable range, not blocked, not reserved and not held), whose combined maximum occupancy covers
+        the guests (HTL-11). Give a city or a country. Check-out must be after check-in, and check-in
+        cannot be in the past.
+
+        - **Price filter:** inclusive minimum and maximum price per night of the cheapest qualifying
+          room (HTL-12).
+        - **Rating filter:** minimum average rating from 1 to 5; unrated hotels are excluded when this
+          filter is set (HTL-12).
+        - **Sorting:** by that price or by rating (HTL-12).
+        - No match gives an empty list (GEN-04).
+      security: []
+      parameters:
+        - name: city
+          in: query
+          description: city_id from the official cities dataset. Give city or country.
+          schema:
+            type: string
+            example: cairo
+        - name: country
+          in: query
+          description: Country code from the official countries dataset. Give city or country.
+          schema:
+            type: string
+            example: EG
+        - name: checkIn
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: '2026-12-01'
+        - name: checkOut
+          in: query
+          required: true
+          description: The departure day; must be after checkIn.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-05'
+        - name: guests
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 2
+        - name: rooms
+          in: query
+          description: Number of rooms. Defaults to 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: minPrice
+          in: query
+          description: Minimum price per night in cents, inclusive.
+          schema:
+            type: integer
+            minimum: 0
+            example: 5000
+        - name: maxPrice
+          in: query
+          description: Maximum price per night in cents, inclusive.
+          schema:
+            type: integer
+            minimum: 0
+            example: 30000
+        - name: minRating
+          in: query
+          description: Minimum average rating (1-5).
+          schema:
+            type: number
+            minimum: 1
+            maximum: 5
+            example: 4
+        - name: sortBy
+          in: query
+          schema:
+            $ref: '#/components/schemas/HotelSortBy'
+        - name: sortOrder
+          in: query
+          description: Defaults to `asc`.
+          schema:
+            $ref: '#/components/schemas/SortOrder'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each hotel - id, name, city, country, star class, first photo, average rating, number of ratings, price per night of the cheapest qualifying room.
+          content: *paginated
+        '400':
+          description: Missing city and country, invalid dates (check-out not after check-in, check-in in the past), or minPrice greater than maxPrice.
+          content: *error
+
+  /api/hotels/{id}:
+    get:
+      tags: [Hotels and Rooms]
+      summary: 'Get hotel details (HTL-02)'
+      description: |
+        **Access:** everyone, including guests.
+
+        When `checkIn` and `checkOut` are given, the response also lists the rooms available for those
+        dates (same rules as `GET /api/hotels/{id}/rooms/available`). Reviews are listed with
+        `GET /api/hotels/{id}/reviews`.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: checkIn
+          in: query
+          schema:
+            type: string
+            format: date
+            example: '2026-12-01'
+        - name: checkOut
+          in: query
+          schema:
+            type: string
+            format: date
+            example: '2026-12-05'
+        - name: guests
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            example: 2
+      responses:
+        '200':
+          description: |
+            The hotel profile - name, address, city, country, description, star class, photos,
+            amenities, check-in and check-out times, cancellation policy, average rating and number of
+            ratings - and the available rooms when dates were given.
+        '400':
+          description: Invalid dates.
+          content: *error
+        '404':
+          description: Hotel not found, or deactivated (ACC-15).
+          content: *error
+    patch:
+      tags: [Hotels and Rooms]
+      summary: 'Edit own hotel profile (HTL-01)'
+      description: |
+        **Access:** the hotel moderator assigned to this hotel (ACC-11, ACC-13).
+
+        Send only the fields to change. New photos are added to the existing ones, and `removePhotoIds`
+        removes photos; the hotel can have at most 5 photos in total (GEN-08).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HotelUpdateForm'
+      responses:
+        '200':
+          description: The updated hotel.
+        '400':
+          description: Invalid fields, or photos that break the upload rule or exceed 5 in total.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content: *error
+        '404':
+          description: Hotel not found.
+          content: *error
+
+  /api/hotels/{id}/rooms:
+    post:
+      tags: [Hotels and Rooms]
+      summary: 'Add a room (HTL-03)'
+      description: |
+        **Access:** the hotel moderator assigned to this hotel.
+
+        A room is an individually bookable unit. Its room number or name is unique within the hotel.
+        The new room is active but cannot be booked until a bookable date range is added with
+        `POST /api/hotels/{id}/rooms/{roomId}/availability` (HTL-04).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoomRequest'
+      responses:
+        '201':
+          description: Room created.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content: *error
+        '404':
+          description: Hotel not found.
+          content: *error
+        '409':
+          description: The hotel already has a room with this number or name.
+          content: *error
+
+  /api/hotels/{id}/rooms/{roomId}:
+    patch:
+      tags: [Hotels and Rooms]
+      summary: 'Edit or deactivate a room (HTL-05, HTL-06)'
+      description: |
+        **Access:** the hotel moderator assigned to this hotel.
+
+        Edits beds, maximum occupancy and price per night (HTL-05). Price changes do not affect existing
+        reservations. Setting `active` to false deactivates the room (HTL-06): this is rejected if the
+        room has a Confirmed or Pending Payment reservation from today on, and deactivated rooms are
+        excluded from search. Bookable dates are edited with the availability endpoints.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoomRequest'
+      responses:
+        '200':
+          description: The updated room.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content: *error
+        '404':
+          description: Hotel or room not found.
+          content: *error
+        '409':
+          description: The room cannot be deactivated because it has Confirmed or Pending Payment reservations.
+          content: *error
+    delete:
+      tags: [Hotels and Rooms]
+      summary: 'Delete a room (HTL-06)'
+      description: |
+        **Access:** the hotel moderator assigned to this hotel. The frontend asks for confirmation
+        first (GEN-03).
+
+        Only rooms that have never been reserved can be deleted; otherwise deactivate the room instead.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/RoomId'
+      responses:
+        '204':
+          description: Room deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content: *error
+        '404':
+          description: Hotel or room not found.
+          content: *error
+        '409':
+          description: The room has been reserved before and cannot be deleted.
+          content: *error
+
+  /api/hotels/{id}/rooms/available:
+    get:
+      tags: [Hotels and Rooms]
+      summary: 'List the rooms available for the searched dates (HTL-15)'
+      description: |
+        **Access:** everyone, including guests.
+
+        Lists the hotel's active rooms that are free for every night of the stay. The user selects one or
+        more of them and books them together with `POST /api/hotel-bookings` (HTL-16).
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: checkIn
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: '2026-12-01'
+        - name: checkOut
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: '2026-12-05'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each room - id, room number, type, beds, maximum occupancy, price per night, and total stay price (nights x price per night) in cents.
+          content: *paginated
+        '400':
+          description: Invalid dates (check-out not after check-in, or check-in in the past).
+          content: *error
+        '404':
+          description: Hotel not found, or deactivated.
+          content: *error
+
+  /api/hotels/{id}/rooms/{roomId}/availability:
+    post:
+      tags: [Hotels and Rooms]
+      summary: 'Add a bookable date range to a room (HTL-04)'
+      description: |
+        **Access:** the hotel moderator assigned to this hotel.
+
+        Adds a range of nights in which the room can be booked. `from` is the first night and `to` is
+        the last night (both inclusive). A room's bookable ranges must not overlap each other.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomAvailabilityRequest'
+      responses:
+        '201':
+          description: The room's bookable ranges and blocked ranges.
+        '400':
+          description: Invalid dates (to before from).
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content: *error
+        '404':
+          description: Hotel or room not found.
+          content: *error
+        '409':
+          description: The range overlaps another bookable range of the room.
+          content: *error
+    patch:
+      tags: [Hotels and Rooms]
+      summary: 'Remove, block or unblock dates of a room (HTL-05, HTL-06)'
+      description: |
+        **Access:** the hotel moderator assigned to this hotel.
+
+        - `remove`: removes bookable nights (HTL-05). Rejected for nights that have a Confirmed
+          reservation.
+        - `block`: blocks nights so they cannot be booked (HTL-06). Rejected if the range overlaps any
+          Confirmed or Pending Payment reservation.
+        - `unblock`: removes a block again.
+
+        `from` and `to` are the first and last night (both inclusive).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoomAvailabilityRequest'
+      responses:
+        '200':
+          description: The room's bookable ranges and blocked ranges.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content: *error
+        '404':
+          description: Hotel or room not found.
+          content: *error
+        '409':
+          description: The nights overlap reservations, as described above.
+          content: *error
+
+  /api/hotels/{id}/availability:
+    get:
+      tags: [Hotels and Rooms]
+      summary: 'View the status of every room for a date range (HTL-08)'
+      description: |
+        **Access:** the hotel moderator assigned to this hotel.
+
+        For each room and each date: `available`, `booked` (with the reservation reference) or
+        `blocked`. Dates outside the room's bookable ranges are shown as `blocked`.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: from
+          in: query
+          required: true
+          description: First date, inclusive.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-01'
+        - name: to
+          in: query
+          required: true
+          description: Last date, inclusive.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-07'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each room - id, room number, and for each date its status (available, booked with reservation reference, or blocked).
+          content: *paginated
+        '400':
+          description: Invalid dates (to before from).
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content: *error
+        '404':
+          description: Hotel not found.
+          content: *error
+
+  /api/hotels/{id}/policies:
+    put:
+      tags: [Hotels and Rooms]
+      summary: 'Set check-in/check-out times and cancellation tiers (HTL-09, HTL-10)'
+      description: |
+        **Access:** the hotel moderator assigned to this hotel.
+
+        Sets the standard check-in and check-out times, shown on the hotel page and the booking summary
+        (HTL-09), and replaces the cancellation tiers (HTL-10). Each tier has a unique
+        days-before-check-in threshold and a refund percentage from 0 to 100, applied with the same rule
+        as FLT-09: the tier with the highest threshold not exceeding the days remaining; 0% if none
+        applies.
+
+        Note: the PDF table lists HTL-08 and HTL-10 for this endpoint. HTL-08 is the room status view
+        (`GET /api/hotels/{id}/availability`); the check-in/check-out times are HTL-09.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotelPoliciesRequest'
+      responses:
+        '200':
+          description: The saved policies.
+        '400':
+          description: Invalid times or tiers, or the same threshold used twice.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content: *error
+        '404':
+          description: Hotel not found.
+          content: *error
+
+  /api/hotels/{id}/reservations:
+    get:
+      tags: [Hotels and Rooms]
+      summary: 'View the reservations of own hotel (HTL-22)'
+      description: |
+        **Access:** the hotel moderator assigned to this hotel (ACC-11).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+        - name: from
+          in: query
+          description: Only stays that include or start after this date.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-01'
+        - name: to
+          in: query
+          description: Only stays that start on or before this date.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-31'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each reservation - booking reference, guest name, rooms, check-in and check-out dates, status.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content: *error
+        '404':
+          description: Hotel not found.
+          content: *error
+
+  # ---------------------------------------------------------------------------
+  # 8.6 Hotel Booking and Reviews
+  # ---------------------------------------------------------------------------
+
+  /api/hotel-bookings:
+    post:
+      tags: [Hotel Booking and Reviews]
+      summary: 'Book rooms - hold them for 10 minutes (HTL-16, HTL-18)'
+      description: |
+        **Access:** registered users (role `user`). A guest gets 401 and the frontend sends them to
+        login and back (ACC-10).
+
+        Books one or more rooms of the same hotel for the same dates as one reservation (HTL-16):
+        - Each room gets its adults and children (ages 0-17); at least one adult per reservation, and no
+          room above its maximum occupancy.
+        - Total = the sum over rooms of nights x the room's price per night at booking time.
+
+        All selected rooms are held together for 10 minutes as one `pending_payment` reservation
+        (HTL-18). If any room overlaps a Confirmed reservation, an unexpired hold or a blocked range, the
+        whole request is rejected and nothing is held. Concurrent requests can never reserve the same
+        room for the same night.
+
+        Next steps: `GET /api/bookings/hotel/{id}/policies`, accept them, then `POST /api/payments`.
+        If the payment does not succeed within the hold, the reservation becomes `expired` and the rooms
+        are released (NEW-01).
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotelBookingRequest'
+      responses:
+        '201':
+          description: Reservation created - id, status pending_payment, holdExpiresAt, hotel, dates, rooms with guests and prices, total in cents.
+        '400':
+          description: Invalid dates (check-out not after check-in, check-in in the past), no adult, too many guests in a room, or rooms from different hotels.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content: *error
+        '404':
+          description: Hotel or room not found.
+          content: *error
+        '409':
+          description: At least one room is not available for these dates, so nothing was held.
+          content: *error
+    get:
+      tags: [Hotel Booking and Reviews]
+      summary: 'List own hotel reservations (HTL-20)'
+      description: |
+        **Access:** registered users. Only the user's own reservations are listed (ACC-11).
+
+        Grouped as Upcoming, Past and Cancelled: choose the group with `group`.
+      security: *auth
+      parameters:
+        - name: group
+          in: query
+          description: Defaults to `upcoming`.
+          schema:
+            $ref: '#/components/schemas/BookingGroup'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - id, booking reference, hotel, rooms, check-in and check-out dates, guests, total, status.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/hotel-bookings/{id}:
+    get:
+      tags: [Hotel Booking and Reviews]
+      summary: 'Get own reservation details (HTL-20)'
+      description: |
+        **Access:** the user who made the reservation (ACC-11).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: |
+            Full details - reference (after confirmation), status, holdExpiresAt (while pending), hotel
+            with check-in and check-out times, dates, rooms with guests and prices, total, the time the
+            policies were accepted, the payment status, and the refund with its status (PAY-03).
+            For an upcoming Confirmed reservation it also shows the refund the user would get if they
+            cancelled now, computed from the hotel's tiers on the full total (HTL-21).
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Reservation not found, or it belongs to another user.
+          content: *error
+
+  /api/hotel-bookings/{id}/cancel:
+    post:
+      tags: [Hotel Booking and Reviews]
+      summary: 'Cancel own reservation (HTL-21)'
+      description: |
+        **Access:** the user who made the reservation. The user first sees the refund amount (shown in
+        the reservation details) and confirms (GEN-03).
+
+        Only a Confirmed reservation, only as a whole (no partial cancellation) and only before the
+        check-in date. The reservation becomes `cancelled`, all its rooms are released for those dates,
+        and a refund is created from the hotel's tiers on the full total (HTL-10, PAY-03). The user gets
+        an in-app notification (GEN-01).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The cancelled reservation with its refund (amount in cents and status).
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Reservation not found, or it belongs to another user.
+          content: *error
+        '409':
+          description: The reservation is not Confirmed, or the check-in date has been reached.
+          content: *error
+
+  /api/hotel-bookings/{id}/review:
+    post:
+      tags: [Hotel Booking and Reviews]
+      summary: 'Review a completed stay (HTL-23)'
+      description: |
+        **Access:** the user who made the reservation.
+
+        A Confirmed reservation becomes Completed once its check-out date has passed (NEW-01). The user
+        can submit one rating (1-5) with an optional review of up to 1000 characters per Completed
+        reservation, regardless of the number of rooms. The hotel's average rating is recalculated.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+      responses:
+        '201':
+          description: Review created.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Reservation not found, or it belongs to another user.
+          content: *error
+        '409':
+          description: The reservation is not Completed, or it already has a review.
+          content: *error
+
+  /api/reviews/{id}:
+    patch:
+      tags: [Hotel Booking and Reviews]
+      summary: 'Edit own review (HTL-23)'
+      description: |
+        **Access:** the author of the review. The hotel's average rating is recalculated.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReviewRequest'
+      responses:
+        '200':
+          description: The updated review.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the author of this review.
+          content: *error
+        '404':
+          description: Review not found.
+          content: *error
+    delete:
+      tags: [Hotel Booking and Reviews]
+      summary: 'Delete own review (HTL-23)'
+      description: |
+        **Access:** the author of the review. The frontend asks for confirmation first (GEN-03).
+
+        The hotel's average rating is recalculated.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Review deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the author of this review.
+          content: *error
+        '404':
+          description: Review not found.
+          content: *error
+
+  /api/hotels/{id}/reviews:
+    get:
+      tags: [Hotel Booking and Reviews]
+      summary: 'List the reviews of a hotel (HTL-24)'
+      description: |
+        **Access:** everyone, including guests.
+
+        Newest first. Reviews hidden by an admin are visible only to their author and admins (GEN-10).
+        Reviews of deactivated users are shown as "Deleted user" (ACC-12).
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: The hotel's averageRating and ratingCount, and a paginated list of reviews - rating, review text, author name, date (and the moderator reply, if any).
+          content: *paginated
+        '404':
+          description: Hotel not found.
+          content: *error
+
+  /api/reviews/{id}/reply:
+    post:
+      tags: [Hotel Booking and Reviews]
+      summary: '[Bonus] Reply to a review (HTL-26)'
+      description: |
+        **Access:** the hotel moderator of the reviewed hotel. One reply per review.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewReplyRequest'
+      responses:
+        '201':
+          description: The review with its reply.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of the reviewed hotel.
+          content: *error
+        '404':
+          description: Review not found.
+          content: *error
+        '409':
+          description: The review already has a reply.
+          content: *error
+
+  # ---------------------------------------------------------------------------
+  # 8.7 Payments and Refunds
+  # ---------------------------------------------------------------------------
+
+  /api/bookings/{type}/{id}/policies:
+    get:
+      tags: [Payments and Refunds]
+      summary: 'Get the provider policies to accept before payment (PAY-02)'
+      description: |
+        **Access:** the user who made the booking.
+
+        - Flight booking: the airline's cancellation tiers and baggage policy (free allowance per cabin,
+          extra-bag price and maximum).
+        - Hotel reservation: the hotel's cancellation tiers and check-in/check-out times.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/BookingTypePath'
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The policies, and acceptedAt if the user already accepted them.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Booking not found, or it belongs to another user.
+          content: *error
+
+  /api/bookings/{type}/{id}/accept-policies:
+    post:
+      tags: [Payments and Refunds]
+      summary: 'Accept the provider policies (PAY-02)'
+      description: |
+        **Access:** the user who made the booking.
+
+        Records the acceptance with a timestamp on the booking. Payment is blocked until the policies
+        are accepted. Only for a `pending_payment` booking whose hold has not expired.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/BookingTypePath'
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptPoliciesRequest'
+      responses:
+        '200':
+          description: Accepted. Returns acceptedAt.
+        '400':
+          description: accepted is not true.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Booking not found, or it belongs to another user.
+          content: *error
+        '409':
+          description: The booking is not pending payment, or its hold has expired.
+          content: *error
+
+  /api/payments:
+    post:
+      tags: [Payments and Refunds]
+      summary: 'Pay for a booking with Stripe test mode (PAY-01)'
+      description: |
+        **Access:** the user who made the booking.
+
+        Creates a Stripe PaymentIntent (test mode) for the booking total in the platform currency
+        (PAY-04). Card details never reach the backend: the frontend confirms the payment with Stripe
+        Elements using `clientSecret`. To test from Swagger, send a Stripe test payment method in
+        `paymentMethodId` (`pm_card_visa` succeeds, `pm_card_chargeDeclined` fails) and the backend
+        confirms the PaymentIntent with it.
+
+        The booking becomes Confirmed **only** after the backend verifies through the Stripe webhook
+        that the PaymentIntent succeeded (FLT-23, HTL-17). Only the Stripe payment id, amount, currency
+        and status are stored.
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '201':
+          description: Payment created - id, status, amount in cents, currency, Stripe payment id and clientSecret.
+        '400':
+          description: Invalid fields, or the policies were not accepted yet (PAY-02).
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Booking not found, or it belongs to another user.
+          content: *error
+        '409':
+          description: The booking is not pending payment, its hold has expired, or it is already paid.
+          content: *error
+
+  /api/payments/{id}/retry:
+    post:
+      tags: [Payments and Refunds]
+      summary: 'Retry a failed payment (PAY-01)'
+      description: |
+        **Access:** the user who made the payment.
+
+        After a failed payment the user may retry until the hold expires. When the hold expires, the
+        PaymentIntent is cancelled and the booking becomes `expired`.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetryPaymentRequest'
+      responses:
+        '201':
+          description: A new payment attempt (same fields as POST /api/payments).
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Payment not found, or it belongs to another user.
+          content: *error
+        '409':
+          description: The payment did not fail, or the hold has expired.
+          content: *error
+
+  /api/payments/{id}:
+    get:
+      tags: [Payments and Refunds]
+      summary: 'Get a payment and its status (PAY-01)'
+      description: |
+        **Access:** the user who made the payment.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Booking type and id, amount in cents, currency, status (pending, succeeded, failed, cancelled), Stripe payment id, dates.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Payment not found, or it belongs to another user.
+          content: *error
+
+  /api/payments/webhook:
+    post:
+      tags: [Payments and Refunds]
+      summary: 'Stripe webhook (PAY-01)'
+      description: |
+        **Access:** called by Stripe only (no login). The request is verified with the
+        `stripe-signature` header and the raw request body. Locally, run
+        `stripe listen --forward-to localhost:3000/api/payments/webhook`.
+
+        - `payment_intent.succeeded`: confirms the booking - held seats become booked seats, or the
+          reservation's rooms are confirmed - generates a unique booking reference and sends an in-app
+          notification (FLT-23, HTL-17). If the hold had already expired, the payment is refunded.
+        - `payment_intent.payment_failed`: marks the payment failed; the booking stays pending and the
+          user may retry until the hold expires.
+        - Refund events update the refund status (PAY-03).
+      security: []
+      parameters:
+        - name: stripe-signature
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: A Stripe event.
+      responses:
+        '200':
+          description: Event received.
+        '400':
+          description: Missing or invalid signature.
+          content: *error
+
+  /api/refunds/{id}:
+    get:
+      tags: [Payments and Refunds]
+      summary: 'Get a refund and its status (PAY-03)'
+      description: |
+        **Access:** the user who owns the refunded booking.
+
+        A refund is created for every cancellation with a positive amount: user cancellations use the
+        provider's tiers, provider cancellations refund 100%. It is issued through the Stripe Refunds API.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Booking type and id, amount in cents, status (pending, refunded, failed), the tier or percentage applied, Stripe refund id, dates.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Refund not found, or it belongs to another user.
+          content: *error
+
+  # ---------------------------------------------------------------------------
+  # 8.8 Itineraries
+  # ---------------------------------------------------------------------------
+  # Private itineraries and everything inside them (days, activities, budget entries, transport
+  # costs) are accessible only to their owner (ACC-11). Another user's private itinerary gives 404.
+
+  /api/itineraries:
+    post:
+      tags: [Itineraries]
+      summary: 'Create an itinerary (ITN-01)'
+      description: |
+        **Access:** registered users (role `user`).
+
+        Creates an itinerary with a title, one or more countries from the predefined list (NEW-05) and a
+        start date. It is private by default (ITN-20). Days are added with
+        `POST /api/itineraries/{id}/days`.
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateItineraryRequest'
+      responses:
+        '201':
+          description: Itinerary created (private, no days yet).
+        '400':
+          description: Invalid fields or a country not in the list.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content: *error
+    get:
+      tags: [Itineraries]
+      summary: 'List own itineraries (ITN-03)'
+      description: |
+        **Access:** registered users. Only the user's own itineraries, most recently updated first.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - id, title, countries, start date, number of days, visibility.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/itineraries/{id}:
+    get:
+      tags: [Itineraries]
+      summary: 'Get own itinerary details (ITN-03)'
+      description: |
+        **Access:** the owner.
+
+        Day dates are derived from the start date and the order of the days. Consecutive days in the
+        same city are shown as one group with its day count and budget subtotal (ITN-09).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: |
+            Title, countries, start date, visibility, the days in order (id, number, date, city, notes,
+            activities, budget entries), the city groups (city, first and last day, day count, budget
+            subtotal), the transport costs, and the original author if it is a clone (ITN-21).
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary not found, or it belongs to another user.
+          content: *error
+    patch:
+      tags: [Itineraries]
+      summary: 'Edit an itinerary or change its visibility (ITN-01, ITN-20)'
+      description: |
+        **Access:** the owner.
+
+        Edits the title, countries and start date (ITN-01); changing the start date moves the dates of
+        all days. Sets the visibility (ITN-20): a public itinerary appears in the public search and is
+        read-only to other users; setting it back to private removes it from the search immediately.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateItineraryRequest'
+      responses:
+        '200':
+          description: The updated itinerary.
+        '400':
+          description: Invalid fields or a country not in the list.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary not found, or it belongs to another user.
+          content: *error
+    delete:
+      tags: [Itineraries]
+      summary: 'Delete an itinerary (ITN-01)'
+      description: |
+        **Access:** the owner. The frontend asks for confirmation first (GEN-03).
+
+        Deletes the itinerary with its days, activities, budget entries and transport costs. It
+        disappears from the public search. Clones made earlier by other users are not affected.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Itinerary deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary not found, or it belongs to another user.
+          content: *error
+
+  /api/itineraries/{id}/days:
+    post:
+      tags: [Itineraries]
+      summary: 'Add a day (ITN-05)'
+      description: |
+        **Access:** the owner.
+
+        Adds a day at the end of the itinerary. Days are numbered 1, 2, 3, ... and day N's date is the
+        start date plus N-1 days. Every day needs a city from the predefined city list shared with hotels
+        and airports (ITN-05, ITN-09). An itinerary has at most 60 days.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDayRequest'
+      responses:
+        '201':
+          description: The new day with its number and date.
+        '400':
+          description: Invalid fields or a city not in the list.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary not found, or it belongs to another user.
+          content: *error
+        '409':
+          description: The itinerary already has 60 days.
+          content: *error
+
+  /api/itineraries/{id}/days/{dayId}:
+    patch:
+      tags: [Itineraries]
+      summary: 'Edit a day (ITN-05)'
+      description: |
+        **Access:** the owner.
+
+        Edits the day's city and notes. Changing the city can change the city groups (ITN-09).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/DayId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDayRequest'
+      responses:
+        '200':
+          description: The updated day.
+        '400':
+          description: Invalid fields or a city not in the list.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary or day not found, or the itinerary belongs to another user.
+          content: *error
+    delete:
+      tags: [Itineraries]
+      summary: 'Delete a day (ITN-07)'
+      description: |
+        **Access:** the owner. The frontend asks for confirmation first (GEN-03).
+
+        Deletes the day with its activities, budget entries and transport costs. The remaining days are
+        renumbered, and their dates, the city groups and the budget totals are recalculated.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/DayId'
+      responses:
+        '204':
+          description: Day deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary or day not found, or the itinerary belongs to another user.
+          content: *error
+
+  /api/itineraries/{id}/days/reorder:
+    patch:
+      tags: [Itineraries]
+      summary: 'Move a day to a new position (ITN-08)'
+      description: |
+        **Access:** the owner.
+
+        Moves one day to a new position. All days are renumbered, and their dates and the city groups
+        are recalculated.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderDaysRequest'
+      responses:
+        '200':
+          description: All days in their new order with their new numbers and dates.
+        '400':
+          description: The position is outside 1 to the number of days.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary or day not found, or the itinerary belongs to another user.
+          content: *error
+
+  /api/itineraries/{id}/days/{dayId}/activities:
+    post:
+      tags: [Itineraries]
+      summary: 'Add an activity to a day (ITN-10)'
+      description: |
+        **Access:** the owner.
+
+        An activity has a name, a description, an optional time and an optional cost. The cost counts
+        under the Activities category of the budget (ITN-14).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/DayId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateActivityRequest'
+      responses:
+        '201':
+          description: Activity created.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary or day not found, or the itinerary belongs to another user.
+          content: *error
+
+  /api/activities/{id}:
+    patch:
+      tags: [Itineraries]
+      summary: 'Edit an activity (ITN-10)'
+      description: |
+        **Access:** the owner of the itinerary.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateActivityRequest'
+      responses:
+        '200':
+          description: The updated activity.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Activity not found, or it belongs to another user's itinerary.
+          content: *error
+    delete:
+      tags: [Itineraries]
+      summary: 'Delete an activity (ITN-10)'
+      description: |
+        **Access:** the owner of the itinerary. The frontend asks for confirmation first (GEN-03).
+
+        Also deletes the activity's images.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Activity deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Activity not found, or it belongs to another user's itinerary.
+          content: *error
+
+  /api/activities/{id}/images:
+    post:
+      tags: [Itineraries]
+      summary: 'Attach an image to an activity (ITN-12, GEN-08)'
+      description: |
+        **Access:** the owner of the itinerary.
+
+        Shared upload rule (GEN-08): JPG or PNG, at most 5 MB, at most 5 images per activity. The image
+        is stored on the server and served by URL.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        $ref: '#/components/requestBodies/ImageUpload'
+      responses:
+        '201':
+          description: The image - id and URL.
+        '400':
+          description: Not JPG/PNG, larger than 5 MB, or the activity already has 5 images.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Activity not found, or it belongs to another user's itinerary.
+          content: *error
+
+  /api/activities/{id}/images/{imageId}:
+    delete:
+      tags: [Itineraries]
+      summary: 'Remove an image from an activity (ITN-12)'
+      description: |
+        **Access:** the owner of the itinerary.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '204':
+          description: Image removed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Activity or image not found, or the activity belongs to another user's itinerary.
+          content: *error
+
+  /api/itineraries/{id}/days/{dayId}/budgets:
+    post:
+      tags: [Itineraries]
+      summary: 'Add a budget entry to a day (ITN-14)'
+      description: |
+        **Access:** the owner.
+
+        A non-negative amount in a chosen currency, in one of the categories food, accommodation,
+        in-city transport and activities. Intercity transport is entered separately as a transport cost
+        (ITN-16).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/DayId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBudgetEntryRequest'
+      responses:
+        '201':
+          description: Budget entry created.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary or day not found, or the itinerary belongs to another user.
+          content: *error
+
+  /api/budgets/{id}:
+    patch:
+      tags: [Itineraries]
+      summary: 'Edit a budget entry (ITN-14)'
+      description: |
+        **Access:** the owner of the itinerary.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBudgetEntryRequest'
+      responses:
+        '200':
+          description: The updated budget entry.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Budget entry not found, or it belongs to another user's itinerary.
+          content: *error
+    delete:
+      tags: [Itineraries]
+      summary: 'Delete a budget entry (ITN-14)'
+      description: |
+        **Access:** the owner of the itinerary. The frontend asks for confirmation first (GEN-03).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Budget entry deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Budget entry not found, or it belongs to another user's itinerary.
+          content: *error
+
+  /api/itineraries/{id}/transport-costs:
+    post:
+      tags: [Itineraries]
+      summary: 'Add an intercity transport cost (ITN-16)'
+      description: |
+        **Access:** the owner.
+
+        A transport cost has a mode, a from-city, a to-city, an amount, a currency and the day it belongs
+        to. It is counted separately from the daily budget categories (ITN-14).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransportCostRequest'
+      responses:
+        '201':
+          description: Transport cost created.
+        '400':
+          description: Invalid fields, a city not in the list, or a day of another itinerary.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary not found, or it belongs to another user.
+          content: *error
+
+  /api/transport-costs/{id}:
+    patch:
+      tags: [Itineraries]
+      summary: 'Edit a transport cost (ITN-16)'
+      description: |
+        **Access:** the owner of the itinerary.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransportCostRequest'
+      responses:
+        '200':
+          description: The updated transport cost.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Transport cost not found, or it belongs to another user's itinerary.
+          content: *error
+    delete:
+      tags: [Itineraries]
+      summary: 'Delete a transport cost (ITN-16)'
+      description: |
+        **Access:** the owner of the itinerary. The frontend asks for confirmation first (GEN-03).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Transport cost deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Transport cost not found, or it belongs to another user's itinerary.
+          content: *error
+
+  /api/itineraries/{id}/budget-summary:
+    get:
+      tags: [Itineraries]
+      summary: 'Get the budget totals in the display currency (ITN-14, ITN-18)'
+      description: |
+        **Access:** the owner.
+
+        Totals by category (food, accommodation, in-city transport, activities, where activities include
+        the activity costs from ITN-10), by day, intercity transport (ITN-16) separately, and the grand
+        total (ITN-14).
+
+        All amounts are converted to the display currency (ITN-18): the `currency` parameter, or the
+        user's preferred currency (ACC-09). The backend fetches exchange rates from FXRatesAPI once per
+        day and caches them in the database; the API key is never sent to the frontend. If the API is
+        unavailable, the last cached rates are used and their date is shown. Booking prices are never
+        converted (NEW-04).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: currency
+          in: query
+          description: Display currency from the supported currency list. Defaults to the user's preferred currency.
+          schema:
+            type: string
+            example: EUR
+      responses:
+        '200':
+          description: The display currency, the date of the exchange rates used, totals per category, per day and per city group, intercity transport total, and grand total.
+        '400':
+          description: The currency code is invalid or not supported.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary not found, or it belongs to another user.
+          content: *error
+        '503':
+          description: The exchange-rate API failed and no cached rates exist for this currency yet.
+          content: *error
+
+  /api/itineraries/public/search:
+    get:
+      tags: [Itineraries]
+      summary: 'Search public itineraries (ITN-20, ITN-21)'
+      description: |
+        **Access:** everyone, including guests.
+
+        Only public itineraries are searched; hidden ones (GEN-10) and those of deactivated users
+        (ACC-12) are excluded. The keyword matches the title, a country or a city.
+      security: []
+      parameters:
+        - name: keyword
+          in: query
+          description: Matches the title, country or city.
+          schema:
+            type: string
+            example: cairo
+        - name: country
+          in: query
+          description: Country code from the official dataset.
+          schema:
+            type: string
+            example: EG
+        - name: city
+          in: query
+          description: city_id from the official dataset.
+          schema:
+            type: string
+            example: cairo
+        - name: minDays
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            example: 3
+        - name: maxDays
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            example: 10
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - id, title, author name, countries, cities, number of days, start date.
+          content: *paginated
+        '400':
+          description: Invalid filters, or minDays greater than maxDays.
+          content: *error
+
+  /api/itineraries/public/{id}:
+    get:
+      tags: [Itineraries]
+      summary: 'View a public itinerary read-only (ITN-21)'
+      description: |
+        **Access:** everyone, including guests.
+
+        Read-only view with the author, days, activities and budget. Private itineraries give 404.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: currency
+          in: query
+          description: Optional display currency for the budget (ITN-18).
+          schema:
+            type: string
+            example: EUR
+      responses:
+        '200':
+          description: Title, author (id and name), countries, start date, days with cities, notes and activities, budget totals, and the original author if it is a clone.
+        '400':
+          description: The currency code is invalid or not supported.
+          content: *error
+        '404':
+          description: Itinerary not found, private or hidden.
+          content: *error
+
+  /api/itineraries/{id}/clone:
+    post:
+      tags: [Itineraries]
+      summary: 'Clone a public itinerary (ITN-21)'
+      description: |
+        **Access:** registered users.
+
+        Creates an independent private copy for the current user with all days, activities, budget entries
+        and transport costs. The copy credits the original author. Later changes to either itinerary do
+        not affect the other.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '201':
+          description: The new private itinerary, with the original itinerary and author recorded.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content: *error
+        '404':
+          description: Itinerary not found or not public.
+          content: *error
+
+  /api/itineraries/{id}/hotels:
+    get:
+      tags: [Itineraries]
+      summary: 'Find hotels for a city group of the itinerary (ITN-09, ITN-25)'
+      description: |
+        **Access:** the owner.
+
+        Reuses the hotel search (HTL-11) for one city group: the group's city, check-in on the date of
+        the group's first day and check-out on the day after its last day. The user enters the guests and
+        the number of rooms.
+
+        Note: the PDF table lists ITN-09 (city groups) for this endpoint; the hotel search for a group is
+        ITN-25.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: dayId
+          in: query
+          required: true
+          description: Id of any day in the city group.
+          schema:
+            type: string
+            example: '665f1c2a9b1e8a0012345680'
+        - name: guests
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 2
+        - name: rooms
+          in: query
+          description: Defaults to 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: The group's city and dates, and the hotel results in the same format as GET /api/hotels/search.
+          content: *paginated
+        '400':
+          description: Invalid parameters, or the group's check-in date is in the past.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary or day not found, or the itinerary belongs to another user.
+          content: *error
+
+  /api/itineraries/{id}/flights:
+    get:
+      tags: [Itineraries]
+      summary: 'Find flights to the itinerary (ITN-26)'
+      description: |
+        **Access:** the owner.
+
+        Reuses the flight search (FLT-11, FLT-12) from a chosen origin airport to any airport in the city
+        of the itinerary's first day. The outbound date defaults to the start date, and the return date to
+        the last day's date.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: origin
+          in: query
+          required: true
+          description: IATA code of the departure airport.
+          schema:
+            type: string
+            example: LHR
+        - name: tripType
+          in: query
+          description: Defaults to `one_way`.
+          schema:
+            $ref: '#/components/schemas/TripType'
+        - name: departureDate
+          in: query
+          description: Defaults to the itinerary's start date.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-01'
+        - name: returnDate
+          in: query
+          description: For round trips. Defaults to the date of the last day.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-10'
+        - name: adults
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: children
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: infants
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: cabinClass
+          in: query
+          schema:
+            $ref: '#/components/schemas/CabinClass'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: The flight results in the same format as GET /api/flights/search.
+          content: *paginated
+        '400':
+          description: Invalid parameters, the itinerary has no days, or the first day's city has no airport.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary not found, or it belongs to another user.
+          content: *error
+
+  /api/itineraries/{id}/bookings:
+    post:
+      tags: [Itineraries]
+      summary: '[Bonus] Link a confirmed booking to an itinerary day (ITN-27)'
+      description: |
+        **Access:** the owner, for the owner's own Confirmed bookings.
+
+        The linked booking's price is added to the itinerary budget.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachBookingRequest'
+      responses:
+        '201':
+          description: The booking is linked to the day.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary, day or booking not found, or they belong to another user.
+          content: *error
+        '409':
+          description: The booking is not Confirmed, or it is already linked.
+          content: *error
+
+  /api/itineraries/{id}/pdf:
+    get:
+      tags: [Itineraries]
+      summary: '[Bonus] Export the itinerary as PDF (ITN-28)'
+      description: |
+        **Access:** the owner.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The itinerary as a PDF file.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Itinerary not found, or it belongs to another user.
+          content: *error
+
+  # ---------------------------------------------------------------------------
+  # 8.9 Blog
+  # ---------------------------------------------------------------------------
+  # Public lists show only published posts that are not hidden (GEN-10) and whose authors are not
+  # deactivated (ACC-12). Hidden content is visible only to its author and admins.
+
+  /api/posts:
+    post:
+      tags: [Blog]
+      summary: 'Create a post (BLG-01)'
+      description: |
+        **Access:** registered users (role `user`). A guest gets 401 and the frontend sends them to login
+        and back (ACC-10).
+
+        A post has a required title and body and optional tags (BLG-08), and is saved as a draft or
+        published. Published posts appear in the author's blog and in search. Images are added after
+        creation with `POST /api/posts/{id}/images` (BLG-10).
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Post created.
+        '400':
+          description: Missing title or body, more than 5 tags, or a tag longer than 30 characters.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content: *error
+    get:
+      tags: [Blog]
+      summary: 'Browse and search published posts (BLG-02, BLG-09, BLG-11)'
+      description: |
+        **Access:** everyone, including guests.
+
+        - Without `keyword`: published posts, newest first (BLG-02).
+        - With `keyword`: matches the title, tags or author name, ordered by interaction score
+          (likes + comments) descending, newest first on ties (BLG-09).
+        - `tag`: only posts with this tag, case-insensitive (BLG-02, BLG-11).
+        - No match gives an empty list, shown as "no results" (GEN-04).
+      security: []
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+            example: pyramids
+        - name: tag
+          in: query
+          schema:
+            type: string
+            example: egypt
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each post - id, title, author (id and name), date, excerpt, tags, like count, comment count.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/posts/{id}:
+    get:
+      tags: [Blog]
+      summary: 'Open a post (BLG-02)'
+      description: |
+        **Access:** everyone, including guests. Drafts and hidden posts are visible only to their author
+        (and admins). Liking, commenting and reporting require login (ACC-10).
+
+        Comments are shown in chronological order, 10 per page (`commentsPage`). Comments of deactivated
+        users are shown as "Deleted user" (ACC-12).
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: commentsPage
+          in: query
+          description: Page of comments. Defaults to 1.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        '200':
+          description: |
+            Title, author (id and name), date, body, tags, images, like count, likedByMe (when logged in),
+            status, and one page of comments (author name, text, date) with the comment total.
+        '404':
+          description: Post not found, or a draft or hidden post of another user.
+          content: *error
+    patch:
+      tags: [Blog]
+      summary: 'Edit own post and its tags (BLG-04, BLG-08)'
+      description: |
+        **Access:** the author.
+
+        Send only the fields to change. Publishing a draft is done by setting `status` to `published`.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePostRequest'
+      responses:
+        '200':
+          description: The updated post.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the author of this post.
+          content: *error
+        '404':
+          description: Post not found.
+          content: *error
+    delete:
+      tags: [Blog]
+      summary: 'Delete own post (BLG-04)'
+      description: |
+        **Access:** the author. The frontend asks for confirmation first (GEN-03).
+
+        Also deletes the post's comments, likes and images.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Post deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the author of this post.
+          content: *error
+        '404':
+          description: Post not found.
+          content: *error
+
+  /api/posts/mine:
+    get:
+      tags: [Blog]
+      summary: 'List own posts, including drafts (BLG-03)'
+      description: |
+        **Access:** registered users. Newest first.
+      security: *auth
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/PostStatus'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each post - id, title, status, date, like count, comment count.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/posts/{id}/comments:
+    post:
+      tags: [Blog]
+      summary: 'Comment on a post (BLG-05)'
+      description: |
+        **Access:** registered users. Only on published posts.
+
+        A comment is non-empty and at most 500 characters. Comments are shown in chronological order.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '201':
+          description: Comment created.
+        '400':
+          description: The comment is empty or longer than 500 characters.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Post not found or not published.
+          content: *error
+
+  /api/comments/{id}:
+    patch:
+      tags: [Blog]
+      summary: 'Edit own comment (BLG-07)'
+      description: |
+        **Access:** the author of the comment.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '200':
+          description: The updated comment.
+        '400':
+          description: The comment is empty or longer than 500 characters.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the author of this comment.
+          content: *error
+        '404':
+          description: Comment not found.
+          content: *error
+    delete:
+      tags: [Blog]
+      summary: 'Delete own comment (BLG-07)'
+      description: |
+        **Access:** the author of the comment. The frontend asks for confirmation first (GEN-03).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Comment deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the author of this comment.
+          content: *error
+        '404':
+          description: Comment not found.
+          content: *error
+
+  /api/posts/{id}/like:
+    post:
+      tags: [Blog]
+      summary: 'Like a post (BLG-06)'
+      description: |
+        **Access:** registered users. Only published posts. A user can like a post at most once.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '201':
+          description: Liked. Returns the new like count.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Post not found or not published.
+          content: *error
+        '409':
+          description: The user already likes this post.
+          content: *error
+    delete:
+      tags: [Blog]
+      summary: 'Remove own like (BLG-06)'
+      description: |
+        **Access:** registered users.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Like removed. Returns the new like count.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Post not found, or the user has not liked it.
+          content: *error
+
+  /api/posts/{id}/images:
+    post:
+      tags: [Blog]
+      summary: 'Attach an image to own post (BLG-10, GEN-08)'
+      description: |
+        **Access:** the author.
+
+        Shared upload rule (GEN-08): JPG or PNG, at most 5 MB, at most 5 images per post. The image is
+        stored on the server and served by URL.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        $ref: '#/components/requestBodies/ImageUpload'
+      responses:
+        '201':
+          description: The image - id and URL.
+        '400':
+          description: Not JPG/PNG, larger than 5 MB, or the post already has 5 images.
+          content: *error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the author of this post.
+          content: *error
+        '404':
+          description: Post not found.
+          content: *error
+
+  /api/posts/{id}/images/{imageId}:
+    delete:
+      tags: [Blog]
+      summary: 'Remove an image from own post (BLG-10)'
+      description: |
+        **Access:** the author.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '204':
+          description: Image removed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the author of this post.
+          content: *error
+        '404':
+          description: Post or image not found.
+          content: *error
+
+  /api/tags/{tag}/posts:
+    get:
+      tags: [Blog]
+      summary: 'List published posts with a tag (BLG-08, BLG-11)'
+      description: |
+        **Access:** everyone, including guests.
+
+        Used when a tag is clicked. Tags match case-insensitively; newest first. An unknown tag gives an
+        empty list, not an error (GEN-04).
+      security: []
+      parameters:
+        - name: tag
+          in: path
+          required: true
+          schema:
+            type: string
+            example: egypt
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each post - id, title, author (id and name), date, excerpt, tags, like count, comment count.
+          content: *paginated
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/authors/{id}:
+    get:
+      tags: [Blog]
+      summary: 'Public author page (BLG-12)'
+      description: |
+        **Access:** everyone, including guests.
+
+        The author's published posts and public itineraries are paginated separately with `postsPage`
+        and `itinerariesPage`.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: postsPage
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: itinerariesPage
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        '200':
+          description: The author's name and join date, a page of published posts, and a page of public itineraries.
+        '404':
+          description: Author not found or deactivated.
+          content: *error
+
+  /api/posts/{id}/itinerary:
+    patch:
+      tags: [Blog]
+      summary: '[Bonus] Attach an itinerary to own post (BLG-13)'
+      description: |
+        **Access:** the author, with one of their own itineraries. Send `itineraryId` as null to detach.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachItineraryRequest'
+      responses:
+        '200':
+          description: The post with the attached itinerary.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the author of this post.
+          content: *error
+        '404':
+          description: Post or itinerary not found, or the itinerary belongs to another user.
+          content: *error
+
+  # ---------------------------------------------------------------------------
+  # Health (not a requirement)
+  # ---------------------------------------------------------------------------
+
+  /api/health:
+    get:
+      tags: [Health]
+      summary: 'Server and database status'
+      description: |
+        **Access:** everyone. Already implemented; use it to check that the server is connected to the
+        database.
+      security: []
+      responses:
+        '200':
+          description: The server is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  database:
+                    type: string
+                    enum: [connected, disconnected]
+                  time:
+                    type: string
+                    format: date-time
+
+components:
+
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: |
+        Set automatically by `POST /api/auth/login` as an httpOnly cookie (ACC-19). The browser sends it
+        with every request, so nothing needs to be entered here.
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      description: MongoDB id of the resource named in the path.
+      schema:
+        type: string
+        example: '665f1c2a9b1e8a0012345678'
+    DayId:
+      name: dayId
+      in: path
+      required: true
+      description: Id of an itinerary day.
+      schema:
+        type: string
+        example: '665f1c2a9b1e8a0012345680'
+    RoomId:
+      name: roomId
+      in: path
+      required: true
+      description: Id of a room of the hotel.
+      schema:
+        type: string
+        example: '665f1c2a9b1e8a0012345681'
+    CabinId:
+      name: cabinId
+      in: path
+      required: true
+      description: Id of a cabin category of the flight.
+      schema:
+        type: string
+        example: '665f1c2a9b1e8a0012345682'
+    ImageId:
+      name: imageId
+      in: path
+      required: true
+      description: Id of the image, as returned when it was uploaded.
+      schema:
+        type: string
+        example: '665f1c2a9b1e8a0012345683'
+    BookingTypePath:
+      name: type
+      in: path
+      required: true
+      description: Flight booking or hotel reservation.
+      schema:
+        $ref: '#/components/schemas/BookingType'
+    ContentTypePath:
+      name: type
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ContentType'
+    Page:
+      name: page
+      in: query
+      description: Page number; every page has 10 items (GEN-05).
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+  requestBodies:
+    ImageUpload:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [image]
+            properties:
+              image:
+                type: string
+                format: binary
+                description: JPG or PNG, at most 5 MB (GEN-08).
+
+  responses:
+    Unauthorized:
+      description: Not logged in, or the session expired (ACC-06).
+      content: *error
+    ValidationError:
+      description: Invalid input. fieldErrors lists each invalid field (GEN-02).
+      content: *error
+
+  schemas:
+
+    # --- Shared formats ---
+
+    Error:
+      type: object
+      description: The one error format returned by every endpoint (PDF section 6.7, GEN-02).
+      required: [statusCode, error, message, path, timestamp]
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: BAD_REQUEST
+        message:
+          type: string
+          example: Validation failed
+        fieldErrors:
+          type: array
+          description: Only for validation errors. One entry per invalid field (GEN-02).
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: email
+              messages:
+                type: array
+                items:
+                  type: string
+                example: [email must be an email]
+        path:
+          type: string
+          example: /api/auth/register
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-11-01T10:00:00.000Z'
+
+    PaginatedList:
+      type: object
+      description: The format of every list (GEN-05). No results is an empty page, not an error (GEN-04).
+      properties:
+        items:
+          type: array
+          description: The items on this page. The endpoint's description lists their fields.
+          items:
+            type: object
+        page:
+          type: integer
+          example: 1
+        pageSize:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          description: Number of items on all pages.
+          example: 42
+        totalPages:
+          type: integer
+          example: 5
+
+    CancellationTier:
+      type: object
+      description: One cancellation tier, used by airlines (FLT-09) and hotels (HTL-10).
+      required: [daysBefore, refundPercentage]
+      properties:
+        daysBefore:
+          type: integer
+          minimum: 0
+          example: 7
+          description: Days before departure (flights) or check-in (hotels). Unique within one policy.
+        refundPercentage:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 50
+          description: Refund percentage for cancellations at least this many days before.
+
+    # --- Fixed value lists ---
+
+    Role:
+      type: string
+      description: Account roles (PDF section 4).
+      enum: [user, admin, airline_moderator, hotel_moderator]
+    AccountStatus:
+      type: string
+      enum: [active, suspended, deactivated]
+    BookingType:
+      type: string
+      enum: [flight, hotel]
+    BookingStatus:
+      type: string
+      description: |
+        Booking lifecycle (GEN-11). The only transitions are pending_payment -> confirmed -> completed,
+        pending_payment -> expired, and confirmed -> cancelled.
+      enum: [pending_payment, confirmed, completed, expired, cancelled]
+    BookingGroup:
+      type: string
+      description: How a user's bookings are grouped (FLT-25, HTL-20).
+      enum: [upcoming, past, cancelled]
+    CabinClass:
+      type: string
+      description: Fixed set of cabin categories (FLT-04).
+      enum: [economy, premium_economy, business, first]
+    PassengerType:
+      type: string
+      description: Adult 12+, child 2-11, infant under 2 (FLT-12).
+      enum: [adult, child, infant]
+    TripType:
+      type: string
+      enum: [one_way, round_trip]
+    FlightSortBy:
+      type: string
+      enum: [price, duration, departure_time]
+    HotelSortBy:
+      type: string
+      enum: [price, rating]
+    SortOrder:
+      type: string
+      enum: [asc, desc]
+    PostStatus:
+      type: string
+      enum: [draft, published]
+    ItineraryVisibility:
+      type: string
+      enum: [private, public]
+    BudgetCategory:
+      type: string
+      description: Daily budget categories (ITN-14).
+      enum: [food, accommodation, in_city_transport, activities]
+    TransportMode:
+      type: string
+      enum: [flight, train, bus, car, ferry, other]
+    ContentType:
+      type: string
+      description: Content that can be reported, hidden or deleted (GEN-09, GEN-10).
+      enum: [post, comment, review, itinerary]
+    ReportStatus:
+      type: string
+      enum: [open, dismissed, content_hidden, content_deleted]
+    AuditAction:
+      type: string
+      description: Admin actions recorded in the audit log (GEN-07).
+      enum:
+        - create_moderator
+        - suspend_account
+        - reactivate_account
+        - reset_password
+        - dismiss_report
+        - hide_content
+        - delete_content
+
+    # --- Authentication and Accounts ---
+
+    RegisterRequest:
+      type: object
+      required: [name, email, password, acceptTerms]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Mona Adel
+        email:
+          type: string
+          format: email
+          example: mona@example.com
+          description: Must not be registered already (case-insensitive).
+        password:
+          type: string
+          format: password
+          minLength: 8
+          pattern: '^(?=.*[A-Za-z])(?=.*\d).{8,}$'
+          example: Travel2026
+          description: At least 8 characters, including at least one letter and one digit (ACC-01).
+        acceptTerms:
+          type: boolean
+          enum: [true]
+          example: true
+          description: The terms-and-privacy consent checkbox. Registration is rejected unless it is true.
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: mona@example.com
+        password:
+          type: string
+          format: password
+          example: Travel2026
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          format: password
+          example: Travel2026
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          pattern: '^(?=.*[A-Za-z])(?=.*\d).{8,}$'
+          example: Journey2027
+          description: At least 8 characters, including at least one letter and one digit (ACC-01).
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          example: mona@example.com
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, newPassword]
+      properties:
+        token:
+          type: string
+          description: The token from the reset link.
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          pattern: '^(?=.*[A-Za-z])(?=.*\d).{8,}$'
+          example: Journey2027
+
+    AdminResetPasswordRequest:
+      type: object
+      required: [temporaryPassword]
+      properties:
+        temporaryPassword:
+          type: string
+          format: password
+          minLength: 8
+          pattern: '^(?=.*[A-Za-z])(?=.*\d).{8,}$'
+          example: Temp2026x
+          description: Meets the password rules. The account must replace it at its next login (ACC-07a).
+
+    UpdateProfileRequest:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Mona Adel
+        phone:
+          type: string
+          pattern: '^\+?[0-9][0-9 ()-]{6,19}$'
+          example: '+201001234567'
+        preferredCurrency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: EUR
+          description: A code from the supported currency list (GEN-12). Used to display itinerary budgets (ITN-18).
+
+    # --- Administration ---
+
+    CreateModeratorRequest:
+      type: object
+      required: [name, email, role, providerId, temporaryPassword]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Omar Fathy
+        email:
+          type: string
+          format: email
+          example: omar.moderator@example.com
+        role:
+          type: string
+          enum: [airline_moderator, hotel_moderator]
+          example: airline_moderator
+        providerId:
+          type: string
+          example: '665f1c2a9b1e8a0012345678'
+          description: Id of the airline (for airline_moderator) or hotel (for hotel_moderator). Exactly one.
+        temporaryPassword:
+          type: string
+          format: password
+          minLength: 8
+          pattern: '^(?=.*[A-Za-z])(?=.*\d).{8,}$'
+          example: Temp2026x
+          description: Set by the admin. The moderator must change it at first login (ACC-13).
+
+    AdminActionRequest:
+      type: object
+      description: Optional reason, saved in the audit log (GEN-07).
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          example: Repeated abusive comments
+
+    ResolveReportRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [dismiss, hide, delete]
+          description: |
+            `dismiss` closes the report and keeps the content. `hide` makes the content visible only to
+            its author and admins. `delete` removes the content.
+        note:
+          type: string
+          maxLength: 500
+          example: Spam link
+
+    # --- Airlines, Flights, and Flight Inventory ---
+
+    AirlineForm:
+      type: object
+      required: [name, code]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: EgyptAir
+        code:
+          type: string
+          pattern: '^[A-Z0-9]{2,3}$'
+          example: MS
+          description: Airline code, unique across airlines.
+        logo:
+          type: string
+          format: binary
+          description: Optional logo. JPG or PNG, at most 5 MB, one per airline (GEN-08).
+
+    AirlineUpdateForm:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: EgyptAir
+        code:
+          type: string
+          pattern: '^[A-Z0-9]{2,3}$'
+          example: MS
+        logo:
+          type: string
+          format: binary
+          description: Replaces the current logo. JPG or PNG, at most 5 MB (GEN-08).
+
+    BaggagePolicyRequest:
+      type: object
+      required: [extraBagPrice, maxExtraBagsPerPassenger]
+      properties:
+        extraBagPrice:
+          type: integer
+          minimum: 1
+          example: 3000
+          description: Price per extra bag in cents of the platform currency (greater than 0).
+        maxExtraBagsPerPassenger:
+          type: integer
+          minimum: 0
+          example: 2
+
+    CancellationPolicyRequest:
+      type: object
+      required: [tiers]
+      properties:
+        tiers:
+          type: array
+          description: All tiers of the policy. daysBefore must be unique. An empty list means no refunds.
+          items:
+            $ref: '#/components/schemas/CancellationTier'
+          example:
+            - daysBefore: 30
+              refundPercentage: 100
+            - daysBefore: 7
+              refundPercentage: 50
+            - daysBefore: 1
+              refundPercentage: 10
+
+    CreateFlightRequest:
+      type: object
+      required: [flightNumber, departureAirport, arrivalAirport, departureLocal, arrivalLocal]
+      properties:
+        flightNumber:
+          type: string
+          pattern: '^[A-Z0-9]{2,3}\d{1,4}[A-Z]?$'
+          example: MS911
+          description: Unique for the airline on the same departure date.
+        departureAirport:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: CAI
+          description: IATA code from the airport list (FLT-02).
+        arrivalAirport:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: DXB
+          description: IATA code from the airport list. Different from the departure airport.
+        departureLocal:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$'
+          example: '2026-12-01T14:30'
+          description: Local time at the departure airport (stored in UTC). Must be in the future.
+        arrivalLocal:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$'
+          example: '2026-12-01T20:05'
+          description: Local time at the arrival airport. Must be after the departure when compared in UTC.
+
+    UpdateFlightRequest:
+      type: object
+      description: Send only the fields to change. Airports cannot change once the flight has any booking.
+      properties:
+        departureAirport:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: CAI
+        arrivalAirport:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: DXB
+        departureLocal:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$'
+          example: '2026-12-01T15:00'
+        arrivalLocal:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$'
+          example: '2026-12-01T20:35'
+
+    CreateCabinRequest:
+      type: object
+      required: [cabinClass, seats, price, freeBags, maxBagWeightKg]
+      properties:
+        cabinClass:
+          $ref: '#/components/schemas/CabinClass'
+        seats:
+          type: integer
+          minimum: 1
+          example: 150
+          description: Seat count, a whole number greater than 0.
+        price:
+          type: integer
+          minimum: 1
+          example: 25000
+          description: Fare per seat in cents of the platform currency (greater than 0).
+        freeBags:
+          type: integer
+          minimum: 0
+          example: 1
+          description: Free baggage allowance per passenger (number of bags).
+        maxBagWeightKg:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          example: 23
+          description: Maximum weight per bag in kg. Also applies to extra bags (FLT-08).
+
+    UpdateCabinRequest:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        seats:
+          type: integer
+          minimum: 1
+          example: 160
+          description: Cannot be lower than the seats already booked or held.
+        price:
+          type: integer
+          minimum: 1
+          example: 27000
+          description: In cents. Does not change the price of existing bookings.
+        freeBags:
+          type: integer
+          minimum: 0
+          example: 2
+        maxBagWeightKg:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          example: 23
+
+    # --- Flight Booking ---
+
+    FlightBookingRequest:
+      type: object
+      required: [segments, passengers]
+      properties:
+        segments:
+          type: array
+          minItems: 1
+          maxItems: 2
+          description: One segment for one-way. Two for a round trip - the outbound flight first, then the return flight on the reverse route (FLT-12).
+          items:
+            type: object
+            required: [flightId, cabinClass]
+            properties:
+              flightId:
+                type: string
+                example: '665f1c2a9b1e8a0012345678'
+              cabinClass:
+                $ref: '#/components/schemas/CabinClass'
+        passengers:
+          type: array
+          minItems: 1
+          description: At least one adult, and no more infants than adults (FLT-12).
+          items:
+            $ref: '#/components/schemas/Passenger'
+
+    Passenger:
+      type: object
+      required: [type, fullName, dateOfBirth, passportNumber]
+      properties:
+        type:
+          $ref: '#/components/schemas/PassengerType'
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Mona Adel
+        dateOfBirth:
+          type: string
+          format: date
+          example: '1998-04-15'
+          description: Must match the passenger type on the departure date (FLT-12).
+        passportNumber:
+          type: string
+          minLength: 1
+          maxLength: 20
+          example: A12345678
+          description: Passport or national ID number.
+        extraBags:
+          type: array
+          description: Optional extra bags, at most the airline's maximum per passenger. Each bag's weight cannot exceed the cabin's maximum bag weight (FLT-08, FLT-19).
+          items:
+            type: object
+            required: [weightKg]
+            properties:
+              weightKg:
+                type: number
+                minimum: 0
+                exclusiveMinimum: true
+                example: 20
+
+    ChangeFlightRequest:
+      type: object
+      required: [segment, newFlightId]
+      properties:
+        segment:
+          type: string
+          enum: [outbound, return]
+          example: outbound
+        newFlightId:
+          type: string
+          example: '665f1c2a9b1e8a0012345690'
+          description: A flight on the same route with seats in the same cabin.
+
+    SelectSeatRequest:
+      type: object
+      required: [passengerIndex, seatNumber]
+      properties:
+        passengerIndex:
+          type: integer
+          minimum: 0
+          example: 0
+          description: Position of the passenger in the booking (0 = first).
+        segment:
+          type: string
+          enum: [outbound, return]
+          default: outbound
+        seatNumber:
+          type: string
+          example: 12A
+
+    # --- Hotels and Rooms ---
+
+    HotelForm:
+      type: object
+      required: [name, address, cityId, countryCode, description, starRating]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Nile View Hotel
+        address:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: 12 Corniche El Nil, Garden City
+        cityId:
+          type: string
+          example: cairo
+          description: city_id from the official cities dataset (NEW-05).
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: EG
+          description: Country code from the official countries dataset. The city must be in this country.
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: A riverside hotel ten minutes from Tahrir Square.
+        starRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 4
+        amenities:
+          type: array
+          description: Send the field once per amenity.
+          items:
+            type: string
+            maxLength: 50
+          example: [wifi, pool, parking]
+        photos:
+          type: array
+          maxItems: 5
+          description: Up to 5 photos. JPG or PNG, at most 5 MB each (GEN-08).
+          items:
+            type: string
+            format: binary
+
+    HotelUpdateForm:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        address:
+          type: string
+          minLength: 1
+          maxLength: 200
+        cityId:
+          type: string
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        starRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        amenities:
+          type: array
+          description: Replaces the amenity list. Send the field once per amenity.
+          items:
+            type: string
+            maxLength: 50
+        photos:
+          type: array
+          description: Photos to add. The hotel can have at most 5 in total (GEN-08).
+          items:
+            type: string
+            format: binary
+        removePhotoIds:
+          type: array
+          description: Ids of photos to remove.
+          items:
+            type: string
+
+    CreateRoomRequest:
+      type: object
+      required: [roomNumber, type, beds, maxOccupancy, pricePerNight]
+      properties:
+        roomNumber:
+          type: string
+          minLength: 1
+          maxLength: 20
+          example: '101'
+          description: Room number or name, unique within the hotel.
+        type:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Deluxe double
+        beds:
+          type: integer
+          minimum: 1
+          example: 2
+        maxOccupancy:
+          type: integer
+          minimum: 1
+          example: 3
+        pricePerNight:
+          type: integer
+          minimum: 1
+          example: 12000
+          description: In cents of the platform currency (greater than 0).
+
+    UpdateRoomRequest:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        beds:
+          type: integer
+          minimum: 1
+          example: 2
+        maxOccupancy:
+          type: integer
+          minimum: 1
+          example: 3
+        pricePerNight:
+          type: integer
+          minimum: 1
+          example: 13000
+          description: In cents. Does not change the price of existing reservations.
+        active:
+          type: boolean
+          example: false
+          description: false deactivates the room (HTL-06); true activates it again.
+
+    RoomAvailabilityRequest:
+      type: object
+      required: [from, to]
+      properties:
+        from:
+          type: string
+          format: date
+          example: '2026-12-01'
+          description: First bookable night.
+        to:
+          type: string
+          format: date
+          example: '2027-03-31'
+          description: Last bookable night (inclusive). Not before from.
+
+    UpdateRoomAvailabilityRequest:
+      type: object
+      required: [action, from, to]
+      properties:
+        action:
+          type: string
+          enum: [remove, block, unblock]
+          description: remove = remove bookable nights (HTL-05), block = block nights (HTL-06), unblock = remove a block.
+        from:
+          type: string
+          format: date
+          example: '2026-12-24'
+          description: First night.
+        to:
+          type: string
+          format: date
+          example: '2026-12-26'
+          description: Last night (inclusive).
+
+    HotelPoliciesRequest:
+      type: object
+      required: [checkInTime, checkOutTime, cancellationTiers]
+      properties:
+        checkInTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: '14:00'
+          description: Standard check-in time, HH:mm (HTL-09).
+        checkOutTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: '12:00'
+          description: Standard check-out time, HH:mm (HTL-09).
+        cancellationTiers:
+          type: array
+          description: All tiers (HTL-10). daysBefore is days before check-in and must be unique.
+          items:
+            $ref: '#/components/schemas/CancellationTier'
+          example:
+            - daysBefore: 14
+              refundPercentage: 100
+            - daysBefore: 3
+              refundPercentage: 50
+
+    # --- Hotel Booking and Reviews ---
+
+    HotelBookingRequest:
+      type: object
+      required: [hotelId, checkIn, checkOut, rooms]
+      properties:
+        hotelId:
+          type: string
+          example: '665f1c2a9b1e8a0012345678'
+        checkIn:
+          type: string
+          format: date
+          example: '2026-12-01'
+          description: Not in the past.
+        checkOut:
+          type: string
+          format: date
+          example: '2026-12-05'
+          description: The departure day, after checkIn. Nights = checkOut - checkIn.
+        rooms:
+          type: array
+          minItems: 1
+          description: Rooms of this hotel, each at most once. At least one adult in the whole reservation.
+          items:
+            type: object
+            required: [roomId, adults]
+            properties:
+              roomId:
+                type: string
+                example: '665f1c2a9b1e8a0012345681'
+              adults:
+                type: integer
+                minimum: 0
+                example: 2
+              childrenAges:
+                type: array
+                description: Age of each child in this room (0-17). Adults plus children cannot exceed the room's maximum occupancy.
+                items:
+                  type: integer
+                  minimum: 0
+                  maximum: 17
+                example: [6]
+
+    ReviewRequest:
+      type: object
+      required: [rating]
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        text:
+          type: string
+          maxLength: 1000
+          example: Great view of the Nile and very friendly staff.
+          description: Optional review text.
+
+    UpdateReviewRequest:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 4
+        text:
+          type: string
+          maxLength: 1000
+
+    ReviewReplyRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          example: Thank you for staying with us!
+
+    # --- Payments and Refunds ---
+
+    AcceptPoliciesRequest:
+      type: object
+      required: [accepted]
+      properties:
+        accepted:
+          type: boolean
+          enum: [true]
+          example: true
+          description: The acceptance checkbox. Must be true.
+
+    PaymentRequest:
+      type: object
+      required: [bookingType, bookingId]
+      properties:
+        bookingType:
+          $ref: '#/components/schemas/BookingType'
+        bookingId:
+          type: string
+          example: '665f1c2a9b1e8a0012345678'
+        paymentMethodId:
+          type: string
+          example: pm_card_visa
+          description: For testing from Swagger only - a Stripe test payment method (pm_card_visa succeeds, pm_card_chargeDeclined fails). The frontend leaves it out and uses Stripe Elements.
+
+    RetryPaymentRequest:
+      type: object
+      properties:
+        paymentMethodId:
+          type: string
+          example: pm_card_visa
+          description: For testing from Swagger only, as in PaymentRequest.
+
+    # --- Itineraries ---
+
+    CreateItineraryRequest:
+      type: object
+      required: [title, countryCodes, startDate]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Ten days in Egypt and the UAE
+        countryCodes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          description: Countries from the predefined list (NEW-05).
+          items:
+            type: string
+            pattern: '^[A-Z]{2}$'
+          example: [EG, AE]
+        startDate:
+          type: string
+          format: date
+          example: '2026-12-01'
+
+    UpdateItineraryRequest:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        countryCodes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^[A-Z]{2}$'
+        startDate:
+          type: string
+          format: date
+          example: '2026-12-02'
+        visibility:
+          $ref: '#/components/schemas/ItineraryVisibility'
+
+    CreateDayRequest:
+      type: object
+      required: [cityId]
+      properties:
+        cityId:
+          type: string
+          example: cairo
+          description: city_id from the predefined city list (NEW-05).
+        notes:
+          type: string
+          maxLength: 1000
+          example: Arrive in the afternoon and rest.
+
+    UpdateDayRequest:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        cityId:
+          type: string
+          example: dubai
+        notes:
+          type: string
+          maxLength: 1000
+
+    ReorderDaysRequest:
+      type: object
+      required: [dayId, position]
+      properties:
+        dayId:
+          type: string
+          example: '665f1c2a9b1e8a0012345680'
+        position:
+          type: integer
+          minimum: 1
+          example: 3
+          description: The new day number (1 = first day).
+
+    CreateActivityRequest:
+      type: object
+      required: [name, description]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Visit the Giza Pyramids
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          example: Guided tour of the pyramids and the Sphinx.
+        time:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: '09:00'
+          description: Optional start time, HH:mm.
+        cost:
+          type: number
+          minimum: 0
+          example: 25.5
+          description: Optional cost. Counted under Activities in the budget (ITN-14).
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: USD
+          description: Required when cost is given.
+
+    UpdateActivityRequest:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        time:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: '10:30'
+        cost:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+
+    CreateBudgetEntryRequest:
+      type: object
+      required: [category, amount, currency]
+      properties:
+        category:
+          $ref: '#/components/schemas/BudgetCategory'
+        amount:
+          type: number
+          minimum: 0
+          example: 40
+          description: Non-negative amount in the chosen currency.
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: EGP
+        description:
+          type: string
+          maxLength: 200
+          example: Dinner on a Nile cruise
+
+    UpdateBudgetEntryRequest:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        category:
+          $ref: '#/components/schemas/BudgetCategory'
+        amount:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        description:
+          type: string
+          maxLength: 200
+
+    CreateTransportCostRequest:
+      type: object
+      required: [dayId, mode, fromCityId, toCityId, amount, currency]
+      properties:
+        dayId:
+          type: string
+          example: '665f1c2a9b1e8a0012345680'
+          description: The day of this itinerary the transport belongs to.
+        mode:
+          $ref: '#/components/schemas/TransportMode'
+        fromCityId:
+          type: string
+          example: cairo
+        toCityId:
+          type: string
+          example: dubai
+        amount:
+          type: number
+          minimum: 0
+          example: 180
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: USD
+
+    UpdateTransportCostRequest:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        dayId:
+          type: string
+        mode:
+          $ref: '#/components/schemas/TransportMode'
+        fromCityId:
+          type: string
+        toCityId:
+          type: string
+        amount:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+
+    AttachBookingRequest:
+      type: object
+      required: [bookingType, bookingId, dayId]
+      properties:
+        bookingType:
+          $ref: '#/components/schemas/BookingType'
+        bookingId:
+          type: string
+          example: '665f1c2a9b1e8a0012345678'
+        dayId:
+          type: string
+          example: '665f1c2a9b1e8a0012345680'
+
+    # --- Blog ---
+
+    CreatePostRequest:
+      type: object
+      required: [title, body, status]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Three days in Cairo
+        body:
+          type: string
+          minLength: 1
+          example: We started at the Egyptian Museum...
+        tags:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          description: Up to 5 tags of at most 30 characters each (BLG-08).
+          items:
+            type: string
+            minLength: 1
+            maxLength: 30
+          example: [egypt, cairo, history]
+        status:
+          $ref: '#/components/schemas/PostStatus'
+
+    UpdatePostRequest:
+      type: object
+      description: Send only the fields to change.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        body:
+          type: string
+          minLength: 1
+        tags:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 30
+        status:
+          $ref: '#/components/schemas/PostStatus'
+
+    CommentRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: Thanks, this helped me plan my trip!
+
+    AttachItineraryRequest:
+      type: object
+      required: [itineraryId]
+      properties:
+        itineraryId:
+          type: string
+          nullable: true
+          example: '665f1c2a9b1e8a0012345678'
+          description: One of the author's itineraries, or null to detach.

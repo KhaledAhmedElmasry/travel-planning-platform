@@ -1,6 +1,13 @@
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import { readFileSync } from 'fs';
+import { load } from 'js-yaml';
+import { join } from 'path';
 import { AppModule } from './app.module';
+
+// Swagger UI shows the hand-written API documentation in docs/api/openapi.yaml, one file for every
+// endpoint. When you add or change an endpoint, update that file in the same pull request.
+const OPENAPI_FILE = join(__dirname, '..', '..', 'docs', 'api', 'openapi.yaml');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,14 +21,10 @@ async function bootstrap() {
   //   - the raw request body needed to verify Stripe webhooks (PAY-01)
   //   - serving uploaded images (GEN-08)
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Travel Planning & Booking Platform API')
-    .setDescription('Software Project I — Milestone 1')
-    .setVersion('1.0')
-    .build();
-  SwaggerModule.setup('api/docs', app, () =>
-    SwaggerModule.createDocument(app, swaggerConfig),
-  );
+  const document = load(readFileSync(OPENAPI_FILE, 'utf8')) as OpenAPIObject;
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: { docExpansion: 'none', filter: true },
+  });
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);

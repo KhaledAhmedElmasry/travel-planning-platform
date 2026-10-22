@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { FlightBookingsService } from './flight-bookings.service';
 
 // Area: Flight Search & Booking
@@ -21,7 +20,6 @@ import { FlightBookingsService } from './flight-bookings.service';
 // Bonus endpoints:
 //   PATCH /api/flight-bookings/:id/change-flight   FLT-27 (Optional)
 //   PATCH /api/flight-bookings/:id/seat            FLT-28 (Optional)
-@ApiTags('Flight Bookings')
 @Controller('flight-bookings')
 export class FlightBookingsController {
   constructor(private readonly flightBookingsService: FlightBookingsService) {}

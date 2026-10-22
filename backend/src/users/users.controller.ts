@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 
 // Area: Auth & Accounts
@@ -11,7 +10,6 @@ import { UsersService } from './users.service';
 // Notes:
 //   Deactivation is blocked while the user has upcoming Confirmed bookings (ACC-12, NEW-01).
 //   Preferred currency must come from the supported currency list (ACC-09, GEN-12).
-@ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

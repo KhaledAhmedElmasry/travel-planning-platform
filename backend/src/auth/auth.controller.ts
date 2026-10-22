@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 
 // Area: Auth & Accounts
@@ -16,7 +15,6 @@ import { AuthService } from './auth.service';
 //   GET  /api/auth/verify-email      ACC-02 (Optional)
 //   POST /api/auth/forgot-password   ACC-07 (Optional)
 //   POST /api/auth/reset-password    ACC-07 (Optional)
-@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

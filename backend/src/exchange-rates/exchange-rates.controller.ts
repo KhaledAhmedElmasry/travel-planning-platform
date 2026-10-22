@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { ExchangeRatesService } from './exchange-rates.service';
 
 // Area: Itineraries
@@ -11,7 +10,6 @@ import { ExchangeRatesService } from './exchange-rates.service';
 //   Retrieve rates from FXRatesAPI through the backend only (PDF section 6.5).
 //   Handle invalid currency codes, unavailable rates and API failures (PDF section 6.5).
 //   The supported currency list is seeded at setup (GEN-12).
-@ApiTags('Exchange Rates')
 @Controller('exchange-rates')
 export class ExchangeRatesController {
   constructor(private readonly exchangeRatesService: ExchangeRatesService) {}

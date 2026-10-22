@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 
 // Area: Auth & Accounts
@@ -20,7 +19,6 @@ import { AdminService } from './admin.service';
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
 //   an analytics endpoint: bookings and revenue per provider over a period   BON-01
-@ApiTags('Admin')
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}

@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { AirlinesService } from './airlines.service';
 
 // Area: Airlines & Flight Inventory
@@ -14,7 +13,6 @@ import { AirlinesService } from './airlines.service';
 //   an endpoint to upload the airline logo (FLT-01, GEN-08: 1 logo per airline)
 // Notes:
 //   Admins create airlines; only the moderator assigned to THIS airline may edit it (ACC-11, ACC-13).
-@ApiTags('Airlines')
 @Controller('airlines')
 export class AirlinesController {
   constructor(private readonly airlinesService: AirlinesService) {}

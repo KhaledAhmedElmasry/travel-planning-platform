@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 
 // Area: Payments & Refunds
@@ -16,7 +15,6 @@ import { PaymentsService } from './payments.service';
 //   :type is "flight" or "hotel". Payment is blocked until the policies are accepted (PAY-02).
 //   The webhook is public and needs the raw request body to verify Stripe's signature.
 //   Never store card data: only the Stripe payment id, amount, currency and status (PAY-01).
-@ApiTags('Payments')
 @Controller()
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}

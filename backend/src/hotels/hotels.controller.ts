@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { HotelsService } from './hotels.service';
 
 // Area: Hotels & Rooms
@@ -27,7 +26,6 @@ import { HotelsService } from './hotels.service';
 //   Deactivated hotels (ACC-15) and deactivated rooms (HTL-06) are excluded from search.
 //   Hotel search must be reusable from itineraries (ITN-25): keep it in the exported service.
 //   Declare /hotels/search before /hotels/:id so "search" is not matched as an id.
-@ApiTags('Hotels')
 @Controller('hotels')
 export class HotelsController {
   constructor(private readonly hotelsService: HotelsService) {}

@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { FlightsService } from './flights.service';
 
 // Area: Airlines & Flight Inventory
@@ -16,7 +15,6 @@ import { FlightsService } from './flights.service';
 // Notes:
 //   Flight search is in flight-search.controller.ts. It is listed first in
 //   flights.module.ts so /flights/search is not matched as /flights/:id.
-@ApiTags('Flights')
 @Controller('flights')
 export class FlightsController {
   constructor(private readonly flightsService: FlightsService) {}

@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
 
 // Area: Hotel Booking & Reviews
@@ -12,7 +11,6 @@ import { ReviewsService } from './reviews.service';
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
 //   POST /api/reviews/:id/reply   HTL-26 (Optional)
-@ApiTags('Reviews')
 @Controller()
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
