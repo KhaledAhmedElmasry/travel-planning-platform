@@ -1,4 +1,4 @@
-// Owner: Member 1 (Team leader)
+// Area: Reference Data & Seeding
 // Used by: GET /api/airports (query)
 // Requirements: FLT-02
 //

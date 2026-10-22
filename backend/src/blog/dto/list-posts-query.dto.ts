@@ -1,4 +1,4 @@
-// Owner: Member 3 (Community & Cross-cutting)
+// Area: Community & Cross-cutting
 // Used by: GET /api/posts and GET /api/tags/:tag/posts (query)
 // Requirements: BLG-02, BLG-09, BLG-11, GEN-05
 //

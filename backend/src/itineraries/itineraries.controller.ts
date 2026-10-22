@@ -2,7 +2,7 @@ import { Controller } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ItinerariesService } from './itineraries.service';
 
-// Owner: Member 8 (Itineraries)
+// Area: Itineraries
 // Requirements: ITN-01..ITN-26
 // Endpoints to implement (PDF section 8):
 //   POST   /api/itineraries                                ITN-01
@@ -31,6 +31,10 @@ import { ItinerariesService } from './itineraries.service';
 //   POST   /api/itineraries/:id/clone                      ITN-21
 //   GET    /api/itineraries/:id/hotels                     ITN-09, ITN-25
 //   GET    /api/itineraries/:id/flights                    ITN-26
+// Notes:
+//   Private itineraries are visible only to their owner (ACC-11): check ownership in the service.
+//   Declare /itineraries/public/... and /days/reorder before the :id and :dayId routes.
+//   ITN-25 and ITN-26 reuse the hotel search (HTL-11) and flight search (FLT-11, FLT-12) services.
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
 //   POST /api/itineraries/:id/bookings   ITN-27 (Optional)

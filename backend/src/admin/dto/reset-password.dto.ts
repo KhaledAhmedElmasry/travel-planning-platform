@@ -1,4 +1,4 @@
-// Owner: Member 2 (Auth & Accounts)
+// Area: Auth & Accounts
 // Used by: POST /api/admin/users/:id/reset-password (body)
 // Requirements: ACC-07a
 //

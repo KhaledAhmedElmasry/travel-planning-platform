@@ -3,7 +3,7 @@
 Swagger UI is the live API reference: run the backend and open http://localhost:3000/api/docs.
 The raw OpenAPI document is at http://localhost:3000/api/docs-json.
 
-The list of endpoints to implement, with owners and requirement IDs, is in the header comment of each controller
+The list of endpoints to implement, with their requirement IDs, is in the header comment of each controller
 (`backend/src/<module>/<module>.controller.ts`). It follows section 8 of the project description, plus the
 additions in [ASSUMED_REQUIREMENTS.md](../requirements/ASSUMED_REQUIREMENTS.md).
 

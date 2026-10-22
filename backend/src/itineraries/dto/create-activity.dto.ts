@@ -1,4 +1,4 @@
-// Owner: Member 8 (Itineraries)
+// Area: Itineraries
 // Used by: POST /api/itineraries/:id/days/:dayId/activities (body)
 // Requirements: ITN-10
 //

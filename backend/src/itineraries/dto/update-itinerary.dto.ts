@@ -1,4 +1,4 @@
-// Owner: Member 8 (Itineraries)
+// Area: Itineraries
 // Used by: PATCH /api/itineraries/:id (body)
 // Requirements: ITN-01, ITN-20
 //

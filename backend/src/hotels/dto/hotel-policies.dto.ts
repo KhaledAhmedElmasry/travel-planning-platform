@@ -1,4 +1,4 @@
-// Owner: Member 6 (Hotels & Rooms)
+// Area: Hotels & Rooms
 // Used by: PUT /api/hotels/:id/policies (body)
 // Requirements: HTL-09, HTL-10
 //

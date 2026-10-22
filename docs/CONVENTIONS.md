@@ -55,7 +55,7 @@ backend/src/
 ├── database/          seed script and the official reference datasets
 └── <module>/          one folder per feature
     ├── <module>.module.ts
-    ├── <module>.controller.ts   header comment: owner, requirements, endpoints
+    ├── <module>.controller.ts   header comment: area, requirements, endpoints
     ├── <module>.service.ts
     ├── dto/                     create-x.dto.ts, update-x.dto.ts, x-query.dto.ts
     └── schemas/                 x.schema.ts (placeholder files list what to model)
@@ -63,7 +63,7 @@ backend/src/
 
 - Controllers stay thin: validate input with DTOs, read the current user, call the service.
 - Business rules, ownership checks and database access go in services.
-- Only add files inside your own module. Changes to `common/`, `main.ts`, `app.module.ts` or another member's module go in a separate small PR so everyone sees them.
+- Keep each PR inside the module you are working on. Changes to `common/`, `main.ts`, `app.module.ts` or a module someone else is working on go in a separate small PR so everyone sees them.
 - Every file currently contains placeholder comments only. Replace the `TODO` comments as you implement.
 
 ## 3. API Conventions
@@ -92,18 +92,18 @@ backend/src/
 
 ## 4. Shared Code
 
-Several modules depend on code that other members write. Agree on the function names and signatures early, then implement them.
+Several modules depend on code written in other modules. Agree on the function names and signatures early, then implement them.
 
-| Shared code | Folder | Owner | Used by |
-|---|---|---|---|
-| Error format, validation pipe, pagination types, enums | `common/` | Member 1 | Everyone |
-| Auth guard, roles guard, current-user decorator | `common/guards/`, `common/decorators/` | Member 2 | Everyone |
-| Reference data (countries, cities, airports) and seed | `reference-data/`, `database/` | Member 1 | Members 4, 6, 8 |
-| Notifications (GEN-01) | `notifications/` | Member 3 | Members 2, 4, 5, 7, 1 |
-| Audit log (GEN-07) | `audit/` | Member 3 | Members 2, 3 |
-| Image upload validation (GEN-08) | `uploads/` | Member 3 | Members 3, 4, 6, 8 |
-| Cancellation-tier refund rule (FLT-09, HTL-10) | `common/utils/` | Member 4 | Members 5, 7 |
-| Payments and refunds (PAY-01..03) | `payments/` | Member 1 | Members 5, 7 |
+| Shared code | Folder | Used by |
+|---|---|---|
+| Error format, validation pipe, pagination types, enums | `common/` | Every module |
+| Auth guard, roles guard, current-user decorator | `common/guards/`, `common/decorators/` | Every module |
+| Reference data (countries, cities, airports) and seed | `reference-data/`, `database/` | Flights, Hotels, Itineraries |
+| Notifications (GEN-01) | `notifications/` | Admin, Flights, Flight Bookings, Hotel Bookings, Payments |
+| Audit log (GEN-07) | `audit/` | Admin, Reports |
+| Image upload validation (GEN-08) | `uploads/` | Blog, Airlines, Hotels, Itineraries |
+| Cancellation-tier refund rule (FLT-09, HTL-10) | `common/utils/` | Flight Bookings, Hotel Bookings |
+| Payments and refunds (PAY-01..03) | `payments/` | Flight Bookings, Hotel Bookings |
 
 ## 5. Schemas
 

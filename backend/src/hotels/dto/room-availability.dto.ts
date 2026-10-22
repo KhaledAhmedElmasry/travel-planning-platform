@@ -1,4 +1,4 @@
-// Owner: Member 6 (Hotels & Rooms)
+// Area: Hotels & Rooms
 // Used by: POST and PATCH /api/hotels/:id/rooms/:roomId/availability (body)
 // Requirements: HTL-04, HTL-05, HTL-06
 //

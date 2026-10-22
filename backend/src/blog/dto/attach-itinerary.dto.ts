@@ -1,5 +1,5 @@
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
-// Owner: Member 3 (Community & Cross-cutting) — bonus
+// Area: Community & Cross-cutting (bonus)
 // Used by: PATCH /api/posts/:id/itinerary (body)
 // Requirements: BLG-13
 //

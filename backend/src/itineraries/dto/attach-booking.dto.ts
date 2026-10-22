@@ -1,5 +1,5 @@
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
-// Owner: Member 8 (Itineraries) — bonus
+// Area: Itineraries (bonus)
 // Used by: POST /api/itineraries/:id/bookings (body)
 // Requirements: ITN-27
 //

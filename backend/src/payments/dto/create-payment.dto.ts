@@ -1,4 +1,4 @@
-// Owner: Member 1 (Team leader)
+// Area: Payments & Refunds
 // Used by: POST /api/payments (body)
 // Requirements: PAY-01
 //

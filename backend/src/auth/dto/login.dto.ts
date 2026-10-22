@@ -1,4 +1,4 @@
-// Owner: Member 2 (Auth & Accounts)
+// Area: Auth & Accounts
 // Used by: POST /api/auth/login (body)
 // Requirements: ACC-04, ACC-05
 //

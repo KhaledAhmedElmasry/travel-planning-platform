@@ -1,4 +1,4 @@
-// Owner: Member 8 (Itineraries)
+// Area: Itineraries
 // Used by: PATCH /api/itineraries/:id/days/:dayId (body)
 // Requirements: ITN-05
 //

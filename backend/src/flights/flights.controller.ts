@@ -2,7 +2,7 @@ import { Controller } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { FlightsService } from './flights.service';
 
-// Owner: Member 4 (Airlines & Flight Inventory)
+// Area: Airlines & Flight Inventory
 // Requirements: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06, NEW-02
 // Endpoints to implement (PDF section 8):
 //   POST  /api/flights                          FLT-03
@@ -14,7 +14,7 @@ import { FlightsService } from './flights.service';
 //   GET   /api/flights/:id/bookings             FLT-29
 //   GET   /api/flights/:id/passengers/export    FLT-29
 // Notes:
-//   Flight search is in flight-search.controller.ts (member 5). It is listed first in
+//   Flight search is in flight-search.controller.ts. It is listed first in
 //   flights.module.ts so /flights/search is not matched as /flights/:id.
 @ApiTags('Flights')
 @Controller('flights')

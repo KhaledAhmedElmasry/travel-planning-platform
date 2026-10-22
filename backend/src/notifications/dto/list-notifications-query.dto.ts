@@ -1,4 +1,4 @@
-// Owner: Member 3 (Community & Cross-cutting)
+// Area: Community & Cross-cutting
 // Used by: the notification list endpoint (query)
 // Requirements: GEN-01, GEN-05
 //

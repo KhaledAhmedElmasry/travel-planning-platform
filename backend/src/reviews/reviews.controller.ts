@@ -2,7 +2,7 @@ import { Controller } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
 
-// Owner: Member 7 (Hotel Booking & Reviews)
+// Area: Hotel Booking & Reviews
 // Requirements: HTL-23, HTL-24
 // Endpoints to implement (PDF section 8):
 //   POST   /api/hotel-bookings/:id/review   HTL-23

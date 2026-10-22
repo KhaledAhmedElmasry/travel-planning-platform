@@ -1,4 +1,4 @@
-// Owner: Member 6 (Hotels & Rooms)
+// Area: Hotels & Rooms
 // Used by: GET /api/hotels/:id/availability (query)
 // Requirements: HTL-08
 //

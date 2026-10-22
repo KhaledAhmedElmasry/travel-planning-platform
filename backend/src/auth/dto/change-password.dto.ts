@@ -1,4 +1,4 @@
-// Owner: Member 2 (Auth & Accounts)
+// Area: Auth & Accounts
 // Used by: PATCH /api/auth/change-password (body)
 // Requirements: ACC-08
 //

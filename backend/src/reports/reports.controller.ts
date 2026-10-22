@@ -2,10 +2,10 @@ import { Controller } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 
-// Owner: Member 3 (Community & Cross-cutting)
+// Area: Community & Cross-cutting
 // Requirements: GEN-09, GEN-10
 // Endpoints to implement (PDF section 8):
-//   (endpoint for users to report content, GEN-09)
+//   POST   /api/reports                    GEN-09   (not in the PDF tables; any logged-in user)
 //   GET    /api/admin/reports              GEN-09, GEN-10
 //   PATCH  /api/admin/reports/:id          GEN-10
 //   DELETE /api/admin/content/:type/:id    GEN-10

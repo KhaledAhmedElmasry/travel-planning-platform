@@ -41,7 +41,7 @@ import { UsersModule } from './users/users.module';
     // TODO: register app-wide providers as they are built, for example the
     // authentication and role guards (PDF section 6.1) and scheduled jobs (FLT-22, HTL-18).
 
-    // Feature modules (one folder each, see docs/TEAM_PLAN.md for owners)
+    // Feature modules (one folder each, see docs/TEAM_PLAN.md for the work areas)
     ReferenceDataModule,
     AuthModule,
     UsersModule,

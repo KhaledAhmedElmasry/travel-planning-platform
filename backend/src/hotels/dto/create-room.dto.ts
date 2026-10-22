@@ -1,4 +1,4 @@
-// Owner: Member 6 (Hotels & Rooms)
+// Area: Hotels & Rooms
 // Used by: POST /api/hotels/:id/rooms (body)
 // Requirements: HTL-03
 //

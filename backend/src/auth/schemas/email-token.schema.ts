@@ -1,5 +1,5 @@
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
-// Owner: Member 2 (Auth & Accounts) — bonus
+// Area: Auth & Accounts (bonus)
 //
 // TODO: define the Mongoose schema for:
 //   Email verification and password-reset tokens (ACC-02, ACC-07): user, hashed token,

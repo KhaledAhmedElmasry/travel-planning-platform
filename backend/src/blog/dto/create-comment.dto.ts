@@ -1,4 +1,4 @@
-// Owner: Member 3 (Community & Cross-cutting)
+// Area: Community & Cross-cutting
 // Used by: POST /api/posts/:id/comments (body)
 // Requirements: BLG-05
 //

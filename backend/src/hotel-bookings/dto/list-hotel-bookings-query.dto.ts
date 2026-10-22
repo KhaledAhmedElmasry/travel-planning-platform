@@ -1,4 +1,4 @@
-// Owner: Member 7 (Hotel Booking & Reviews)
+// Area: Hotel Booking & Reviews
 // Used by: GET /api/hotel-bookings (query)
 // Requirements: HTL-20, GEN-05
 //

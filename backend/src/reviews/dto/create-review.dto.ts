@@ -1,4 +1,4 @@
-// Owner: Member 7 (Hotel Booking & Reviews)
+// Area: Hotel Booking & Reviews
 // Used by: POST /api/hotel-bookings/:id/review (body)
 // Requirements: HTL-23
 //

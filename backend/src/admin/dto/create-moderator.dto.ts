@@ -1,4 +1,4 @@
-// Owner: Member 2 (Auth & Accounts)
+// Area: Auth & Accounts
 // Used by: POST /api/admin/moderators (body)
 // Requirements: ACC-13
 //

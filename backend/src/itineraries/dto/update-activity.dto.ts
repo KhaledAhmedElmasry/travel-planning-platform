@@ -1,4 +1,4 @@
-// Owner: Member 8 (Itineraries)
+// Area: Itineraries
 // Used by: PATCH /api/activities/:id (body)
 // Requirements: ITN-10
 //

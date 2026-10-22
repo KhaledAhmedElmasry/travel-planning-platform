@@ -1,4 +1,4 @@
-// Owner: Member 5 (Flight Search & Booking)
+// Area: Flight Search & Booking
 // Used by: GET /api/flight-bookings (query)
 // Requirements: FLT-25, GEN-05
 //

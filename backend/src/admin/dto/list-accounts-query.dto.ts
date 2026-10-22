@@ -1,4 +1,4 @@
-// Owner: Member 2 (Auth & Accounts)
+// Area: Auth & Accounts
 // Used by: GET /api/admin/accounts (query)
 // Requirements: ACC-14, GEN-05
 //

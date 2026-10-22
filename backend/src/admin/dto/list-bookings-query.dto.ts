@@ -1,4 +1,4 @@
-// Owner: Member 2 (Auth & Accounts)
+// Area: Auth & Accounts
 // Used by: GET /api/admin/bookings (query)
 // Requirements: ACC-17, GEN-05
 //

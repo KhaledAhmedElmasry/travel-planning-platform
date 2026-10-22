@@ -11,6 +11,19 @@ A web platform for flight and hotel booking, itinerary planning and budgeting, a
 | Payments | Stripe (test mode) | |
 | Exchange rates | FXRatesAPI | |
 
+## Team
+
+| Name | Student ID | Tutorial |
+|---|---|---|
+| Khaled Ahmed (team leader) | 16002932 | P26 |
+| Mostafa Amr Elsallamy | 16008276 | P3 |
+| Omar Ahmed Alaga | 16001929 | P15 |
+| Hussien Shata | 16005103 | P26 |
+| Abdallah Mahmoud | 16005009 | P27 |
+| Ibrahim El Shafey | 16005172 | P02 |
+| Ibrahim Samer Alalamy | 16005828 | P08 |
+| Salaheldin Mahmoud Abo Hussein | 16004541 | P18 |
+
 ## Milestones
 
 | Milestone | Scope | Deadline |
@@ -66,7 +79,7 @@ The official datasets ([docs/requirements/Mock Data.xlsx](docs/requirements/Mock
 | Document | Contents |
 |---|---|
 | [docs/requirements/](docs/requirements/) | Official requirements workbook, reference datasets, and [assumed requirements](docs/requirements/ASSUMED_REQUIREMENTS.md) |
-| [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md) | Module ownership, timeline and design decisions |
+| [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md) | Work areas, dependencies, timeline and design decisions |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | Git workflow, code structure and API conventions |
 | [docs/api/](docs/api/) | API notes (Swagger UI is the live reference) |
 | [AI_PROMPTS.txt](AI_PROMPTS.txt) | AI usage log (mandatory) |

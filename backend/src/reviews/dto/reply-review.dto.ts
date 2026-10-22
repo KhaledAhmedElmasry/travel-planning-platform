@@ -1,5 +1,5 @@
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
-// Owner: Member 7 (Hotel Booking & Reviews) — bonus
+// Area: Hotel Booking & Reviews (bonus)
 // Used by: POST /api/reviews/:id/reply (body)
 // Requirements: HTL-26
 //

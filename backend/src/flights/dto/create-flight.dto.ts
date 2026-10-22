@@ -1,4 +1,4 @@
-// Owner: Member 4 (Airlines & Flight Inventory)
+// Area: Airlines & Flight Inventory
 // Used by: POST /api/flights (body)
 // Requirements: FLT-03
 //

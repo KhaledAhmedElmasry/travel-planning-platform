@@ -2,7 +2,7 @@ import { Controller } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { BlogService } from './blog.service';
 
-// Owner: Member 3 (Community & Cross-cutting)
+// Area: Community & Cross-cutting
 // Requirements: BLG-01..BLG-12
 // Endpoints to implement (PDF section 8):
 //   POST   /api/posts                         BLG-01
@@ -20,6 +20,9 @@ import { BlogService } from './blog.service';
 //   DELETE /api/posts/:id/images/:imageId     BLG-10
 //   GET    /api/tags/:tag/posts               BLG-08, BLG-11
 //   GET    /api/authors/:id                   BLG-12
+// Notes:
+//   Declare /posts/mine before /posts/:id so "mine" is not matched as an id.
+//   Hidden content (GEN-10) and content of deactivated authors (ACC-12) is not shown publicly.
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
 //   PATCH /api/posts/:id/itinerary   BLG-13 (Optional)

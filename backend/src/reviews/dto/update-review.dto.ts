@@ -1,4 +1,4 @@
-// Owner: Member 7 (Hotel Booking & Reviews)
+// Area: Hotel Booking & Reviews
 // Used by: PATCH /api/reviews/:id (body)
 // Requirements: HTL-23
 //

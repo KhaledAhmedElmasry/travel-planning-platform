@@ -1,4 +1,4 @@
-// Owner: Member 1 (Team leader)
+// Area: Reference Data & Seeding
 //
 // TODO: define the Mongoose schema for:
 //   Countries, cities, airports, attractions and supported currencies

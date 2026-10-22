@@ -1,4 +1,4 @@
-// Owner: Member 8 (Itineraries)
+// Area: Itineraries
 // Used by: PATCH /api/transport-costs/:id (body)
 // Requirements: ITN-16
 //

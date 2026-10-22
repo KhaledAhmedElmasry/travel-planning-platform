@@ -1,4 +1,4 @@
-// Owner: Member 4 (Airlines & Flight Inventory)
+// Area: Airlines & Flight Inventory
 // Used by: PATCH /api/airlines/:id (body)
 // Requirements: FLT-01
 //

@@ -1,4 +1,4 @@
-// Owner: Member 4 (Airlines & Flight Inventory)
+// Area: Airlines & Flight Inventory
 // Used by: PUT /api/airlines/:id/cancellation-policy (body)
 // Requirements: FLT-09
 //

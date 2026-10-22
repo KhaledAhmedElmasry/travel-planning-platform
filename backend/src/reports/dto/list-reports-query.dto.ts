@@ -1,4 +1,4 @@
-// Owner: Member 3 (Community & Cross-cutting)
+// Area: Community & Cross-cutting
 // Used by: GET /api/admin/reports (query)
 // Requirements: GEN-10, GEN-05
 //

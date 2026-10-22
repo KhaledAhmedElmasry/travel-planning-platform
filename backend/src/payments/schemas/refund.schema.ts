@@ -1,4 +1,4 @@
-// Owner: Member 1 (Team leader)
+// Area: Payments & Refunds
 //
 // TODO: define the Mongoose schema for:
 //   Refund (PDF section 5 "Payments"): booking, payment, amount, Stripe refund id,

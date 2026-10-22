@@ -1,4 +1,4 @@
-// Owner: Member 3 (Community & Cross-cutting)
+// Area: Community & Cross-cutting
 // Used by: GET /api/admin/audit-logs (query)
 // Requirements: GEN-07, GEN-05
 //

@@ -1,4 +1,4 @@
-// Owner: Member 3 (Community & Cross-cutting)
+// Area: Community & Cross-cutting
 // Used by: PATCH /api/comments/:id (body)
 // Requirements: BLG-07
 //

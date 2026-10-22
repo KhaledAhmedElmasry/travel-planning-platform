@@ -2,7 +2,7 @@ import { Controller } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 
-// Owner: Member 2 (Auth & Accounts)
+// Area: Auth & Accounts
 // Requirements: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19, NEW-07
 // Endpoints to implement (PDF section 8):
 //   POST  /api/auth/register          ACC-01, ACC-03

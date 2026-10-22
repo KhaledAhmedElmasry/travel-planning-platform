@@ -1,4 +1,4 @@
-// Owner: Member 8 (Itineraries)
+// Area: Itineraries
 // Used by: GET /api/itineraries/:id/hotels (query)
 // Requirements: ITN-25
 //

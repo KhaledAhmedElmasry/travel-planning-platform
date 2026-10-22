@@ -1,4 +1,4 @@
-// Owner: Member 4 (Airlines & Flight Inventory)
+// Area: Airlines & Flight Inventory
 // Used by: PATCH /api/flights/:id/cabins/:cabinId (body)
 // Requirements: FLT-04, FLT-05
 //

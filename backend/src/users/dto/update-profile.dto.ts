@@ -1,4 +1,4 @@
-// Owner: Member 2 (Auth & Accounts)
+// Area: Auth & Accounts
 // Used by: PATCH /api/users/me (body)
 // Requirements: ACC-09
 //

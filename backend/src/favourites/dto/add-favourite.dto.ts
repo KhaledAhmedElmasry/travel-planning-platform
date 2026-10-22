@@ -1,5 +1,5 @@
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
-// Owner: Member 6 (Hotels & Rooms) — bonus
+// Area: Hotels & Rooms (bonus)
 // Used by: the endpoint that adds a favourite (body)
 // Requirements: BON-02
 //

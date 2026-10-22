@@ -2,70 +2,75 @@
 
 **Deadline:** 20/11. **Evaluation:** through Swagger UI only. Every requirement must be demonstrable without a frontend.
 
-## Module Ownership
+## Work Areas
 
-Write each member's name in the table after kickoff.
+The backend is split into eight work areas. The team leader assigns people to areas outside this repository; the code and docs name areas, not people. Each file's header comment starts with `// Area: ...`.
 
-| # | Member | Area | Folders | Requirements |
-|---|---|---|---|---|
-| 1 | _Team leader_ | Shared foundation, seed, Payments, reviews & integration | `common/` (enums, filters, pipes, DTOs), `database/`, `reference-data/`, `payments/` | PAY-01..04, GEN-02, GEN-05, GEN-11, GEN-12, GEN-13, FLT-02, ACC-18, NEW-04, NEW-05 |
-| 2 | | Auth & Accounts | `auth/`, `users/`, `admin/`, `common/guards/`, `common/decorators/` | ACC-01, 03..09, 11..17, 19, NEW-07 |
-| 3 | | Community & Cross-cutting | `blog/`, `reports/`, `notifications/`, `audit/`, `uploads/` | BLG-01..12, GEN-01, 07..10 |
-| 4 | | Airlines & Flight Inventory | `airlines/`, `flights/` (except search), refund-tier rule in `common/utils/` | FLT-01, 03..09, 17, 29, 30, GEN-06, NEW-02 |
-| 5 | | Flight Search & Booking | `flights/flight-search.controller.ts`, `flight-bookings/` | FLT-11, 12, 15, 19, 21, 22, 23, 25, 26 |
-| 6 | | Hotels & Rooms | `hotels/` | HTL-01..06, 08..12, 15, 22 |
-| 7 | | Hotel Booking & Reviews | `hotel-bookings/`, `reviews/` | HTL-16..18, 20, 21, 23, 24 |
-| 8 | | Itineraries & Exchange Rates | `itineraries/`, `exchange-rates/` | ITN-01..26, ITN-18 |
+| # | Area | Folders | Requirements |
+|---|---|---|---|
+| 1 | Foundation, Reference Data & Payments | `common/` (enums, filters, pipes, DTOs), `database/`, `reference-data/`, `payments/` | PAY-01..04, GEN-02, GEN-05, GEN-11, GEN-12, GEN-13, FLT-02, ACC-18, NEW-04, NEW-05 |
+| 2 | Auth & Accounts | `auth/`, `users/`, `admin/`, `common/guards/`, `common/decorators/` | ACC-01, 03..09, 11..17, 19, NEW-07 |
+| 3 | Community & Cross-cutting | `blog/`, `reports/`, `notifications/`, `audit/`, `uploads/` | BLG-01..12, GEN-01, 07..10 |
+| 4 | Airlines & Flight Inventory | `airlines/`, `flights/` (except search), refund-tier rule in `common/utils/` | FLT-01, 03..09, 17, 29, 30, GEN-06, NEW-02 |
+| 5 | Flight Search & Booking | `flights/flight-search.controller.ts`, `flight-bookings/` | FLT-11, 12, 15, 19, 21, 22, 23, 25, 26 |
+| 6 | Hotels & Rooms | `hotels/` | HTL-01..06, 08..12, 15, 22 |
+| 7 | Hotel Booking & Reviews | `hotel-bookings/`, `reviews/` | HTL-16..18, 20, 21, 23, 24 |
+| 8 | Itineraries & Exchange Rates | `itineraries/`, `exchange-rates/` | ITN-01..26 |
 
-Cross-cutting rules everyone follows in their own module: GEN-02, 03, 04, 05, 11, 13.
+Cross-cutting rules every area follows in its own module: GEN-02, 03, 04, 05, 11, 13.
+
+Frontend-only requirements (Milestone 2): ACC-10, GEN-14, GEN-15, GEN-16, GEN-17. The backend supports them by returning 401 for restricted actions and clear error messages.
 
 ## Bonus Requirements (Optional)
 
 Start these only after every mandatory requirement is done and tested (PDF section 12: "bonus features must not replace mandatory requirements"). Placeholders are marked `BONUS (optional)` in the code.
 
-| Bonus | Feature | Where | Suggested owner |
-|---|---|---|---|
-| ACC-02 | Email verification | `auth/`, `mail/` | #2 |
-| ACC-07 | Forgot / reset password by email | `auth/`, `mail/` | #2 |
-| GEN-01-B | Email notifications over SMTP | `mail/` | #3 |
-| FLT-27 | Change a confirmed flight booking | `flight-bookings/` | #5 |
-| FLT-28 | Seat selection | `flight-bookings/` | #5 |
-| HTL-26 | Hotel moderator reply to a review | `reviews/` | #7 |
-| ITN-27 | Link confirmed bookings to itinerary days | `itineraries/` | #8 |
-| ITN-28 | Export an itinerary as PDF | `itineraries/` | #8 |
-| BLG-13 | Attach an itinerary to a post | `blog/` | #3 |
-| BON-01 | Admin analytics (bookings and revenue per provider) | `admin/` | #2 |
-| BON-02 | Favourites (hotels and public itineraries) | `favourites/` | #6 |
+| Bonus | Feature | Where |
+|---|---|---|
+| ACC-02 | Email verification | `auth/`, `mail/` |
+| ACC-07 | Forgot / reset password by email | `auth/`, `mail/` |
+| GEN-01-B | Email notifications over SMTP | `mail/` |
+| FLT-27 | Change a confirmed flight booking | `flight-bookings/` |
+| FLT-28 | Seat selection | `flight-bookings/` |
+| HTL-26 | Hotel moderator reply to a review | `reviews/` |
+| ITN-27 | Link confirmed bookings to itinerary days | `itineraries/` |
+| ITN-28 | Export an itinerary as PDF | `itineraries/` |
+| BLG-13 | Attach an itinerary to a post | `blog/` |
+| BON-01 | Admin analytics (bookings and revenue per provider) | `admin/` |
+| BON-02 | Favourites (hotels and public itineraries) | `favourites/` |
 
-## Dependencies Between Members
+## Dependencies Between Areas
 
-| Who needs it | What | From | Needed by |
+| Who needs it | What | From area | Needed by |
 |---|---|---|---|
-| Everyone | Error format, validation pipe, pagination types, shared enums | #1 | 27/10 |
-| Everyone | Login + cookies and the auth/roles guards, so protected routes can be tested in Swagger | #2 | 28/10 |
-| #4, #6, #8 | Reference data and seed (countries, cities, airports with time zones) | #1 | 28/10 |
-| #2, #4, #5, #7 | Notifications service (GEN-01) and audit log service (GEN-07) | #3 | 1/11 |
-| #3, #4, #6, #8 | Image upload validation (GEN-08) | #3 | 3/11 |
-| #5, #7 | Cancellation-tier refund rule (FLT-09, HTL-10) | #4 | 3/11 |
-| #4, #6 | Admin can create an airline/hotel and its moderator (ACC-13, FLT-01, HTL-01) | #2, #4, #6 | 31/10 |
-| #5 | Flight + cabin schemas with seat counters (`total`, `booked`, `held`) | #4 | 29/10 |
-| #7 | Hotel + room schemas and availability ranges | #6 | 29/10 |
-| #5, #7 | `PaymentsService` and the webhook confirming bookings | #1 | 10/11 |
-| #8 | Hotel search (HTL-11) and flight search (FLT-11/12) services exported for reuse | #5, #6 | 7/11 |
-| #3 | Post/comment/review/itinerary "hidden" flag for moderation (GEN-10) | #3, #7, #8 | 7/11 |
+| Every area | Error format, validation pipe, pagination types, shared enums | 1 Foundation | 2/11 |
+| Every area | Login + cookies and the auth/roles guards, so protected routes can be tested in Swagger | 2 Auth | 3/11 |
+| 4, 6, 8 | Reference data and seed (countries, cities, airports with time zones) | 1 Foundation | 3/11 |
+| 4, 6 | Admin can create an airline/hotel and its moderator (ACC-13, FLT-01, HTL-01) | 2, 4, 6 | 4/11 |
+| 5 | Flight + cabin schemas with seat counters (`total`, `booked`, `held`) | 4 Airlines | 4/11 |
+| 7 | Hotel + room schemas and availability ranges | 6 Hotels | 4/11 |
+| 2, 4, 5, 7 | Notifications service (GEN-01) and audit log service (GEN-07) | 3 Community | 6/11 |
+| 3, 4, 6, 8 | Image upload validation (GEN-08) | 3 Community | 7/11 |
+| 5, 7 | Cancellation-tier refund rule (FLT-09, HTL-10) | 4 Airlines | 7/11 |
+| 8 | Hotel search (HTL-11) and flight search (FLT-11/12) services exported for reuse | 5, 6 | 10/11 |
+| 3 | Post/comment/review/itinerary "hidden" flag for moderation (GEN-10) | 3, 7, 8 | 10/11 |
+| 5, 7 | `PaymentsService` and the webhook confirming bookings | 1 Payments | 12/11 |
 
 Until a dependency is merged, code against the agreed interface. For example, you can create test documents directly in the database.
 
 ## Timeline
 
+Work starts on **31 October** (after midterms). Until then: everyone reads the requirements for their area, [CONVENTIONS.md](CONVENTIONS.md) and the skeleton files in their folders.
+
 | Dates | Goal |
 |---|---|
-| 21–24 Oct | Setup and kickoff. Everyone reads the requirements for their module and [CONVENTIONS.md](CONVENTIONS.md). |
-| 25–31 Oct | Schemas and DTOs for every module (reviewed together for consistency). Login and guards merged. |
-| 1–7 Nov | CRUD, inventory management, search and listing endpoints. |
-| 8–14 Nov | Holds, booking, payments and webhook, cancellations and refunds, exchange rates, moderation. |
-| 15–18 Nov | End-to-end testing in Swagger with the seeded data; bug fixes; demo data; README. |
+| 31 Oct – 1 Nov | Kickoff. Everyone clones the repo, runs it against the shared Atlas database and opens their first branch. |
+| 2 – 5 Nov | Schemas and DTOs for every module (reviewed together for consistency). Shared `common/` code, login, guards and seed merged. |
+| 6 – 10 Nov | CRUD, inventory management, search and listing endpoints. |
+| 11 – 15 Nov | Holds, booking, payments and webhook, cancellations and refunds, exchange rates, moderation. |
+| 16 – 18 Nov | End-to-end testing in Swagger with the seeded data; bug fixes; demo data; README. |
 | 19 Nov | Feature freeze. Merge `develop` into `main` and tag `v1.0-milestone1`. |
+| 20 Nov | Milestone 1 deadline. |
 
 ## Design Decisions
 

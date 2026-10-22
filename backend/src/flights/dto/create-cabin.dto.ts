@@ -1,4 +1,4 @@
-// Owner: Member 4 (Airlines & Flight Inventory)
+// Area: Airlines & Flight Inventory
 // Used by: POST /api/flights/:id/cabins (body)
 // Requirements: FLT-04
 //

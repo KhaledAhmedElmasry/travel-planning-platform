@@ -1,4 +1,4 @@
-// Owner: Member 3 (Community & Cross-cutting)
+// Area: Community & Cross-cutting
 // Used by: the endpoint for users to report content (body)
 // Requirements: GEN-09
 //
