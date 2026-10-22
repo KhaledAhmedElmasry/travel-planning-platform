@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { ReferenceDataService } from './reference-data.service';
 
 // Area: Reference Data & Seeding
@@ -14,7 +13,6 @@ import { ReferenceDataService } from './reference-data.service';
 // Notes:
 //   All public and read-only. Use the official ids from the datasets (EG, cairo, CAI, att-1).
 //   Export lookups so other modules can reject unknown countries, cities and airports (NEW-05, FLT-02).
-@ApiTags('Reference Data')
 @Controller()
 export class ReferenceDataController {
   constructor(private readonly referenceDataService: ReferenceDataService) {}

@@ -40,6 +40,7 @@ Scopes match module folder names. Never use messages like `update`, `changes`, `
 ### Pull Requests
 
 - Target `develop`, and fill in the PR template (requirement IDs and how to test in Swagger).
+- If you add or change an endpoint, update [docs/api/openapi.yaml](api/openapi.yaml) in the same PR (see section 3).
 - The team leader reviews and merges. Resolve review comments before merging.
 - `npm run lint`, `npm run build` and `npm test` must pass.
 - Add your `AI_PROMPTS.txt` entry in the same PR when AI helped with the work.
@@ -48,7 +49,7 @@ Scopes match module folder names. Never use messages like `update`, `changes`, `
 
 ```
 backend/src/
-├── main.ts            server start-up (/api prefix, Swagger)
+├── main.ts            server start-up (/api prefix, Swagger UI loading docs/api/openapi.yaml)
 ├── app.module.ts      database connection and module registration
 ├── config/            environment validation
 ├── common/            shared code: enums, decorators, guards, filters, pipes, DTOs, utils
@@ -75,9 +76,9 @@ backend/src/
 | Validation | Every body and query is a DTO class with `class-validator` decorators. |
 | Pagination | Lists use page size 10 (GEN-05) and the shared pagination types in `common/dto/`. |
 | Errors | Throw Nest exceptions (`BadRequestException`, `NotFoundException`, `ConflictException`, ...) and use the shared error format from `common/filters/`. |
-| Money | Store integer minor units (`12345` = 123.45) in the platform currency. Never use floats for money. |
+| Money | Flight and hotel prices, totals, payments and refunds are integers in cents of the platform currency, in the database and in the API (`25000` = 250.00). Never use floats for them. Itinerary budget amounts are decimals in any currency. |
 | Dates | Store UTC dates. Show flight times in the airport's local time zone (GEN-06). |
-| Swagger | Every route has `@ApiOperation({ summary: '... (REQ-ID)' })`; DTO fields have `@ApiProperty` with examples. |
+| Swagger | All API documentation is in one file, [docs/api/openapi.yaml](api/openapi.yaml), which Swagger UI loads at `/api/docs`. Implement each endpoint exactly as documented there (path, fields, status codes). If you change or add an endpoint, update the file in the same PR, with the requirement IDs at the end of the summary. Do not use `@ApiOperation`/`@ApiProperty` decorators: Swagger UI shows only this file. |
 
 ### Status Codes
 

@@ -76,3 +76,26 @@ previews for FLT-26/HTL-21, POST /api/reports, notification endpoints, currencie
 deactivation) and for schema fields (hidden flags, statuses, hold expiry, policy acceptance).
 Moved the timeline to start on 31 October. Still no requirement is implemented.
 ================================================
+
+================================================
+Date: 2026-10-22
+Student: Khaled Ahmed
+Tool: Claude Code (Claude Opus 5.5)
+Related Requirement: All Milestone 1 endpoints (PDF section 8); no requirement implemented
+
+Prompt:
+Write the Swagger documentation of every endpoint in PDF section 8, in one separate file and
+without any implementation, so the team knows the full API before starting. Include the optional
+(bonus) endpoints, but no endpoints beyond the PDF tables. Cross-check it with the PDF.
+
+How the output was used:
+Added docs/api/openapi.yaml (OpenAPI 3.0) documenting all 117 endpoints of PDF section 8 with
+their requirement IDs, access rules, parameters, request bodies with examples and responses,
+plus the existing health check. main.ts now loads this file into Swagger UI (js-yaml added as a
+dependency). No controller, service or schema was changed. Verified with swagger-cli and Redocly
+(0 errors), by starting the server and by a script comparing the served document with the PDF
+tables (all 117 endpoints and their requirement IDs present). Updated CONVENTIONS.md, the PR
+template, TEAM_PLAN.md and docs/api/README.md: endpoints must match the file, and the file is
+updated in the same PR when an endpoint changes. Design choices written in the file (field names,
+cents for prices, the flight booking flow) can be changed by the team.
+================================================

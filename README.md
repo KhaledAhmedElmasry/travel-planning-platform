@@ -49,7 +49,7 @@ npm run start:dev
 
 ### Using Swagger
 
-Open http://localhost:3000/api/docs. Every endpoint appears there once it is implemented with Swagger decorators. Authentication uses httpOnly cookies (ACC-19), so after logging in through Swagger the browser sends the cookie automatically.
+Open http://localhost:3000/api/docs. Swagger UI shows every endpoint of PDF section 8 from the hand-written documentation in [docs/api/openapi.yaml](docs/api/openapi.yaml). An endpoint that is not implemented yet returns `404` in "Try it out". Authentication uses httpOnly cookies (ACC-19), so after logging in through Swagger the browser sends the cookie automatically.
 
 ### Stripe Webhooks (Local)
 
@@ -81,5 +81,5 @@ The official datasets ([docs/requirements/Mock Data.xlsx](docs/requirements/Mock
 | [docs/requirements/](docs/requirements/) | Official requirements workbook, reference datasets, and [assumed requirements](docs/requirements/ASSUMED_REQUIREMENTS.md) |
 | [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md) | Work areas, dependencies, timeline and design decisions |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | Git workflow, code structure and API conventions |
-| [docs/api/](docs/api/) | API notes (Swagger UI is the live reference) |
+| [docs/api/openapi.yaml](docs/api/openapi.yaml) | Swagger documentation of every endpoint (shown at `/api/docs`) |
 | [AI_PROMPTS.txt](AI_PROMPTS.txt) | AI usage log (mandatory) |

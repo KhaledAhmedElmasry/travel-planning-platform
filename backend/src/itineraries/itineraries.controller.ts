@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { ItinerariesService } from './itineraries.service';
 
 // Area: Itineraries
@@ -39,7 +38,6 @@ import { ItinerariesService } from './itineraries.service';
 // Bonus endpoints:
 //   POST /api/itineraries/:id/bookings   ITN-27 (Optional)
 //   GET  /api/itineraries/:id/pdf        ITN-28 (Optional)
-@ApiTags('Itineraries')
 @Controller()
 export class ItinerariesController {
   constructor(private readonly itinerariesService: ItinerariesService) {}

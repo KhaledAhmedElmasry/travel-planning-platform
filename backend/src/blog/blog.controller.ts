@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { BlogService } from './blog.service';
 
 // Area: Community & Cross-cutting
@@ -26,7 +25,6 @@ import { BlogService } from './blog.service';
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
 //   PATCH /api/posts/:id/itinerary   BLG-13 (Optional)
-@ApiTags('Blog')
 @Controller()
 export class BlogController {
   constructor(private readonly blogService: BlogService) {}

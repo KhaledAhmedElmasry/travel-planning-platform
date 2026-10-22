@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
 import { HotelBookingsService } from './hotel-bookings.service';
 
 // Area: Hotel Booking & Reviews
@@ -15,7 +14,6 @@ import { HotelBookingsService } from './hotel-bookings.service';
 // Notes:
 //   Users see only their own reservations (ACC-11). Group the list as Upcoming / Past / Cancelled (HTL-20).
 //   All selected rooms are held together or not at all (HTL-18, PDF section 6.3).
-@ApiTags('Hotel Bookings')
 @Controller('hotel-bookings')
 export class HotelBookingsController {
   constructor(private readonly hotelBookingsService: HotelBookingsService) {}

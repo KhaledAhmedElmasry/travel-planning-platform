@@ -96,7 +96,7 @@ Work starts on **31 October** (after midterms). Until then: everyone reads the r
 - [ ] Validation and authorization enforced in the backend (wrong role → 403, other user's data → 404).
 - [ ] Error cases from the requirement return clear messages.
 - [ ] Lists are paginated (10 per page).
-- [ ] Swagger summary includes the requirement ID; DTOs have examples.
+- [ ] Implemented exactly as documented in `docs/api/openapi.yaml` (or the file is updated in the same PR).
 - [ ] Merged into `develop` through a reviewed PR.
 - [ ] `AI_PROMPTS.txt` updated if AI was used.
 
