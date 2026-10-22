@@ -4,19 +4,20 @@
 # Prerequisites: GitHub CLI (https://cli.github.com), then `gh auth login`.
 # Run from the repository root after pushing the repo to GitHub:
 #   powershell -ExecutionPolicy Bypass -File scripts/create-github-issues.ps1
-#   powershell -ExecutionPolicy Bypass -File scripts/create-github-issues.ps1 -IncludeBonus
+# This creates all 122 issues: 111 mandatory (incl. 7 assumed) in "Milestone 1", and 11 bonus
+# issues with the "bonus" label and no milestone. Add -SkipBonus to create only the 111.
 #
 # Run it once only: running it again creates duplicate issues.
 
 param(
-    [switch]$IncludeBonus
+    [switch]$SkipBonus
 )
 
 $ErrorActionPreference = 'Stop'
 $csvPath = Join-Path $PSScriptRoot '..\docs\requirements\issues.csv'
 $issues = Import-Csv -Path $csvPath -Encoding UTF8
 
-if (-not $IncludeBonus) {
+if ($SkipBonus) {
     $issues = $issues | Where-Object { $_.labels -notmatch '(^|,)bonus(,|$)' }
 }
 
