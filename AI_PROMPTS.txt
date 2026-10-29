@@ -77,3 +77,26 @@ removed all dates and deadlines from the PDFs and TASKS.md. Regenerated TASKS.md
 docs/milestone1/TASKS.md, WORKFLOW.pdf and the 8 area handouts (no names); reviewed every page
 and verified that all 105 Milestone 1 requirements and 118 endpoints appear exactly once.
 ================================================
+
+================================================
+Date: 2026-10-29
+Student: Khaled Ahmed (team leader)
+Tool: Claude Code (Claude Opus 5.5)
+Related Requirement: GEN-12, FLT-02, NEW-05, ACC-18
+
+Prompt:
+As team leader, I asked the assistant to implement the database seed script so that the shared
+MongoDB Atlas database contains the official reference data before the team starts development,
+and to write a short notice informing the team that the database is already seeded.
+
+How the output was used:
+The output was used as backend/src/database/seed.ts (run with "npm run seed"). The script loads
+the official reference datasets (countries, cities, airports and attractions) using the official
+identifiers as document ids, adds the IANA time zone required by FLT-02 to every airport, derives
+the supported currency list (GEN-12), and creates the seeded administrator account with a bcrypt
+password hash read from the environment (ACC-18). It validates referential integrity before
+writing (NEW-05) and is idempotent: re-running it updates reference data without creating
+duplicates and never resets the administrator password. Field names follow docs/api/openapi.yaml.
+I reviewed the script, verified it with a successful build and lint, ran it twice against the
+shared database and confirmed the stored documents and the hashed administrator password.
+================================================
