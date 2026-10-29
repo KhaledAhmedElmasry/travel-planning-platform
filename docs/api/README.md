@@ -41,15 +41,16 @@ An endpoint that is not implemented yet returns `404 Cannot ...` in "Try it out"
 
 ## Requirements Without an Endpoint in the PDF Tables
 
-These requirements need endpoints that PDF section 8 does not list ("Students may introduce additional
-endpoints when justified"). Add them to `openapi.yaml` when they are designed:
+Extra endpoints may be needed for these requirements, which PDF section 8 does not cover ("Students may
+introduce additional endpoints when justified"). The team decides whether and how to add them; add any new
+endpoint to `openapi.yaml` in the same PR:
 
-| Requirement | Missing endpoint(s) |
+| Requirement | Feature that may need an extra endpoint |
 |---|---|
-| NEW-07 | Refresh the session, e.g. `POST /api/auth/refresh` |
+| NEW-07 | Refresh the session |
 | NEW-05, GEN-12, ACC-09 | Countries, cities, attractions and supported currencies lists |
 | GEN-01 | Notifications: list, unread count, mark as read, mark all as read |
-| GEN-09 | A user reports content, e.g. `POST /api/reports` |
+| GEN-09 | A user reports content |
 | GEN-10 | An admin hides content directly (deleting already exists) |
 | ACC-15 | An admin deactivates and reactivates a hotel or airline |
 | BON-01, BON-02 (bonus) | Admin analytics; favourites |

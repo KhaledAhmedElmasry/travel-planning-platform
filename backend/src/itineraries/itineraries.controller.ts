@@ -28,11 +28,12 @@ import { ItinerariesService } from './itineraries.service';
 //   GET    /api/itineraries/public/search                  ITN-20, ITN-21
 //   GET    /api/itineraries/public/:id                     ITN-21
 //   POST   /api/itineraries/:id/clone                      ITN-21
-//   GET    /api/itineraries/:id/hotels                     ITN-09, ITN-25
+//   GET    /api/itineraries/:id/hotels                     ITN-09
 //   GET    /api/itineraries/:id/flights                    ITN-26
 // Notes:
 //   Private itineraries are visible only to their owner (ACC-11): check ownership in the service.
 //   Declare /itineraries/public/... and /days/reorder before the :id and :dayId routes.
+//   The hotels endpoint (GET /api/itineraries/:id/hotels) also covers ITN-25 (hotels for a city group).
 //   ITN-25 and ITN-26 reuse the hotel search (HTL-11) and flight search (FLT-11, FLT-12) services.
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:

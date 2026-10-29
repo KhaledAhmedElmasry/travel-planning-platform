@@ -774,7 +774,7 @@ paths:
   /api/airports:
     get:
       tags: ['Airlines, Flights, and Flight Inventory']
-      summary: 'List airports (FLT-02, FLT-03, FLT-11)'
+      summary: 'List airports (FLT-03, FLT-11)'
       description: |
         **Access:** everyone, including guests.
 
@@ -1763,7 +1763,7 @@ paths:
   /api/hotels/{id}/rooms/{roomId}:
     patch:
       tags: [Hotels and Rooms]
-      summary: 'Edit or deactivate a room (HTL-05, HTL-06)'
+      summary: 'Edit or deactivate a room (HTL-05)'
       description: |
         **Access:** the hotel moderator assigned to this hotel.
 
@@ -1986,7 +1986,7 @@ paths:
   /api/hotels/{id}/policies:
     put:
       tags: [Hotels and Rooms]
-      summary: 'Set check-in/check-out times and cancellation tiers (HTL-09, HTL-10)'
+      summary: 'Set check-in/check-out times and cancellation tiers (HTL-08, HTL-10)'
       description: |
         **Access:** the hotel moderator assigned to this hotel.
 
@@ -3174,7 +3174,7 @@ paths:
   /api/itineraries/{id}/hotels:
     get:
       tags: [Itineraries]
-      summary: 'Find hotels for a city group of the itinerary (ITN-09, ITN-25)'
+      summary: 'Find hotels for a city group of the itinerary (ITN-09)'
       description: |
         **Access:** the owner.
 

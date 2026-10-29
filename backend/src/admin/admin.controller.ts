@@ -10,9 +10,9 @@ import { AdminService } from './admin.service';
 //   PATCH /api/admin/accounts/:id/reactivate    ACC-15, ACC-16
 //   POST  /api/admin/users/:id/reset-password   ACC-07a
 //   GET   /api/admin/bookings                   ACC-17
-// Also needed by the requirements (not in the PDF tables):
-//   deactivate / reactivate a hotel or airline, e.g. PATCH /api/admin/providers/:type/:id/deactivate
-//   and .../reactivate (ACC-15). Notify affected parties (GEN-01) and write an audit entry (GEN-07).
+// Extra endpoints may be needed (not in the PDF tables) for:
+//   deactivating / reactivating a hotel or airline (ACC-15). Notify affected parties (GEN-01) and
+//   write an audit entry (GEN-07).
 // Notes:
 //   Admin only. Suspending an account or resetting its password revokes its sessions (NEW-07).
 //   Admin accounts are seeded, never registered (ACC-18).

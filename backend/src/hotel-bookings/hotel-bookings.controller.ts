@@ -8,10 +8,10 @@ import { HotelBookingsService } from './hotel-bookings.service';
 //   GET  /api/hotel-bookings               HTL-20
 //   GET  /api/hotel-bookings/:id           HTL-20
 //   POST /api/hotel-bookings/:id/cancel    HTL-21
-// Also needed by the requirements (not in the PDF tables):
-//   a refund preview before cancelling, e.g. GET /api/hotel-bookings/:id/refund-preview (HTL-21:
-//   "after viewing the refund computed from the hotel's tiers on the full total")
 // Notes:
+//   The reservation details (GET /api/hotel-bookings/:id) show the refund the user would get before
+//   they cancel (HTL-21: "after viewing the refund computed from the hotel's tiers on the full
+//   total"); there is no separate refund-preview endpoint.
 //   Users see only their own reservations (ACC-11). Group the list as Upcoming / Past / Cancelled (HTL-20).
 //   All selected rooms are held together or not at all (HTL-18, PDF section 6.3).
 @Controller('hotel-bookings')

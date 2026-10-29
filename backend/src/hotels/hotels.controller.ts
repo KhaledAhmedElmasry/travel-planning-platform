@@ -15,13 +15,13 @@ import { HotelsService } from './hotels.service';
 //   POST   /api/hotels/:id/rooms/:roomId/availability   HTL-04
 //   PATCH  /api/hotels/:id/rooms/:roomId/availability   HTL-05, HTL-06
 //   GET    /api/hotels/:id/availability                 HTL-08
-//   PUT    /api/hotels/:id/policies                     HTL-09, HTL-10 (the PDF table says HTL-08;
-//                                                        check-in/out times are HTL-09)
+//   PUT    /api/hotels/:id/policies                     HTL-08, HTL-10
 //   GET    /api/hotels/:id/reservations                 HTL-22
-// Also needed by the requirements (not in the PDF tables):
-//   endpoints to upload and remove hotel photos (HTL-01, GEN-08: up to 5 per hotel)
-//   a way to deactivate a room (HTL-06), e.g. through PATCH /api/hotels/:id/rooms/:roomId
 // Notes:
+//   The policies endpoint (PUT /api/hotels/:id/policies) also sets check-in / check-out times (HTL-09).
+//   Photos are sent as multipart/form-data on POST /api/hotels and PATCH /api/hotels/:id; PATCH takes
+//   removePhotoIds (HTL-01, GEN-08: up to 5 per hotel). There is no separate upload endpoint.
+//   A room is deactivated through PATCH /api/hotels/:id/rooms/:roomId with active: false (HTL-06).
 //   Admins create hotels; only the moderator assigned to THIS hotel may edit it (ACC-11, ACC-13).
 //   Deactivated hotels (ACC-15) and deactivated rooms (HTL-06) are excluded from search.
 //   Hotel search must be reusable from itineraries (ITN-25): keep it in the exported service.

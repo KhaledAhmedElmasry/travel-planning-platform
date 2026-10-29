@@ -4,8 +4,8 @@ import { ExchangeRatesService } from './exchange-rates.service';
 // Area: Itineraries
 // Requirements: ITN-18, NEW-04
 // Endpoints to implement (PDF section 8):
-//   (add endpoints as needed, PDF section 8.10), e.g. GET /api/exchange-rates?base=USD   ITN-18
-//   The budget summary (itineraries module) calls ExchangeRatesService for conversion.
+//   none of its own. GET /api/itineraries/:id/budget-summary?currency=... (itineraries module)
+//   calls ExchangeRatesService for conversion (ITN-18).
 // Notes:
 //   Retrieve rates from FXRatesAPI through the backend only (PDF section 6.5).
 //   Handle invalid currency codes, unavailable rates and API failures (PDF section 6.5).

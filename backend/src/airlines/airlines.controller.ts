@@ -9,9 +9,9 @@ import { AirlinesService } from './airlines.service';
 //   PATCH /api/airlines/:id                       FLT-01
 //   PUT   /api/airlines/:id/baggage-policy        FLT-04, FLT-08
 //   PUT   /api/airlines/:id/cancellation-policy   FLT-09
-// Also needed by the requirements (not in the PDF tables):
-//   an endpoint to upload the airline logo (FLT-01, GEN-08: 1 logo per airline)
 // Notes:
+//   The logo is sent as multipart/form-data on POST /api/airlines and PATCH /api/airlines/:id
+//   (FLT-01, GEN-08: 1 logo per airline), as in openapi.yaml; there is no separate upload endpoint.
 //   Admins create airlines; only the moderator assigned to THIS airline may edit it (ACC-11, ACC-13).
 @Controller('airlines')
 export class AirlinesController {

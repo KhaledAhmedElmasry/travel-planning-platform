@@ -989,7 +989,7 @@ All validation, business rules and authorisation shall be enforced by the backen
 
 ### Definition of done
 See docs/TEAM_PLAN.md (Definition of Done)."
-ACC-19,[ACC-19] Store authentication tokens or user credentials in localStorage…,"mandatory,area:auth-accounts,complexity:medium",Milestone 1,"**Module:** Cross-cutting
+ACC-19,[ACC-19] Never store authentication tokens or user credentials in localStorage…,"mandatory,area:auth-accounts,complexity:medium",Milestone 1,"**Module:** Cross-cutting
 **Actor(s):** System
 **Complexity:** Medium
 **Dependencies:** ACC-04, ACC-06

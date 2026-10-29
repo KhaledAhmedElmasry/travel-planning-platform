@@ -1,5 +1,5 @@
 // Area: Reference Data & Seeding
-// Used by: GET /api/cities (query), e.g. ?country=EG
+// Used by: an endpoint listing cities, if the team adds one (query), filtered by country (e.g. EG)
 // Requirements: NEW-05, GEN-12
 //
 // TODO: define the DTO class with class-validator rules for the fields this endpoint needs,

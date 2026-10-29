@@ -1,5 +1,5 @@
 // Area: Community & Cross-cutting
-// Used by: the endpoint for users to report content (body)
+// Used by: an endpoint for users to report content, if the team adds one (body)
 // Requirements: GEN-09
 //
 // TODO: define the DTO class with class-validator rules for the fields this endpoint needs,
