@@ -117,7 +117,7 @@ their official identifiers, and only listed values are accepted.
 
 **Acceptance criteria**
 - Countries are keyed by `code` (e.g. `EG`) and cities by `city_id` (e.g. `cairo`), exactly as in the official datasets.
-- Read endpoints: `GET /api/countries`, `GET /api/cities?country=EG`, `GET /api/airports?city=cairo` (and attractions per city).
+- Countries, cities (per country), airports (per city) and attractions (per city) can be read. Airports use `GET /api/airports`; the others may need extra endpoints (see "Endpoints" below).
 - Creating or editing an airport (seed), hotel (HTL-01), itinerary (ITN-01) or itinerary day (ITN-05) with an unknown country/city is rejected with 400.
 - A city must belong to the given country where both are provided.
 
@@ -133,7 +133,7 @@ both issued as httpOnly, Secure, SameSite cookies (ACC-19). Refresh tokens shall
 on the server so they can be revoked, and shall be rotated on each refresh.
 
 **Acceptance criteria**
-- The access token expires after about 15 minutes; `POST /api/auth/refresh` issues a new access token and a rotated refresh token.
+- The access token expires after about 15 minutes; refreshing the session issues a new access token and a rotated refresh token (this may need an extra endpoint, see "Endpoints" below).
 - A session that makes no authenticated request for 30 minutes cannot be refreshed and requires a new login (ACC-06).
 - Logout revokes the refresh token on the server and clears both cookies.
 - Suspending, deactivating or resetting the password of an account (ACC-07a, ACC-12, ACC-15, ACC-16) revokes all its sessions.
@@ -144,11 +144,9 @@ server" and a 30-minute inactivity expiry.
 
 ---
 
-## Additional Endpoints Implied by These Requirements
+## Endpoints
 
-| Method | Endpoint | Requirement |
-|---|---|---|
-| POST | /api/auth/refresh | NEW-07 |
-| GET | /api/countries | NEW-05 |
-| GET | /api/cities | NEW-05 |
-| GET | /api/attractions | NEW-05, GEN-12 |
+The PDF section 8 tables list no endpoint for these features, so extra endpoints may be needed:
+refreshing the session (NEW-07) and reading countries, cities and attractions (NEW-05, GEN-12).
+The team decides whether and how to add them; any new endpoint must be added to
+`docs/api/openapi.yaml` in the same PR.

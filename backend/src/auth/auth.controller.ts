@@ -6,10 +6,13 @@ import { AuthService } from './auth.service';
 // Endpoints to implement (PDF section 8):
 //   POST  /api/auth/register          ACC-01, ACC-03
 //   POST  /api/auth/login             ACC-04, ACC-05
-//   POST  /api/auth/refresh           NEW-07
 //   POST  /api/auth/logout            ACC-06
 //   PATCH /api/auth/change-password   ACC-08
-//   GET   /api/auth/me                ACC-04, ACC-11, ACC-19
+//   GET   /api/auth/me                ACC-04, ACC-11
+// Extra endpoints may be needed (not in the PDF tables) for:
+//   refreshing the session (NEW-07)
+// Notes:
+//   Tokens live only in httpOnly cookies, never in localStorage or sessionStorage (ACC-19).
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
 //   GET  /api/auth/verify-email      ACC-02 (Optional)
