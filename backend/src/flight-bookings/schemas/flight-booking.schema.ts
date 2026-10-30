@@ -172,6 +172,10 @@ export class FlightBooking {
   @Prop({ type: Date, default: null })
   cancelledAt: Date | null;
 
+  // GEN-11: set when the last flight has departed (NEW-01 job).
+  @Prop({ type: Date, default: null })
+  completedAt: Date | null;
+
   // Set only between a cancellation and its refund (PAY-03, see PendingRefund).
   @Prop({ type: PendingRefundSchema, default: null })
   pendingRefund: PendingRefund | null;

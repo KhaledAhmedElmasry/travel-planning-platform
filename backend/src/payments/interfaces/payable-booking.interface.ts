@@ -22,9 +22,10 @@ export interface PayableBooking {
 
 // Result of confirming a booking after Stripe reported a successful payment:
 // - confirmed: the booking moved pending_payment -> confirmed now;
-// - already_confirmed: it was confirmed before (Stripe sent the same event twice);
-// - not_confirmable: it is no longer pending_payment (e.g. the hold expired), so the payment
-//   must be refunded.
+// - already_confirmed: this payment confirmed it before (Stripe sent the same event twice), even
+//   if the booking is completed or cancelled by now (GEN-11): nothing to do;
+// - not_confirmable: it is no longer pending_payment and was not confirmed by this payment (e.g. the
+//   hold expired), so the payment must be refunded.
 export type ConfirmPaidBookingResult =
   'confirmed' | 'already_confirmed' | 'not_confirmable';
 

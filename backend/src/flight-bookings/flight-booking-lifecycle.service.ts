@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { Connection, Model } from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
 import { BookingStatus, BookingType } from '../common/enums';
+import { allowedFrom, canTransition } from '../payments/booking-lifecycle';
 import { PaymentsService } from '../payments/payments.service';
 import { RefundResponse, RefundsService } from '../payments/refunds.service';
 import { RefundReason } from '../payments/schemas/refund.schema';
@@ -18,7 +19,7 @@ import {
 import { SeatInventoryService } from './seat-inventory.service';
 
 // Area: Payments, Holds & Booking Engine
-// Requirements: FLT-22 (hold expiry), FLT-26 (cancellation), PAY-03, GEN-11, NEW-01
+// Requirements: FLT-22 (hold expiry), FLT-26 (cancellation), PAY-03, GEN-11 (completion), NEW-01
 // Status changes that also touch the seat counters, payments and refunds. Kept apart from
 // FlightBookingsService so that the payments module (which uses FlightBookingsService) and this
 // service (which uses the payments module) do not depend on each other in a circle.
@@ -26,7 +27,8 @@ import { SeatInventoryService } from './seat-inventory.service';
 // WAITING FOR: AirlinesService.getRefundTier() (Area 5, FLT-09); until then cancel answers 501
 // before changing anything.
 // TODO(GEN-01, Area 3): notify the user on cancellation and refund.
-// TODO(NEW-01): also mark Confirmed bookings Completed once the last flight has departed.
+// GEN-11: every status change below uses allowedFrom() / canTransition() from
+// payments/booking-lifecycle.ts, so only the allowed transitions can happen.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // How many bookings one run of a job handles (the next run takes the rest).
@@ -66,7 +68,7 @@ export class FlightBookingLifecycleService {
     bookingId: string,
   ): Promise<CancelledFlightBookingResponse> {
     const booking = await this.bookings.findOwned(userId, bookingId);
-    if (booking.status !== BookingStatus.Confirmed) {
+    if (!canTransition(booking.status, BookingStatus.Cancelled)) {
       throw new ConflictException(
         `This booking is ${booking.status}; only a confirmed booking can be cancelled.`,
       );
@@ -90,7 +92,11 @@ export class FlightBookingLifecycleService {
     };
     await this.connection.transaction(async (session) => {
       const cancelled = await this.bookingModel.findOneAndUpdate(
-        { _id: bookingId, userId, status: BookingStatus.Confirmed },
+        {
+          _id: bookingId,
+          userId,
+          status: { $in: allowedFrom(BookingStatus.Cancelled) },
+        },
         {
           $set: {
             status: BookingStatus.Cancelled,
@@ -128,6 +134,25 @@ export class FlightBookingLifecycleService {
     // TODO(GEN-01, Area 3): notify the user that the booking was cancelled (and the refund).
 
     return { ...this.bookings.toResponse(state.cancelled), refund };
+  }
+
+  // GEN-11, NEW-01: every minute, Confirmed bookings whose LAST flight has departed (the return
+  // flight of a round trip) become Completed. One update for all of them; nothing else changes
+  // (the seats stay booked). Completed is final: it can no longer be cancelled or paid.
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'flight-booking-completion' })
+  async completeDeparted(): Promise<number> {
+    const now = new Date();
+    const result = await this.bookingModel.updateMany(
+      {
+        status: { $in: allowedFrom(BookingStatus.Completed) },
+        // $max over the segments' departure times = the last departure of the booking.
+        $expr: { $lte: [{ $max: '$segments.departureAt' }, now] },
+      },
+      { $set: { status: BookingStatus.Completed, completedAt: now } },
+    );
+    if (result.modifiedCount > 0)
+      this.logger.log(`Completed ${result.modifiedCount} flight booking(s).`);
+    return result.modifiedCount;
   }
 
   // PAY-03: every minute, refunds still owed by cancellations are created. This only finds
@@ -193,7 +218,7 @@ export class FlightBookingLifecycleService {
     const now = new Date();
     const due = await this.bookingModel
       .find({
-        status: BookingStatus.PendingPayment,
+        status: { $in: allowedFrom(BookingStatus.Expired) },
         holdExpiresAt: { $lte: now },
       })
       .select('_id')
@@ -220,7 +245,7 @@ export class FlightBookingLifecycleService {
       const expired = await this.bookingModel.findOneAndUpdate(
         {
           _id: bookingId,
-          status: BookingStatus.PendingPayment,
+          status: { $in: allowedFrom(BookingStatus.Expired) },
           holdExpiresAt: { $lte: now },
         },
         { $set: { status: BookingStatus.Expired, expiredAt: now } },

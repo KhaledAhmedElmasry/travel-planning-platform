@@ -15,6 +15,7 @@ import {
   Types,
 } from 'mongoose';
 import { BookingStatus, BookingType } from '../common/enums';
+import { allowedFrom } from '../payments/booking-lifecycle';
 import { HotelsService } from '../hotels/hotels.service';
 import {
   newReference,
@@ -116,7 +117,9 @@ export interface HotelBookingResponse {
   policiesAcceptedAt: Date | null;
   paymentId: string | null;
   confirmedAt: Date | null;
+  expiredAt: Date | null;
   cancelledAt: Date | null;
+  completedAt: Date | null;
   createdAt?: Date;
 }
 
@@ -326,7 +329,7 @@ export class HotelBookingsService implements BookingPaymentHandler {
       const booking = await this.bookingModel.findOneAndUpdate(
         {
           _id: bookingId,
-          status: BookingStatus.PendingPayment,
+          status: { $in: allowedFrom(BookingStatus.Confirmed) },
           holdExpiresAt: { $gt: now },
         },
         {
@@ -341,13 +344,14 @@ export class HotelBookingsService implements BookingPaymentHandler {
       );
 
       if (!booking) {
-        // Stripe can send the same event twice: the second time it is already confirmed.
+        // Stripe can send the same event twice. If THIS payment already confirmed the reservation, the
+        // event is a duplicate: nothing to do, even if the reservation has moved on since (completed or
+        // cancelled, GEN-11). Refunding here would give back the money of a used stay.
         const current = await this.bookingModel
           .findById(bookingId)
           .session(session);
         outcome.result =
-          current?.status === BookingStatus.Confirmed &&
-          current.paymentId?.toString() === paymentId
+          current?.paymentId?.toString() === paymentId
             ? 'already_confirmed'
             : 'not_confirmable';
         return;
@@ -407,7 +411,9 @@ export class HotelBookingsService implements BookingPaymentHandler {
       policiesAcceptedAt: booking.policiesAcceptedAt,
       paymentId: booking.paymentId?.toString() ?? null,
       confirmedAt: booking.confirmedAt,
+      expiredAt: booking.expiredAt,
       cancelledAt: booking.cancelledAt,
+      completedAt: booking.completedAt,
       createdAt: booking.createdAt,
     };
   }
