@@ -2086,9 +2086,10 @@ paths:
         login and back (ACC-10).
 
         Books one or more rooms of the same hotel for the same dates as one reservation (HTL-16):
-        - Each room gets its adults and children (ages 0-17); at least one adult per reservation, and no
-          room above its maximum occupancy.
-        - Total = the sum over rooms of nights x the room's price per night at booking time.
+        - Each room gets its adults and children (ages 0-17); every room needs at least one guest, the
+          reservation at least one adult, and no room can be above its maximum occupancy.
+        - Each room can be selected once. Nights = checkOut - checkIn (checkOut is the departure day).
+        - Total = the sum over rooms of nights x the room's price per night at booking time, in cents.
 
         All selected rooms are held together for 10 minutes as one `pending_payment` reservation
         (HTL-18). If any room overlaps a Confirmed reservation, an unexpired hold or a blocked range, the
@@ -2107,9 +2108,14 @@ paths:
               $ref: '#/components/schemas/HotelBookingRequest'
       responses:
         '201':
-          description: Reservation created - id, status pending_payment, holdExpiresAt, hotel, dates, rooms with guests and prices, total in cents.
+          description: |
+            Reservation created - `id`, `reference` (null until confirmed), `status` pending_payment,
+            `holdExpiresAt`, `hotel` (id, name), `checkIn` / `checkOut` (YYYY-MM-DD), `nights`, `rooms`
+            (room number, type, beds, maximum occupancy, adults, childrenAges, pricePerNight and
+            subtotal in cents), `guests` (adults, children), `totalAmount` in cents, `currency`,
+            `policiesAcceptedAt`, `paymentId`.
         '400':
-          description: Invalid dates (check-out not after check-in, check-in in the past), no adult, too many guests in a room, or rooms from different hotels.
+          description: Invalid dates (check-out not after check-in, check-in in the past), no adult, a room without guests, too many guests in a room, the same room twice, or rooms from different hotels.
           content: *error
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -2117,10 +2123,10 @@ paths:
           description: Not a registered user.
           content: *error
         '404':
-          description: Hotel or room not found.
+          description: Hotel or room not found, or the hotel is deactivated (ACC-15).
           content: *error
         '409':
-          description: At least one room is not available for these dates, so nothing was held.
+          description: At least one room is deactivated, outside its bookable dates, blocked, or already held or booked for one of the nights, so nothing was held.
           content: *error
     get:
       tags: [Hotel Booking and Reviews]
@@ -2186,14 +2192,17 @@ paths:
         - $ref: '#/components/parameters/Id'
       responses:
         '200':
-          description: The cancelled reservation with its refund (amount in cents and status).
+          description: |
+            The cancelled reservation (same fields as the booking response, status `cancelled`,
+            `cancelledAt`) with `refund` - the refund created (amount in cents, refundPercentage,
+            tierDaysBefore, status), or null when the tier gives 0%.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           description: Reservation not found, or it belongs to another user.
           content: *error
         '409':
-          description: The reservation is not Confirmed, or the check-in date has been reached.
+          description: The reservation is not Confirmed, or the check-in date has been reached (cancelling is possible until the day before check-in).
           content: *error
 
   /api/hotel-bookings/{id}/review:

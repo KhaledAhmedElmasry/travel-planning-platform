@@ -11,10 +11,11 @@ import { Payment, PaymentSchema } from './schemas/payment.schema';
 import { Refund, RefundSchema } from './schemas/refund.schema';
 import { stripeProvider } from './stripe.provider';
 
-// FlightBookingsModule (hold expiry, FLT-26 cancellation) uses PaymentsService / RefundsService
-// while this module uses FlightBookingsService: forwardRef on both sides (circular modules).
-// TODO(HTL-18, HTL-21; FLT-06 Area 5): do the same for HotelBookingsModule and FlightsModule
-// when their expiry / cancellation code needs PaymentsService or RefundsService.
+// FlightBookingsModule and HotelBookingsModule (hold expiry, FLT-26 / HTL-21 cancellation) use
+// PaymentsService / RefundsService while this module uses their booking services: forwardRef on
+// both sides (circular modules).
+// TODO(FLT-06, Area 5): do the same for FlightsModule if its flight cancellation needs
+// PaymentsService or RefundsService.
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -22,7 +23,7 @@ import { stripeProvider } from './stripe.provider';
       { name: Refund.name, schema: RefundSchema },
     ]),
     forwardRef(() => FlightBookingsModule),
-    HotelBookingsModule,
+    forwardRef(() => HotelBookingsModule),
   ],
   controllers: [PaymentsController],
   providers: [

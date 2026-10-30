@@ -1,5 +1,8 @@
 import { Injectable, NotImplementedException } from '@nestjs/common';
-import type { CancellationTier } from '../payments/interfaces/payable-booking.interface';
+import type {
+  CancellationTier,
+  RefundTier,
+} from '../payments/interfaces/payable-booking.interface';
 
 // Area: Airlines & Flight Inventory
 // Business logic and database access for: FLT-01, FLT-04, FLT-08, FLT-09
@@ -13,13 +16,6 @@ export interface AirlineBookingPolicies {
   // Integer cents of the platform currency (FLT-08).
   extraBagPrice: number;
   maxExtraBagsPerPassenger: number;
-}
-
-// The tier that applies to a cancellation (FLT-09 rule).
-export interface RefundTier {
-  refundPercentage: number;
-  // daysBefore of the tier used, or null if no tier applies (0%).
-  tierDaysBefore: number | null;
 }
 
 @Injectable()

@@ -30,11 +30,10 @@ import { STRIPE_CLIENT } from './stripe.provider';
 // Area: Payments & Refunds
 // Business logic and database access for: PAY-01, PAY-02, PAY-03, PAY-04, NEW-04
 //
-// PAY-01 status: done here. Flights are connected (FLT-22, FLT-23: flight-bookings.service.ts,
-// and the hold-expiry job in flight-booking-lifecycle.service.ts calls cancelPaymentForBooking()).
-//   - HTL-18 / HTL-17 (this area): HotelBookingsService must still implement findPayableBooking()
-//     and confirmPaidBooking(), and a hotel hold-expiry job must call cancelPaymentForBooking().
-//     Until then every hotel payment returns 501. See the TODOs in hotel-bookings.service.ts.
+// PAY-01 status: done here. Flights and hotels are connected (FLT-22, FLT-23:
+// flight-bookings.service.ts; HTL-17, HTL-18: hotel-bookings.service.ts), and both hold-expiry
+// jobs (flight-booking-lifecycle.service.ts, hotel-booking-lifecycle.service.ts) call
+// cancelPaymentForBooking().
 //   - PAY-02: policies.service.ts sets policiesAcceptedAt through the booking services; the
 //     check in loadPayableBooking() refuses payment without it.
 //   - PAY-03: refunds go through RefundsService (refunds.service.ts).
@@ -225,8 +224,7 @@ export class PaymentsService {
 
   // Called by the hold-expiry cron (NEW-01) when it expires a pending_payment booking:
   // cancels the PaymentIntent so it can no longer be paid (PAY-01).
-  // Flights: done (FlightBookingLifecycleService.expireHolds). TODO(NEW-01): call it from the
-  // hotel hold-expiry job too.
+  // Used by FlightBookingLifecycleService.expireHolds and HotelBookingLifecycleService.expireHolds.
   async cancelPaymentForBooking(
     bookingType: BookingType,
     bookingId: string,

@@ -34,6 +34,14 @@ export interface CancellationTier {
   refundPercentage: number;
 }
 
+// The tier that applies to a cancellation (FLT-09 rule, also used by HTL-10): returned by
+// AirlinesService.getRefundTier() (Area 5) and HotelsService.getRefundTier() (Area 7).
+export interface RefundTier {
+  refundPercentage: number;
+  // daysBefore of the tier used, or null if no tier applies (0%).
+  tierDaysBefore: number | null;
+}
+
 // The provider policies the user must accept before paying a flight booking (PAY-02):
 // the airline's cancellation tiers (FLT-09) and baggage policy (FLT-04, FLT-08).
 export interface FlightBookingPolicies {

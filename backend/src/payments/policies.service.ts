@@ -17,8 +17,9 @@ import { platformCurrency } from './platform-currency';
 // Flights: done in flight-bookings.service.ts (FLT-22); the policies themselves still wait for
 // AirlinesService.getBookingPolicies() (Area 5: FLT-08, FLT-09), so GET policies answers 501 until
 // then (accepting works).
-// WAITING FOR (hotels): HotelBookingsService.getBookingPolicies() / recordPolicyAcceptance()
-// (HTL-18, this area) and the hotel policies (Area 7: HTL-09, HTL-10).
+// Hotels: done in hotel-bookings.service.ts (HTL-18); the policies themselves still wait for
+// HotelsService.getBookingPolicies() (Area 7: HTL-09, HTL-10), so GET policies answers 501 until
+// then (accepting works).
 
 export interface PoliciesResponse {
   bookingType: BookingType;

@@ -1,7 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 import { BookingStatus, CabinClass, PassengerType } from '../../common/enums';
-import { RefundReason } from '../../payments/schemas/refund.schema';
+import {
+  PendingRefund,
+  PendingRefundSchema,
+} from '../../payments/schemas/pending-refund.schema';
 
 // Area: Payments, Holds & Booking Engine
 // Flight Booking and Passenger (PDF section 5 "Flight Bookings"): FLT-12, FLT-19, FLT-22, FLT-23,
@@ -104,23 +107,6 @@ export class BookedPassenger {
 }
 const BookedPassengerSchema = SchemaFactory.createForClass(BookedPassenger);
 
-// PAY-03: the refund a cancellation still owes. It is saved in the same transaction as the
-// cancellation and cleared once the refund is recorded. If the server stops in between, the
-// every-minute job creates the refund, so no cancellation is left without its refund.
-@Schema({ _id: false })
-export class PendingRefund {
-  @Prop({ required: true, min: 0, max: 100 })
-  refundPercentage: number;
-
-  // daysBefore of the airline tier used, null for 0% or a provider cancellation.
-  @Prop({ type: Number, default: null })
-  tierDaysBefore: number | null;
-
-  @Prop({ type: String, enum: RefundReason, required: true })
-  reason: RefundReason;
-}
-const PendingRefundSchema = SchemaFactory.createForClass(PendingRefund);
-
 export type FlightBookingDocument = HydratedDocument<FlightBooking>;
 
 @Schema({ timestamps: true })
@@ -186,7 +172,7 @@ export class FlightBooking {
   @Prop({ type: Date, default: null })
   cancelledAt: Date | null;
 
-  // Set only between a cancellation and its refund (see PendingRefund).
+  // Set only between a cancellation and its refund (PAY-03, see PendingRefund).
   @Prop({ type: PendingRefundSchema, default: null })
   pendingRefund: PendingRefund | null;
 
