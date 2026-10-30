@@ -26,13 +26,16 @@
 //     refund tier), so update it: FlightBooking.updateMany({ 'segments.flightId': id },
 //     { $set: { 'segments.$[s].departureAt': ..., 'segments.$[s].arrivalAt': ... } },
 //     { arrayFilters: [{ 's.flightId': id }], session }). Price changes do NOT touch bookings.
-//   FLT-06 flight cancelled: every booking with a segment on this flight, as a whole (round trips
-//     too, so the OTHER segment's seats are released as well):
-//     - confirmed -> cancelled with cancelledAt, SeatInventoryService.releaseBooked() for each
-//       segment, and pendingRefund { refundPercentage: 100, tierDaysBefore: null,
-//       reason: 'provider_cancellation' } (the every-minute job in
-//       flight-booking-lifecycle.service.ts then creates the refund);
-//     - pending_payment -> expired with expiredAt, SeatInventoryService.releaseHeld() for each
-//       segment, then PaymentsService.cancelPaymentForBooking().
+//   FLT-06 flight cancelled: do NOT change the bookings yourself; Area 1 does it (done):
+//       const result = await connection.transaction(async (session) => {
+//         // set this flight's status to 'cancelled' (only if it is 'scheduled'), with { session }
+//         return lifecycle.cancelBookingsForFlight(flightId, session);
+//       });
+//       await lifecycle.finishFlightCancellation(result);  // after the commit
+//     (lifecycle = FlightBookingLifecycleService, exported by FlightBookingsModule). Every
+//     booking with a segment on this flight changes as a whole (round trips too): confirmed ->
+//     cancelled with a 100% refund, pending_payment -> expired, seats released on every segment.
+//     result.cancelledBookingIds.length is "the number of bookings that were cancelled" of the
+//     response.
 
 export {};

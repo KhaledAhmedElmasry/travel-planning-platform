@@ -14,8 +14,9 @@ import { stripeProvider } from './stripe.provider';
 // FlightBookingsModule and HotelBookingsModule (hold expiry, FLT-26 / HTL-21 cancellation) use
 // PaymentsService / RefundsService while this module uses their booking services: forwardRef on
 // both sides (circular modules).
-// TODO(FLT-06, Area 5): do the same for FlightsModule if its flight cancellation needs
-// PaymentsService or RefundsService.
+// FLT-06 (Area 5) does not need this module: the flight cancellation calls
+// FlightBookingLifecycleService.cancelBookingsForFlight() / finishFlightCancellation(), so
+// FlightsModule imports FlightBookingsModule.
 @Module({
   imports: [
     MongooseModule.forFeature([

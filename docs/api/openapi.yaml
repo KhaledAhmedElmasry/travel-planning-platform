@@ -1393,7 +1393,8 @@ paths:
             policies were accepted, the time of each status change (GEN-11), the payment status, and the
             refund with its status (PAY-03).
             For an upcoming Confirmed booking it also shows the refund the user would get if they
-            cancelled now, computed from the airline's tiers (FLT-26).
+            cancelled now, computed from the airline's tiers (FLT-26), as `cancellation`
+            (`CancellationPreview`, the same calculation `POST .../cancel` uses).
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -2174,7 +2175,8 @@ paths:
             policies were accepted, the time of each status change (GEN-11), the payment status, and the
             refund with its status (PAY-03).
             For an upcoming Confirmed reservation it also shows the refund the user would get if they
-            cancelled now, computed from the hotel's tiers on the full total (HTL-21).
+            cancelled now, computed from the hotel's tiers on the full total (HTL-21), as
+            `cancellation` (`CancellationPreview`, the same calculation `POST .../cancel` uses).
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -4015,6 +4017,47 @@ components:
           example: 50
           description: Refund percentage for cancellations at least this many days before.
 
+    CancellationPreview:
+      type: object
+      description: |
+        What the user would get back by cancelling now (FLT-26, HTL-21), shown in the booking details
+        before they confirm the cancellation. The cancellation itself uses the same calculation, so the
+        refund given equals the refund shown.
+      required: [cancellable, reason, daysBefore, refundPercentage, tierDaysBefore, refundAmount, currency]
+      properties:
+        cancellable:
+          type: boolean
+          example: true
+          description: false when the booking cannot be cancelled now (see `reason`).
+        reason:
+          type: string
+          nullable: true
+          example: null
+          description: Why it cannot be cancelled (not confirmed, flight departed, check-in date reached).
+        daysBefore:
+          type: integer
+          nullable: true
+          example: 10
+          description: Whole days left before departure (flights) or the check-in date (hotels).
+        refundPercentage:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 50
+          description: From the provider's tier for those days; 0 when no tier applies.
+        tierDaysBefore:
+          type: integer
+          nullable: true
+          example: 7
+          description: daysBefore of the tier used, or null when no tier applies.
+        refundAmount:
+          type: integer
+          example: 19000
+          description: Integer cents of the platform currency (PAY-04).
+        currency:
+          type: string
+          example: USD
+
     # --- Fixed value lists ---
 
     Role:
@@ -4041,7 +4084,9 @@ components:
       enum: [pending_payment, confirmed, completed, expired, cancelled]
     BookingGroup:
       type: string
-      description: How a user's bookings are grouped (FLT-25, HTL-20).
+      description: |
+        How a user's bookings are grouped (FLT-25, HTL-20). `upcoming` (NEW-01): Confirmed with a flight
+        not yet departed (a round trip until its return flight departs), or a stay not yet started.
       enum: [upcoming, past, cancelled]
     CabinClass:
       type: string

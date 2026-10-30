@@ -5,6 +5,11 @@ import { Connection, Model } from 'mongoose';
 import { BookingStatus, BookingType } from '../common/enums';
 import { HotelsService } from '../hotels/hotels.service';
 import { allowedFrom, canTransition } from '../payments/booking-lifecycle';
+import {
+  CancellationPreview,
+  cancellablePreview,
+  notCancellablePreview,
+} from '../payments/cancellation-preview';
 import { PaymentsService } from '../payments/payments.service';
 import { RefundResponse, RefundsService } from '../payments/refunds.service';
 import { RefundReason } from '../payments/schemas/refund.schema';
@@ -20,14 +25,17 @@ import {
 import { daysBeforeCheckIn, todayUtc } from './stay-dates';
 
 // Area: Payments, Holds & Booking Engine
-// Requirements: HTL-18 (hold expiry), HTL-21 (cancellation), PAY-03, GEN-11 (completion), NEW-01,
-// HTL-23 (Completed stays can be reviewed, Area 4)
+// Requirements: HTL-18 (hold expiry), HTL-21 (cancellation + refund preview), PAY-03, GEN-11
+// (completion), NEW-01, HTL-23 (Completed stays can be reviewed, Area 4)
 // Status changes that also touch the room-nights, payments and refunds. Kept apart from
 // HotelBookingsService so that the payments module (which uses HotelBookingsService) and this
 // service (which uses the payments module) do not depend on each other in a circle.
 //
-// WAITING FOR: HotelsService.getRefundTier() (Area 7, HTL-10); until then cancel answers 501
-// before changing anything.
+// Used by Area 6: previewCancellation(), the refund shown in the reservation details (HTL-20,
+// HTL-21).
+//
+// WAITING FOR: HotelsService.getRefundTier() (Area 7, HTL-10); until then cancel and the preview
+// of a confirmed reservation answer 501 before changing anything.
 // TODO(GEN-01, Area 3): notify the user on cancellation and refund.
 // GEN-11: every status change below uses allowedFrom() / canTransition() from
 // payments/booking-lifecycle.ts, so only the allowed transitions can happen.
@@ -55,6 +63,39 @@ export class HotelBookingLifecycleService {
     private readonly refunds: RefundsService,
   ) {}
 
+  // HTL-21: what the user would get back by cancelling now, from the hotel's tier for the days
+  // left before the check-in date, on the full total (HTL-10). Shown in the reservation details
+  // (HTL-20, Area 6: call it with the reservation from HotelBookingsService.findOwned()). cancel()
+  // uses the same function, so the refund given is the refund shown.
+  async previewCancellation(
+    booking: HotelBookingDocument,
+    now = new Date(),
+  ): Promise<CancellationPreview> {
+    if (!canTransition(booking.status, BookingStatus.Cancelled)) {
+      return notCancellablePreview(
+        `This reservation is ${booking.status}; only a confirmed reservation can be cancelled.`,
+        booking.currency,
+      );
+    }
+    const daysBefore = daysBeforeCheckIn(booking.checkIn, now);
+    if (daysBefore <= 0) {
+      return notCancellablePreview(
+        'The check-in date has been reached; the reservation can no longer be cancelled.',
+        booking.currency,
+      );
+    }
+    const tier = await this.hotels.getRefundTier(
+      booking.hotelId.toString(),
+      daysBefore,
+    );
+    return cancellablePreview(
+      booking.totalAmount,
+      booking.currency,
+      daysBefore,
+      tier,
+    );
+  }
+
   // POST /api/hotel-bookings/:id/cancel (HTL-21): only the owner, only a Confirmed reservation,
   // only as a whole and only before the check-in date. The refund is the hotel's tier for the days
   // left, on the full total.
@@ -63,24 +104,11 @@ export class HotelBookingLifecycleService {
     bookingId: string,
   ): Promise<CancelledHotelBookingResponse> {
     const booking = await this.bookings.findOwned(userId, bookingId);
-    if (!canTransition(booking.status, BookingStatus.Cancelled)) {
-      throw new ConflictException(
-        `This reservation is ${booking.status}; only a confirmed reservation can be cancelled.`,
-      );
-    }
     const now = new Date();
-    const daysLeft = daysBeforeCheckIn(booking.checkIn, now);
-    if (daysLeft <= 0) {
-      throw new ConflictException(
-        'The check-in date has been reached; the reservation can no longer be cancelled.',
-      );
-    }
-
-    // Asked before anything changes, so a missing tier rule leaves the reservation untouched.
-    const tier = await this.hotels.getRefundTier(
-      booking.hotelId.toString(),
-      daysLeft,
-    );
+    // Checked and priced before anything changes, so a missing tier rule leaves the reservation
+    // untouched.
+    const preview = await this.previewCancellation(booking, now);
+    if (!preview.cancellable) throw new ConflictException(preview.reason);
 
     const state: { cancelled: HotelBookingDocument | null } = {
       cancelled: null,
@@ -98,8 +126,8 @@ export class HotelBookingLifecycleService {
             cancelledAt: now,
             // Saved with the cancellation, so the refund cannot be lost (see issueOwedRefunds).
             pendingRefund: {
-              refundPercentage: tier.refundPercentage,
-              tierDaysBefore: tier.tierDaysBefore,
+              refundPercentage: preview.refundPercentage,
+              tierDaysBefore: preview.tierDaysBefore,
               reason: RefundReason.UserCancellation,
             },
           },

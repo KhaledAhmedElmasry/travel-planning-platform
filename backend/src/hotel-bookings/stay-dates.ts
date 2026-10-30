@@ -39,9 +39,8 @@ export function stayNights(checkIn: Date, checkOut: Date): Date[] {
   return nights;
 }
 
-// HTL-10, HTL-21: whole days left before the check-in date, used to pick the hotel's tier. The
-// refund preview in the reservation details (HTL-20; Area 6) must use this too, so the amount
-// shown before cancelling is the amount refunded.
+// HTL-10, HTL-21: whole days left before the check-in date, used to pick the hotel's tier (by
+// cancel() and the refund preview, through HotelBookingLifecycleService.previewCancellation()).
 export function daysBeforeCheckIn(checkIn: Date, now = new Date()): number {
   return daysBetween(todayUtc(now), checkIn);
 }
