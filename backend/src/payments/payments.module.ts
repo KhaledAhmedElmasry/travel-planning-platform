@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { FlightBookingsModule } from '../flight-bookings/flight-bookings.module';
 import { HotelBookingsModule } from '../hotel-bookings/hotel-bookings.module';
@@ -11,17 +11,17 @@ import { Payment, PaymentSchema } from './schemas/payment.schema';
 import { Refund, RefundSchema } from './schemas/refund.schema';
 import { stripeProvider } from './stripe.provider';
 
-// TODO(NEW-01, FLT-26, HTL-21, FLT-06): the booking modules (hold-expiry cron, cancellations)
-// and FlightsModule (airline cancels a flight) need PaymentsService / RefundsService, while
-// PaymentsModule already imports the booking modules. Use forwardRef(() => ...) on both sides
-// (NestJS circular module dependency) when that code is added.
+// FlightBookingsModule (hold expiry, FLT-26 cancellation) uses PaymentsService / RefundsService
+// while this module uses FlightBookingsService: forwardRef on both sides (circular modules).
+// TODO(HTL-18, HTL-21; FLT-06 Area 5): do the same for HotelBookingsModule and FlightsModule
+// when their expiry / cancellation code needs PaymentsService or RefundsService.
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Payment.name, schema: PaymentSchema },
       { name: Refund.name, schema: RefundSchema },
     ]),
-    FlightBookingsModule,
+    forwardRef(() => FlightBookingsModule),
     HotelBookingsModule,
   ],
   controllers: [PaymentsController],

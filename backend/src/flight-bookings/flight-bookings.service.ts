@@ -1,93 +1,390 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { randomInt } from 'node:crypto';
+import { Connection, isValidObjectId, Model, Types } from 'mongoose';
+import { AirlinesService } from '../airlines/airlines.service';
+import { BookingStatus, BookingType } from '../common/enums';
 import type {
   BookingPaymentHandler,
   BookingPolicies,
   ConfirmPaidBookingResult,
   PayableBooking,
 } from '../payments/interfaces/payable-booking.interface';
+import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
+import { platformCurrency } from '../payments/platform-currency';
+import { FlightBookingQuoteService } from './booking-quote.service';
+import { FlightBookingRequestDto } from './dto/hold-flight-booking.dto';
+import { localTime, renderETicket } from './e-ticket';
+import {
+  FlightBooking,
+  FlightBookingDocument,
+} from './schemas/flight-booking.schema';
+import { SeatInventoryService } from './seat-inventory.service';
 
-// Area: Flight Search & Booking
+// Area: Payments, Holds & Booking Engine (FLT-22, FLT-23) and Search & My Bookings (FLT-19,
+// FLT-21, FLT-25)
 // Business logic and database access for: FLT-19, FLT-21, FLT-22, FLT-23, FLT-25, FLT-26, GEN-11, NEW-01
-// Scheduled jobs needed: expire unpaid 10-minute holds and release seats (FLT-22, NEW-01),
-// and mark bookings Completed after the flight (GEN-11).
 //
-// PAY-01, PAY-02 and PAY-03 are waiting for this service. The payments module calls the four
-// BookingPaymentHandler methods below; they throw 501 until the flight booking schema and the
-// seat hold exist.
-// TODO(FLT-26): cancelling a Confirmed booking must call RefundsService.refundBooking() with the
-// airline tier for the days left before departure (reason user_cancellation, tierDaysBefore).
-// Booking details (FLT-25) show RefundsService.findRefundForBooking() and policiesAcceptedAt.
+// Done here (Area 1): the seat hold (FLT-22), the four BookingPaymentHandler methods used by the
+// payments module (PAY-01, PAY-02), confirmation with the booking reference and the e-ticket
+// (FLT-23). The hold-expiry job and cancellation are in flight-booking-lifecycle.service.ts.
+// WAITING FOR: FlightBookingQuoteService.quote() (Area 6) and AirlinesService.getBookingPolicies()
+// (Area 5); until then the hold and the policies answer 501.
+// TODO(GEN-01, Area 3): notify the user on confirmation (see confirmPaidBooking).
+// TODO(FLT-19, FLT-21, FLT-25; Area 6): the summary, the list and the details go here too. The
+// details must include RefundsService.findRefundForBooking() and the refund preview (FLT-26):
+// AirlinesService.getRefundTier(outbound airlineId, daysBeforeDeparture(outbound departureAt))
+// (flight-booking-lifecycle.service.ts), the same calculation the cancellation uses.
+
+// FLT-22: seats are held for 10 minutes.
+export const HOLD_MINUTES = 10;
+
+// Booking references: 6 characters without look-alikes (no 0/O, 1/I/L).
+const REFERENCE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const REFERENCE_LENGTH = 6;
+const REFERENCE_ATTEMPTS = 5;
+
+export interface FlightBookingResponse {
+  id: string;
+  reference: string | null;
+  status: BookingStatus;
+  holdExpiresAt: Date | null;
+  segments: {
+    flightId: string;
+    flightNumber: string;
+    airlineName: string;
+    cabinClass: string;
+    departureAirport: string;
+    arrivalAirport: string;
+    departureAt: Date;
+    arrivalAt: Date;
+    // Local time at each airport (GEN-06).
+    departureLocal: string;
+    arrivalLocal: string;
+    fare: number;
+    freeBags: number;
+    maxBagWeightKg: number;
+  }[];
+  passengers: {
+    type: string;
+    fullName: string;
+    dateOfBirth: string;
+    passportNumber: string;
+    extraBags: { weightKg: number }[];
+    fare: number;
+    baggageFee: number;
+  }[];
+  seats: number;
+  totalAmount: number;
+  currency: string;
+  policiesAcceptedAt: Date | null;
+  paymentId: string | null;
+  confirmedAt: Date | null;
+  cancelledAt: Date | null;
+  createdAt?: Date;
+}
+
 @Injectable()
 export class FlightBookingsService implements BookingPaymentHandler {
-  // TODO: implement.
+  private readonly logger = new Logger(FlightBookingsService.name);
+
+  constructor(
+    @InjectModel(FlightBooking.name)
+    private readonly bookingModel: Model<FlightBooking>,
+    @InjectConnection() private readonly connection: Connection,
+    private readonly seats: SeatInventoryService,
+    private readonly quotes: FlightBookingQuoteService,
+    private readonly airlines: AirlinesService,
+    private readonly config: ConfigService,
+  ) {}
+
+  // POST /api/flight-bookings/hold (FLT-22): reserve the seats on every segment and create the
+  // booking in ONE transaction, so either everything happens or nothing does. Concurrent holds on
+  // the last seats: MongoDB lets only one update win; the other gets 409.
+  async hold(
+    userId: string,
+    request: FlightBookingRequestDto,
+  ): Promise<FlightBookingResponse> {
+    // Validates the passengers and computes the prices (FLT-19, FLT-12; Area 6).
+    const quote = await this.quotes.quote(request);
+    if (quote.currency !== platformCurrency(this.config)) {
+      // Should never happen: every price is in the platform currency (PAY-04).
+      throw new ConflictException(
+        'The booking is not priced in the platform currency.',
+      );
+    }
+
+    const created: { booking: FlightBookingDocument | null } = {
+      booking: null,
+    };
+    await this.connection.transaction(async (session) => {
+      for (const segment of quote.segments) {
+        const held = await this.seats.hold(
+          segment.flightId,
+          segment.cabinClass,
+          quote.seats,
+          session,
+        );
+        if (!held) {
+          // Aborts the transaction: seats already held on the other segment are given back.
+          throw new ConflictException(
+            `Not enough seats left in ${segment.cabinClass} on flight ${segment.flightNumber}, or the flight can no longer be booked.`,
+          );
+        }
+      }
+      const [booking] = await this.bookingModel.create(
+        [
+          {
+            userId,
+            status: BookingStatus.PendingPayment,
+            segments: quote.segments,
+            passengers: quote.passengers,
+            seats: quote.seats,
+            totalAmount: quote.totalAmount,
+            currency: quote.currency,
+            holdExpiresAt: new Date(Date.now() + HOLD_MINUTES * 60 * 1000),
+          },
+        ],
+        { session },
+      );
+      created.booking = booking;
+    });
+    if (!created.booking) throw new Error('The booking was not created.');
+    return this.toResponse(created.booking);
+  }
+
+  // GET /api/flight-bookings/:id/e-ticket (FLT-23): only the owner, only a Confirmed booking.
+  async eTicket(
+    userId: string,
+    bookingId: string,
+  ): Promise<{ pdf: Buffer; reference: string }> {
+    const booking = await this.findOwned(userId, bookingId);
+    if (booking.status !== BookingStatus.Confirmed || !booking.reference) {
+      throw new ConflictException(
+        `This booking is ${booking.status}; the e-ticket is only available for a confirmed booking.`,
+      );
+    }
+    const pdf = await renderETicket({
+      reference: booking.reference,
+      segments: booking.segments,
+      passengers: booking.passengers,
+      totalAmount: booking.totalAmount,
+      currency: booking.currency,
+    });
+    return { pdf, reference: booking.reference };
+  }
+
+  // The owner's booking, otherwise 404 (ACC-11).
+  async findOwned(
+    userId: string,
+    bookingId: string,
+  ): Promise<FlightBookingDocument> {
+    const booking = isValidObjectId(bookingId)
+      ? await this.bookingModel.findOne({ _id: bookingId, userId })
+      : null;
+    if (!booking) throw new NotFoundException('Booking not found.');
+    return booking;
+  }
 
   // --- Used by the payments module (PAY-01, PAY-02) ---
 
-  // WAITING FOR: flight-booking.schema.ts and the seat hold (FLT-22), and policiesAcceptedAt
-  // set by PAY-02.
-  // TODO(FLT-22): when the schema exists:
-  //   1. inject the FlightBooking model;
-  //   2. find the booking by id; return null if not found (do NOT check the user here,
-  //      PaymentsService does);
-  //   3. map it to PayableBooking: id, userId, status, totalAmount (integer cents of the
-  //      platform currency), currency, holdExpiresAt, policiesAcceptedAt.
-  findPayableBooking(_bookingId: string): Promise<PayableBooking | null> {
-    throw new NotImplementedException(
-      'Flight bookings are not implemented yet (FLT-22).',
-    );
+  async findPayableBooking(bookingId: string): Promise<PayableBooking | null> {
+    const booking = await this.bookingModel.findById(bookingId);
+    if (!booking) return null;
+    return {
+      id: booking._id.toString(),
+      userId: booking.userId.toString(),
+      status: booking.status,
+      totalAmount: booking.totalAmount,
+      currency: booking.currency,
+      holdExpiresAt: booking.holdExpiresAt,
+      policiesAcceptedAt: booking.policiesAcceptedAt,
+    };
   }
 
-  // WAITING FOR: the seat hold (FLT-22) and cabin counters total/booked/held (Area 5, FLT-04).
-  // TODO(FLT-23): called by the Stripe webhook after a verified successful payment.
-  //   1. Atomically move the booking pending_payment -> confirmed only if it is still
-  //      pending_payment (findOneAndUpdate with { status: 'pending_payment' } in the filter),
-  //      store paymentId and a unique booking reference (FLT-23).
-  //   2. In the cabin of every flight segment: held -= n and booked += n (same atomic style
-  //      as the hold).
-  //   3. Return 'confirmed'. If the booking is already confirmed return 'already_confirmed'
-  //      (Stripe may send the event twice). If it is expired/cancelled return 'not_confirmable'
-  //      and PaymentsService refunds the payment.
-  //   4. Notify the user (GEN-01, Area 3 NotificationsService) once it exists.
-  confirmPaidBooking(
-    _bookingId: string,
-    _paymentId: string,
-  ): Promise<ConfirmPaidBookingResult> {
-    throw new NotImplementedException(
-      'Flight booking confirmation is not implemented yet (FLT-23).',
-    );
-  }
-
-  // WAITING FOR: the flight booking (FLT-22) and the airline's policies: cancellation tiers
-  // (FLT-09), extra-bag price and maximum (FLT-08), free bags and max weight per cabin (FLT-04),
-  // all Area 5.
-  // TODO(PAY-02): find the booking by id (null if not found) and return FlightBookingPolicies:
-  //   bookingType 'flight', the airline (id, name), its cancellationTiers sorted by daysBefore
-  //   (highest first), and baggage: for each booked segment the flight id/number, cabinClass,
-  //   freeBags and maxBagWeightKg of that cabin, plus extraBagPrice (cents) and
-  //   maxExtraBagsPerPassenger.
-  getBookingPolicies(_bookingId: string): Promise<BookingPolicies | null> {
-    throw new NotImplementedException(
-      'Flight bookings are not implemented yet (FLT-22).',
-    );
-  }
-
-  // WAITING FOR: flight-booking.schema.ts with policiesAcceptedAt (FLT-22).
-  // TODO(PAY-02): one atomic update, so a hold that expires at the same moment cannot be accepted:
-  //   findOneAndUpdate(
-  //     { _id: bookingId, status: 'pending_payment', holdExpiresAt: { $gt: acceptedAt } },
-  //     { $set: { policiesAcceptedAt: acceptedAt } })
-  //   and return true if a document was updated, false otherwise.
-  recordPolicyAcceptance(
-    _bookingId: string,
-    _acceptedAt: Date,
+  // PAY-02: one atomic update, so a hold that expires at the same moment cannot be accepted.
+  async recordPolicyAcceptance(
+    bookingId: string,
+    acceptedAt: Date,
   ): Promise<boolean> {
-    throw new NotImplementedException(
-      'Flight bookings are not implemented yet (FLT-22).',
+    const result = await this.bookingModel.updateOne(
+      {
+        _id: bookingId,
+        status: BookingStatus.PendingPayment,
+        holdExpiresAt: { $gt: acceptedAt },
+        policiesAcceptedAt: null,
+      },
+      { $set: { policiesAcceptedAt: acceptedAt } },
     );
+    return result.modifiedCount === 1;
   }
 
-  // TODO(NEW-01): the hold-expiry cron (every minute) must, for each pending_payment booking
-  // whose holdExpiresAt has passed: set status expired, release the held seats, and call
-  // PaymentsService.cancelPaymentForBooking(BookingType.Flight, bookingId) (PAY-01).
-  // Needs forwardRef between FlightBookingsModule and PaymentsModule (see payments.module.ts).
+  // PAY-02: the airline's tiers and baggage rules (Area 5) plus the booked cabins' free baggage.
+  // Round trips use the outbound airline, as for cancellations (FLT-12).
+  async getBookingPolicies(bookingId: string): Promise<BookingPolicies | null> {
+    const booking = await this.bookingModel.findById(bookingId);
+    if (!booking) return null;
+    const airline = await this.airlines.getBookingPolicies(
+      booking.segments[0].airlineId.toString(),
+    );
+    if (!airline) return null;
+    return {
+      bookingType: BookingType.Flight,
+      airline: { id: airline.airlineId, name: airline.name },
+      cancellationTiers: [...airline.cancellationTiers].sort(
+        (a, b) => b.daysBefore - a.daysBefore,
+      ),
+      baggage: {
+        cabins: booking.segments.map((s) => ({
+          flightId: s.flightId.toString(),
+          flightNumber: s.flightNumber,
+          cabinClass: s.cabinClass,
+          freeBags: s.freeBags,
+          maxBagWeightKg: s.maxBagWeightKg,
+        })),
+        extraBagPrice: airline.extraBagPrice,
+        maxExtraBagsPerPassenger: airline.maxExtraBagsPerPassenger,
+      },
+    };
+  }
+
+  // FLT-23, called only by the verified Stripe webhook. In one transaction: pending_payment ->
+  // confirmed with a unique reference, and held seats -> booked seats. A hold that has expired can
+  // never be confirmed (NEW-01): the payment is then refunded by PaymentsService.
+  async confirmPaidBooking(
+    bookingId: string,
+    paymentId: string,
+  ): Promise<ConfirmPaidBookingResult> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.tryConfirm(bookingId, paymentId);
+      } catch (err) {
+        // Another booking already has this reference (very rare): try a new one.
+        if (isDuplicateKeyError(err) && attempt < REFERENCE_ATTEMPTS) continue;
+        throw err;
+      }
+    }
+  }
+
+  private async tryConfirm(
+    bookingId: string,
+    paymentId: string,
+  ): Promise<ConfirmPaidBookingResult> {
+    const outcome: { result: ConfirmPaidBookingResult } = {
+      result: 'not_confirmable',
+    };
+    await this.connection.transaction(async (session) => {
+      const now = new Date();
+      const booking = await this.bookingModel.findOneAndUpdate(
+        {
+          _id: bookingId,
+          status: BookingStatus.PendingPayment,
+          holdExpiresAt: { $gt: now },
+        },
+        {
+          $set: {
+            status: BookingStatus.Confirmed,
+            confirmedAt: now,
+            paymentId: new Types.ObjectId(paymentId),
+            reference: newReference(),
+          },
+        },
+        { new: true, session },
+      );
+
+      if (!booking) {
+        // Stripe can send the same event twice: the second time the booking is already confirmed.
+        const current = await this.bookingModel
+          .findById(bookingId)
+          .session(session);
+        outcome.result =
+          current?.status === BookingStatus.Confirmed &&
+          current.paymentId?.toString() === paymentId
+            ? 'already_confirmed'
+            : 'not_confirmable';
+        return;
+      }
+
+      for (const segment of booking.segments) {
+        const moved = await this.seats.convertHeldToBooked(
+          segment.flightId.toString(),
+          segment.cabinClass,
+          booking.seats,
+          session,
+        );
+        if (!moved) {
+          throw new Error(
+            `Held seats of booking ${bookingId} not found on flight ${segment.flightNumber}.`,
+          );
+        }
+      }
+      outcome.result = 'confirmed';
+    });
+
+    if (outcome.result === 'confirmed') {
+      this.logger.log(`Flight booking ${bookingId} confirmed.`);
+      // TODO(GEN-01, Area 3): send the in-app notification with the booking details (FLT-23).
+    }
+    return outcome.result;
+  }
+
+  toResponse(booking: FlightBookingDocument): FlightBookingResponse {
+    return {
+      id: booking._id.toString(),
+      reference: booking.reference ?? null,
+      status: booking.status,
+      holdExpiresAt:
+        booking.status === BookingStatus.PendingPayment
+          ? booking.holdExpiresAt
+          : null,
+      segments: booking.segments.map((s) => ({
+        flightId: s.flightId.toString(),
+        flightNumber: s.flightNumber,
+        airlineName: s.airlineName,
+        cabinClass: s.cabinClass,
+        departureAirport: s.departureAirport.code,
+        arrivalAirport: s.arrivalAirport.code,
+        departureAt: s.departureAt,
+        arrivalAt: s.arrivalAt,
+        departureLocal: localTime(s.departureAt, s.departureAirport.timeZone),
+        arrivalLocal: localTime(s.arrivalAt, s.arrivalAirport.timeZone),
+        fare: s.fare,
+        freeBags: s.freeBags,
+        maxBagWeightKg: s.maxBagWeightKg,
+      })),
+      passengers: booking.passengers.map((p) => ({
+        type: p.type,
+        fullName: p.fullName,
+        dateOfBirth: p.dateOfBirth,
+        passportNumber: p.passportNumber,
+        extraBags: p.extraBags.map((b) => ({ weightKg: b.weightKg })),
+        fare: p.fare,
+        baggageFee: p.baggageFee,
+      })),
+      seats: booking.seats,
+      totalAmount: booking.totalAmount,
+      currency: booking.currency,
+      policiesAcceptedAt: booking.policiesAcceptedAt,
+      paymentId: booking.paymentId?.toString() ?? null,
+      confirmedAt: booking.confirmedAt,
+      cancelledAt: booking.cancelledAt,
+      createdAt: booking.createdAt,
+    };
+  }
+}
+
+// FLT-23: random 6-character reference, e.g. "K7QM2X". Uniqueness is guaranteed by the unique
+// index on reference; a clash only causes a retry.
+export function newReference(): string {
+  let reference = '';
+  for (let i = 0; i < REFERENCE_LENGTH; i++) {
+    reference += REFERENCE_ALPHABET[randomInt(REFERENCE_ALPHABET.length)];
+  }
+  return reference;
 }
