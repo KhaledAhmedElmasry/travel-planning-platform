@@ -2420,7 +2420,7 @@ paths:
           description: Booking not found, or it belongs to another user.
           content: *error
         '409':
-          description: The booking is not pending payment, its hold has expired, or it is already paid.
+          description: The booking is not pending payment, its hold has expired, it is already paid, or its last payment failed (use the retry endpoint).
           content: *error
 
   /api/payments/{id}/retry:
@@ -2430,8 +2430,9 @@ paths:
       description: |
         **Access:** the user who made the payment.
 
-        After a failed payment the user may retry until the hold expires. When the hold expires, the
-        PaymentIntent is cancelled and the booking becomes `expired`.
+        After a failed payment the user may retry until the hold expires. The retry uses the same
+        payment and Stripe PaymentIntent, so a booking can never be charged twice. When the hold
+        expires, the PaymentIntent is cancelled and the booking becomes `expired`.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -2443,7 +2444,7 @@ paths:
               $ref: '#/components/schemas/RetryPaymentRequest'
       responses:
         '201':
-          description: A new payment attempt (same fields as POST /api/payments).
+          description: The payment, back to pending, for a new attempt (same fields as POST /api/payments).
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
