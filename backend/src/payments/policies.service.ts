@@ -99,7 +99,21 @@ export class PoliciesService {
       .handlerFor(bookingType)
       .recordPolicyAcceptance(bookingId, acceptedAt);
     if (!recorded) {
-      // The hold expired or the booking changed between the checks and the update.
+      // Accepted by another request at the same moment (a double click): same answer as accepting
+      // twice, the first acceptance time.
+      const current = await this.bookings.findOwnedBooking(
+        userId,
+        bookingType,
+        bookingId,
+      );
+      if (current.policiesAcceptedAt) {
+        return {
+          bookingType,
+          bookingId,
+          acceptedAt: current.policiesAcceptedAt,
+        };
+      }
+      // Otherwise the hold expired or the booking changed between the checks and the update.
       throw new ConflictException(
         'The booking is no longer pending payment, or its hold has expired.',
       );
