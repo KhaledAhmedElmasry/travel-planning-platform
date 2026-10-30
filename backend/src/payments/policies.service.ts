@@ -14,10 +14,11 @@ import { platformCurrency } from './platform-currency';
 // baggage; hotel: cancellation tiers and check-in/check-out times) and must accept them. The
 // acceptance is stored with a timestamp on the booking; PaymentsService refuses payment without it.
 //
-// WAITING FOR: the booking services must implement getBookingPolicies() and
-// recordPolicyAcceptance() (FLT-22 / HTL-18, this area), which need the airline policies
-// (Area 5: FLT-04, FLT-08, FLT-09) and the hotel policies (Area 7: HTL-09, HTL-10).
-// Until then both endpoints answer 501 for an existing booking id.
+// Flights: done in flight-bookings.service.ts (FLT-22); the policies themselves still wait for
+// AirlinesService.getBookingPolicies() (Area 5: FLT-08, FLT-09), so GET policies answers 501 until
+// then (accepting works).
+// WAITING FOR (hotels): HotelBookingsService.getBookingPolicies() / recordPolicyAcceptance()
+// (HTL-18, this area) and the hotel policies (Area 7: HTL-09, HTL-10).
 
 export interface PoliciesResponse {
   bookingType: BookingType;

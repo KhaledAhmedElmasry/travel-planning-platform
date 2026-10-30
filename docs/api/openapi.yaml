@@ -1284,7 +1284,12 @@ paths:
               $ref: '#/components/schemas/FlightBookingRequest'
       responses:
         '201':
-          description: Booking created - id, status pending_payment, holdExpiresAt, segments, passengers, extra baggage and total in cents.
+          description: |
+            Booking created - `id`, `reference` (null until confirmed), `status` pending_payment,
+            `holdExpiresAt`, `segments` (flight number, airline, cabin, airports, `departureAt` /
+            `arrivalAt` in UTC and `departureLocal` / `arrivalLocal` in each airport's time zone, fare,
+            free bags), `passengers` (with fare and baggage fee), `seats` (adults + children),
+            `totalAmount` in cents, `currency`, `policiesAcceptedAt`, `paymentId`.
         '400':
           description: Invalid passengers or baggage (same rules as POST /api/flight-bookings).
           content: *error
@@ -1297,7 +1302,7 @@ paths:
           description: Flight not found.
           content: *error
         '409':
-          description: Not enough seats left, or the flight is not scheduled, or its airline is deactivated.
+          description: Not enough seats left, or the flight is not scheduled or has departed, or its airline is deactivated. For a round trip nothing is held if either flight fails.
           content: *error
 
   /api/flight-bookings:
@@ -1409,7 +1414,10 @@ paths:
         - $ref: '#/components/parameters/Id'
       responses:
         '200':
-          description: The cancelled booking with its refund (amount in cents and status).
+          description: |
+            The cancelled booking (same fields as the hold response, status `cancelled`, `cancelledAt`)
+            with `refund` - the refund created (amount in cents, refundPercentage, tierDaysBefore,
+            status), or null when the tier gives 0%.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -1461,7 +1469,7 @@ paths:
         **Access:** the user who made the booking. Only for Confirmed bookings.
 
         The e-ticket shows the booking reference, passengers, flights with local times, cabin and
-        baggage.
+        baggage. The file is named `e-ticket-<reference>.pdf`.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'

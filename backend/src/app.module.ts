@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AdminModule } from './admin/admin.module';
 import { AirlinesModule } from './airlines/airlines.module';
 import { AppController } from './app.controller';
@@ -38,8 +39,12 @@ import { UsersModule } from './users/users.module';
       }),
     }),
 
+    // Scheduled jobs (@Cron), e.g. the flight hold expiry every minute (FLT-22, NEW-01).
+    // Register it here only, once for the whole app.
+    ScheduleModule.forRoot(),
+
     // TODO: register app-wide providers as they are built, for example the
-    // authentication and role guards (PDF section 6.1) and scheduled jobs (FLT-22, HTL-18).
+    // authentication and role guards (PDF section 6.1).
 
     // Feature modules (one folder each, see docs/TEAM_PLAN.md for the work areas)
     ReferenceDataModule,
