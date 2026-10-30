@@ -12,19 +12,19 @@ import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, Model } from 'mongoose';
 import Stripe from 'stripe';
 import { BookingStatus, BookingType } from '../common/enums';
-import { FlightBookingsService } from '../flight-bookings/flight-bookings.service';
-import { HotelBookingsService } from '../hotel-bookings/hotel-bookings.service';
+import { BookingGateway } from './booking-gateway.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { RetryPaymentDto } from './dto/retry-payment.dto';
-import {
-  BookingPaymentHandler,
-  PayableBooking,
-} from './interfaces/payable-booking.interface';
+import { PayableBooking } from './interfaces/payable-booking.interface';
+import { isDuplicateKeyError } from './is-duplicate-key-error';
+import { platformCurrency } from './platform-currency';
+import { RefundsService } from './refunds.service';
 import {
   Payment,
   PaymentDocument,
   PaymentStatus,
 } from './schemas/payment.schema';
+import { RefundReason } from './schemas/refund.schema';
 import { STRIPE_CLIENT } from './stripe.provider';
 
 // Area: Payments & Refunds
@@ -36,10 +36,9 @@ import { STRIPE_CLIENT } from './stripe.provider';
 //     returns 501. See the TODOs in flight-bookings.service.ts and hotel-bookings.service.ts.
 //   - NEW-01 (this area): the hold-expiry cron must call cancelPaymentForBooking() when it
 //     expires a booking, so the PaymentIntent is cancelled (PAY-01).
-//   - PAY-02 (this area): the policies endpoints set policiesAcceptedAt on the booking; the check
-//     in loadPayableBooking() already refuses payment without it.
-//   - PAY-03 (this area): refundLatePayment() issues the Stripe refund but does not yet store a
-//     Refund document (refund.schema.ts is still a placeholder).
+//   - PAY-02: policies.service.ts sets policiesAcceptedAt through the booking services; the
+//     check in loadPayableBooking() refuses payment without it.
+//   - PAY-03: refunds go through RefundsService (refunds.service.ts).
 //   - GEN-01 (Area 3): no in-app notification is sent on confirmation yet. Call
 //     NotificationsService from confirmPaidBooking() (FLT-23, HTL-17) once it exists.
 
@@ -66,8 +65,8 @@ export class PaymentsService {
     @InjectModel(Payment.name) private readonly paymentModel: Model<Payment>,
     @Inject(STRIPE_CLIENT) private readonly stripe: Stripe,
     private readonly config: ConfigService,
-    private readonly flightBookings: FlightBookingsService,
-    private readonly hotelBookings: HotelBookingsService,
+    private readonly bookings: BookingGateway,
+    private readonly refunds: RefundsService,
   ) {}
 
   // POST /api/payments (PAY-01)
@@ -103,7 +102,7 @@ export class PaymentsService {
       return this.attempt(existing, dto.paymentMethodId);
     }
 
-    const currency = this.platformCurrency();
+    const currency = platformCurrency(this.config);
     const intent = await this.callStripe(() =>
       this.stripe.paymentIntents.create(
         {
@@ -214,7 +213,11 @@ export class PaymentsService {
       case 'payment_intent.canceled':
         await this.onPaymentCanceled(event.data.object);
         break;
-      // TODO(PAY-03): handle refund events (e.g. refund.updated) to update the Refund status.
+      case 'refund.created':
+      case 'refund.updated':
+      case 'refund.failed':
+        await this.refunds.onStripeRefundEvent(event.data.object);
+        break;
       default:
         break;
     }
@@ -280,9 +283,9 @@ export class PaymentsService {
     await payment.save();
 
     // Throws if the booking side is not available, so Stripe sends the event again later.
-    const result = await this.handlerFor(
-      payment.bookingType,
-    ).confirmPaidBooking(payment.bookingId.toString(), payment._id.toString());
+    const result = await this.bookings
+      .handlerFor(payment.bookingType)
+      .confirmPaidBooking(payment.bookingId.toString(), payment._id.toString());
     if (result === 'not_confirmable') {
       await this.refundLatePayment(payment);
     }
@@ -313,17 +316,15 @@ export class PaymentsService {
   // The payment succeeded but the booking can no longer be confirmed (its hold expired):
   // give the money back (openapi.yaml, POST /api/payments/webhook).
   private async refundLatePayment(payment: PaymentDocument) {
-    await this.stripe.refunds.create(
-      { payment_intent: payment.stripePaymentIntentId },
-      {
-        idempotencyKey: `late-payment-refund-${payment.stripePaymentIntentId}`,
-      },
-    );
+    await this.refunds.refundBooking({
+      bookingType: payment.bookingType,
+      bookingId: payment.bookingId.toString(),
+      refundPercentage: 100,
+      reason: RefundReason.HoldExpired,
+    });
     this.logger.warn(
       `Payment ${payment._id.toString()} succeeded after its booking expired; it was refunded.`,
     );
-    // TODO(PAY-03): store a Refund document (100%, reason "hold expired") so the user can see it
-    // with GET /api/refunds/:id, and notify the user (GEN-01).
   }
 
   // --- Helpers ---
@@ -366,13 +367,11 @@ export class PaymentsService {
     bookingType: BookingType,
     bookingId: string,
   ): Promise<PayableBooking> {
-    const booking = isValidObjectId(bookingId)
-      ? await this.handlerFor(bookingType).findPayableBooking(bookingId)
-      : null;
-    // Another user's booking is reported as not found (ACC-11).
-    if (!booking || booking.userId !== userId) {
-      throw new NotFoundException('Booking not found.');
-    }
+    const booking = await this.bookings.findOwnedBooking(
+      userId,
+      bookingType,
+      bookingId,
+    );
     if (booking.status !== BookingStatus.PendingPayment) {
       throw new ConflictException(
         `This booking is ${booking.status}, not pending payment.`,
@@ -388,7 +387,7 @@ export class PaymentsService {
         'Accept the provider policies before paying (PAY-02).',
       );
     }
-    if (booking.currency.toUpperCase() !== this.platformCurrency()) {
+    if (booking.currency.toUpperCase() !== platformCurrency(this.config)) {
       // Should never happen: every booking is priced in the platform currency (PAY-04).
       throw new ConflictException(
         'The booking is not priced in the platform currency.',
@@ -406,16 +405,6 @@ export class PaymentsService {
       : null;
     if (!payment) throw new NotFoundException('Payment not found.');
     return payment;
-  }
-
-  private handlerFor(bookingType: BookingType): BookingPaymentHandler {
-    return bookingType === BookingType.Flight
-      ? this.flightBookings
-      : this.hotelBookings;
-  }
-
-  private platformCurrency(): string {
-    return this.config.get<string>('PLATFORM_CURRENCY', 'USD').toUpperCase();
   }
 
   private async callStripe<T>(call: () => Promise<T>): Promise<T> {
@@ -457,12 +446,4 @@ export class PaymentsService {
       updatedAt: payment.updatedAt,
     };
   }
-}
-
-function isDuplicateKeyError(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    (err as { code?: number }).code === 11000
-  );
 }

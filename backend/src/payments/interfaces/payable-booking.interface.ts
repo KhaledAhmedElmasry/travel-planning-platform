@@ -1,9 +1,10 @@
-import { BookingStatus } from '../../common/enums';
+import { BookingStatus, BookingType } from '../../common/enums';
 
 // Area: Payments & Refunds
-// The contract between PaymentsService and the booking services (PAY-01).
+// The contract between the payments module and the booking services (PAY-01, PAY-02).
 // FlightBookingsService and HotelBookingsService implement BookingPaymentHandler, so payments
-// work the same way for both booking types and never read the booking collections directly.
+// and policies work the same way for both booking types and never read the booking
+// collections directly.
 
 // The booking fields a payment needs.
 export interface PayableBooking {
@@ -27,8 +28,47 @@ export interface PayableBooking {
 export type ConfirmPaidBookingResult =
   'confirmed' | 'already_confirmed' | 'not_confirmable';
 
+// One cancellation tier (FLT-09, HTL-10), as in openapi.yaml "CancellationTier".
+export interface CancellationTier {
+  daysBefore: number;
+  refundPercentage: number;
+}
+
+// The provider policies the user must accept before paying a flight booking (PAY-02):
+// the airline's cancellation tiers (FLT-09) and baggage policy (FLT-04, FLT-08).
+export interface FlightBookingPolicies {
+  bookingType: BookingType.Flight;
+  airline: { id: string; name: string };
+  cancellationTiers: CancellationTier[];
+  baggage: {
+    // The free allowance of the booked cabin on each flight (one entry per segment).
+    cabins: {
+      flightId: string;
+      flightNumber: string;
+      cabinClass: string;
+      freeBags: number;
+      maxBagWeightKg: number;
+    }[];
+    // Integer cents of the platform currency.
+    extraBagPrice: number;
+    maxExtraBagsPerPassenger: number;
+  };
+}
+
+// The provider policies the user must accept before paying a hotel reservation (PAY-02):
+// the hotel's cancellation tiers (HTL-10) and check-in/check-out times (HTL-09).
+export interface HotelBookingPolicies {
+  bookingType: BookingType.Hotel;
+  hotel: { id: string; name: string };
+  cancellationTiers: CancellationTier[];
+  checkInTime: string;
+  checkOutTime: string;
+}
+
+export type BookingPolicies = FlightBookingPolicies | HotelBookingPolicies;
+
 export interface BookingPaymentHandler {
-  // Returns the booking, or null if it does not exist. Ownership is checked by PaymentsService.
+  // Returns the booking, or null if it does not exist. Ownership is checked by BookingGateway.
   findPayableBooking(bookingId: string): Promise<PayableBooking | null>;
 
   // Called by the Stripe webhook only. Must be atomic and safe to call twice.
@@ -36,4 +76,11 @@ export interface BookingPaymentHandler {
     bookingId: string,
     paymentId: string,
   ): Promise<ConfirmPaidBookingResult>;
+
+  // The provider policies that apply to this booking (PAY-02), or null if it does not exist.
+  getBookingPolicies(bookingId: string): Promise<BookingPolicies | null>;
+
+  // Stores policiesAcceptedAt on the booking (PAY-02). Must be atomic: only if the booking is
+  // still pending_payment and its hold has not expired. Returns false if that is not the case.
+  recordPolicyAcceptance(bookingId: string, acceptedAt: Date): Promise<boolean>;
 }
