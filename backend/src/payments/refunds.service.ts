@@ -27,7 +27,8 @@ import { STRIPE_CLIENT } from './stripe.provider';
 //   - PaymentsService, when a payment succeeds after the hold expired (100%, done).
 //   - FlightBookingLifecycleService.cancel (FLT-26, done), with the airline tier for the days
 //     left before departure (AirlinesService.getRefundTier, FLT-09, Area 5).
-//   - TODO(HTL-21, this area): HotelBookingsService.cancel, with the hotel tier (HTL-10, Area 7).
+//   - HotelBookingLifecycleService.cancel (HTL-21, done), with the hotel tier for the days left
+//     before check-in, on the full total (HotelsService.getRefundTier, HTL-10, Area 7).
 //   - TODO(FLT-06, Area 5): the airline cancels a flight -> 100% for each Confirmed booking.
 //   Those modules need forwardRef to PaymentsModule (see payments.module.ts).
 // Booking details (FLT-25, HTL-20) show the refund with findRefundForBooking().

@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { randomInt } from 'node:crypto';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
 import { BookingStatus, BookingType } from '../common/enums';
@@ -16,6 +15,10 @@ import type {
   ConfirmPaidBookingResult,
   PayableBooking,
 } from '../payments/interfaces/payable-booking.interface';
+import {
+  newReference,
+  REFERENCE_ATTEMPTS,
+} from '../payments/booking-reference';
 import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
 import { platformCurrency } from '../payments/platform-currency';
 import { FlightBookingQuoteService } from './booking-quote.service';
@@ -44,11 +47,6 @@ import { SeatInventoryService } from './seat-inventory.service';
 
 // FLT-22: seats are held for 10 minutes.
 export const HOLD_MINUTES = 10;
-
-// Booking references: 6 characters without look-alikes (no 0/O, 1/I/L).
-const REFERENCE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-const REFERENCE_LENGTH = 6;
-const REFERENCE_ATTEMPTS = 5;
 
 export interface FlightBookingResponse {
   id: string;
@@ -377,14 +375,4 @@ export class FlightBookingsService implements BookingPaymentHandler {
       createdAt: booking.createdAt,
     };
   }
-}
-
-// FLT-23: random 6-character reference, e.g. "K7QM2X". Uniqueness is guaranteed by the unique
-// index on reference; a clash only causes a retry.
-export function newReference(): string {
-  let reference = '';
-  for (let i = 0; i < REFERENCE_LENGTH; i++) {
-    reference += REFERENCE_ALPHABET[randomInt(REFERENCE_ALPHABET.length)];
-  }
-  return reference;
 }
