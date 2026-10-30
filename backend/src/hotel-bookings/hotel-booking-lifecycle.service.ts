@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { Connection, Model } from 'mongoose';
 import { BookingStatus, BookingType } from '../common/enums';
 import { HotelsService } from '../hotels/hotels.service';
+import { allowedFrom, canTransition } from '../payments/booking-lifecycle';
 import { PaymentsService } from '../payments/payments.service';
 import { RefundResponse, RefundsService } from '../payments/refunds.service';
 import { RefundReason } from '../payments/schemas/refund.schema';
@@ -16,10 +17,11 @@ import {
   HotelBooking,
   HotelBookingDocument,
 } from './schemas/hotel-booking.schema';
-import { daysBeforeCheckIn } from './stay-dates';
+import { daysBeforeCheckIn, todayUtc } from './stay-dates';
 
 // Area: Payments, Holds & Booking Engine
-// Requirements: HTL-18 (hold expiry), HTL-21 (cancellation), PAY-03, GEN-11, NEW-01
+// Requirements: HTL-18 (hold expiry), HTL-21 (cancellation), PAY-03, GEN-11 (completion), NEW-01,
+// HTL-23 (Completed stays can be reviewed, Area 4)
 // Status changes that also touch the room-nights, payments and refunds. Kept apart from
 // HotelBookingsService so that the payments module (which uses HotelBookingsService) and this
 // service (which uses the payments module) do not depend on each other in a circle.
@@ -27,8 +29,8 @@ import { daysBeforeCheckIn } from './stay-dates';
 // WAITING FOR: HotelsService.getRefundTier() (Area 7, HTL-10); until then cancel answers 501
 // before changing anything.
 // TODO(GEN-01, Area 3): notify the user on cancellation and refund.
-// TODO(NEW-01, HTL-23): also mark Confirmed reservations Completed once the check-out date has
-// passed (Area 4's reviews need it).
+// GEN-11: every status change below uses allowedFrom() / canTransition() from
+// payments/booking-lifecycle.ts, so only the allowed transitions can happen.
 
 // How many reservations one run of a job handles (the next run takes the rest).
 const JOB_BATCH = 100;
@@ -61,7 +63,7 @@ export class HotelBookingLifecycleService {
     bookingId: string,
   ): Promise<CancelledHotelBookingResponse> {
     const booking = await this.bookings.findOwned(userId, bookingId);
-    if (booking.status !== BookingStatus.Confirmed) {
+    if (!canTransition(booking.status, BookingStatus.Cancelled)) {
       throw new ConflictException(
         `This reservation is ${booking.status}; only a confirmed reservation can be cancelled.`,
       );
@@ -85,7 +87,11 @@ export class HotelBookingLifecycleService {
     };
     await this.connection.transaction(async (session) => {
       const cancelled = await this.bookingModel.findOneAndUpdate(
-        { _id: bookingId, userId, status: BookingStatus.Confirmed },
+        {
+          _id: bookingId,
+          userId,
+          status: { $in: allowedFrom(BookingStatus.Cancelled) },
+        },
         {
           $set: {
             status: BookingStatus.Cancelled,
@@ -127,7 +133,7 @@ export class HotelBookingLifecycleService {
     const now = new Date();
     const due = await this.bookingModel
       .find({
-        status: BookingStatus.PendingPayment,
+        status: { $in: allowedFrom(BookingStatus.Expired) },
         holdExpiresAt: { $lte: now },
       })
       .select('_id')
@@ -146,6 +152,26 @@ export class HotelBookingLifecycleService {
     if (expired > 0)
       this.logger.log(`Expired ${expired} hotel reservation hold(s).`);
     return expired;
+  }
+
+  // GEN-11, NEW-01, HTL-23: every minute, Confirmed reservations whose check-out date has passed
+  // (today is after the check-out date, UTC) become Completed; Area 4's reviews need it. One
+  // update for all of them; nothing else changes. Completed is final.
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'hotel-booking-completion' })
+  async completeStays(): Promise<number> {
+    const now = new Date();
+    const result = await this.bookingModel.updateMany(
+      {
+        status: { $in: allowedFrom(BookingStatus.Completed) },
+        checkOut: { $lt: todayUtc(now) },
+      },
+      { $set: { status: BookingStatus.Completed, completedAt: now } },
+    );
+    if (result.modifiedCount > 0)
+      this.logger.log(
+        `Completed ${result.modifiedCount} hotel reservation(s).`,
+      );
+    return result.modifiedCount;
   }
 
   // PAY-03: every minute, refunds still owed by cancellations are created. This only finds
@@ -183,7 +209,7 @@ export class HotelBookingLifecycleService {
       const expired = await this.bookingModel.findOneAndUpdate(
         {
           _id: bookingId,
-          status: BookingStatus.PendingPayment,
+          status: { $in: allowedFrom(BookingStatus.Expired) },
           holdExpiresAt: { $lte: now },
         },
         { $set: { status: BookingStatus.Expired, expiredAt: now } },

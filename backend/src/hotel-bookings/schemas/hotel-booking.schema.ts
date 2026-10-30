@@ -125,6 +125,10 @@ export class HotelBooking {
   @Prop({ type: Date, default: null })
   cancelledAt: Date | null;
 
+  // GEN-11: set the day after the check-out date (NEW-01 job); then it can be reviewed (HTL-23).
+  @Prop({ type: Date, default: null })
+  completedAt: Date | null;
+
   // Set only between a cancellation and its refund (PAY-03, see PendingRefund).
   @Prop({ type: PendingRefundSchema, default: null })
   pendingRefund: PendingRefund | null;

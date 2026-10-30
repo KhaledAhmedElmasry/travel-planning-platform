@@ -1289,7 +1289,9 @@ paths:
             `holdExpiresAt`, `segments` (flight number, airline, cabin, airports, `departureAt` /
             `arrivalAt` in UTC and `departureLocal` / `arrivalLocal` in each airport's time zone, fare,
             free bags), `passengers` (with fare and baggage fee), `seats` (adults + children),
-            `totalAmount` in cents, `currency`, `policiesAcceptedAt`, `paymentId`.
+            `totalAmount` in cents, `currency`, `policiesAcceptedAt`, `paymentId`,
+            and the time of each status change (`confirmedAt`, `expiredAt`, `cancelledAt`, `completedAt`,
+            null until it happens, GEN-11).
         '400':
           description: Invalid passengers or baggage (same rules as POST /api/flight-bookings).
           content: *error
@@ -1388,7 +1390,8 @@ paths:
           description: |
             Full details - reference (after confirmation), status, holdExpiresAt (while pending),
             segments with local times, passengers, extra baggage, agreed prices and total, the time the
-            policies were accepted, the payment status, and the refund with its status (PAY-03).
+            policies were accepted, the time of each status change (GEN-11), the payment status, and the
+            refund with its status (PAY-03).
             For an upcoming Confirmed booking it also shows the refund the user would get if they
             cancelled now, computed from the airline's tiers (FLT-26).
         '401':
@@ -2113,7 +2116,9 @@ paths:
             `holdExpiresAt`, `hotel` (id, name), `checkIn` / `checkOut` (YYYY-MM-DD), `nights`, `rooms`
             (room number, type, beds, maximum occupancy, adults, childrenAges, pricePerNight and
             subtotal in cents), `guests` (adults, children), `totalAmount` in cents, `currency`,
-            `policiesAcceptedAt`, `paymentId`.
+            `policiesAcceptedAt`, `paymentId`,
+            and the time of each status change (`confirmedAt`, `expiredAt`, `cancelledAt`, `completedAt`,
+            null until it happens, GEN-11).
         '400':
           description: Invalid dates (check-out not after check-in, check-in in the past), no adult, a room without guests, too many guests in a room, the same room twice, or rooms from different hotels.
           content: *error
@@ -2166,7 +2171,8 @@ paths:
           description: |
             Full details - reference (after confirmation), status, holdExpiresAt (while pending), hotel
             with check-in and check-out times, dates, rooms with guests and prices, total, the time the
-            policies were accepted, the payment status, and the refund with its status (PAY-03).
+            policies were accepted, the time of each status change (GEN-11), the payment status, and the
+            refund with its status (PAY-03).
             For an upcoming Confirmed reservation it also shows the refund the user would get if they
             cancelled now, computed from the hotel's tiers on the full total (HTL-21).
         '401':
@@ -4024,8 +4030,14 @@ components:
     BookingStatus:
       type: string
       description: |
-        Booking lifecycle (GEN-11). The only transitions are pending_payment -> confirmed -> completed,
-        pending_payment -> expired, and confirmed -> cancelled.
+        Booking lifecycle (GEN-11). The only transitions are:
+        - pending_payment -> confirmed: the payment succeeded (FLT-23, HTL-17);
+        - pending_payment -> expired: the 10-minute hold ended unpaid (FLT-22, HTL-18);
+        - confirmed -> completed: flights when the last flight has departed, hotels the day after the
+          check-out date (NEW-01; a completed stay can be reviewed, HTL-23);
+        - confirmed -> cancelled: cancelled by the user (FLT-26, HTL-21) or the provider (FLT-06).
+        completed, expired and cancelled are final. Each change is done by a job every minute or
+        by the action itself, and is refused if the booking is not in the required status.
       enum: [pending_payment, confirmed, completed, expired, cancelled]
     BookingGroup:
       type: string

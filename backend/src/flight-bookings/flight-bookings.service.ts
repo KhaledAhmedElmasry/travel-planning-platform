@@ -9,6 +9,7 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
 import { BookingStatus, BookingType } from '../common/enums';
+import { allowedFrom } from '../payments/booking-lifecycle';
 import type {
   BookingPaymentHandler,
   BookingPolicies,
@@ -84,7 +85,9 @@ export interface FlightBookingResponse {
   policiesAcceptedAt: Date | null;
   paymentId: string | null;
   confirmedAt: Date | null;
+  expiredAt: Date | null;
   cancelledAt: Date | null;
+  completedAt: Date | null;
   createdAt?: Date;
 }
 
@@ -282,7 +285,7 @@ export class FlightBookingsService implements BookingPaymentHandler {
       const booking = await this.bookingModel.findOneAndUpdate(
         {
           _id: bookingId,
-          status: BookingStatus.PendingPayment,
+          status: { $in: allowedFrom(BookingStatus.Confirmed) },
           holdExpiresAt: { $gt: now },
         },
         {
@@ -297,13 +300,14 @@ export class FlightBookingsService implements BookingPaymentHandler {
       );
 
       if (!booking) {
-        // Stripe can send the same event twice: the second time the booking is already confirmed.
+        // Stripe can send the same event twice. If THIS payment already confirmed the booking, the
+        // event is a duplicate: nothing to do, even if the booking has moved on since (completed or
+        // cancelled, GEN-11). Refunding here would give back the money of a used trip.
         const current = await this.bookingModel
           .findById(bookingId)
           .session(session);
         outcome.result =
-          current?.status === BookingStatus.Confirmed &&
-          current.paymentId?.toString() === paymentId
+          current?.paymentId?.toString() === paymentId
             ? 'already_confirmed'
             : 'not_confirmable';
         return;
@@ -371,7 +375,9 @@ export class FlightBookingsService implements BookingPaymentHandler {
       policiesAcceptedAt: booking.policiesAcceptedAt,
       paymentId: booking.paymentId?.toString() ?? null,
       confirmedAt: booking.confirmedAt,
+      expiredAt: booking.expiredAt,
       cancelledAt: booking.cancelledAt,
+      completedAt: booking.completedAt,
       createdAt: booking.createdAt,
     };
   }
