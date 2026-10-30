@@ -108,16 +108,53 @@ Tool: Claude
 Related Requirement: ACC-01, ACC-03
 
 Prompt:
-Finish GitHub issue #1 (ACC-01) in our NestJS + MongoDB backend and get it ready for testing:
-registration with name, unique email, password and the mandatory terms-and-privacy consent,
-following the issue text, docs/api/openapi.yaml and the Area 2 task sheet.
+I am on Area 2 (Auth & Sessions) and want to finish GitHub issue #1 (ACC-01) step by step.
+I shared the project repository, the Area 2 task sheet and the project description, and asked
+the assistant to implement registration in our NestJS + MongoDB backend and get it ready for
+testing. The endpoint is POST /api/auth/register with name, unique email, password and the
+mandatory terms-and-privacy consent. I asked it to follow the requirement text in the issue,
+the RegisterRequest schema and status codes in docs/api/openapi.yaml, docs/CONVENTIONS.md and
+the existing code patterns, and to cover ACC-03 (new account = Registered User + Active, no
+admin self-registration).
 
 How the output was used:
-Used as the implementation of POST /api/auth/register: the User schema (field names matched to
-the seeded admin in seed.ts), the Role and AccountStatus enums, RegisterDto with the ACC-01 rules
-and clear field messages, and the registration logic in AuthService/UsersService (lowercased
-unique email, bcrypt hash with cost 12, consent timestamp, role user and status active forced by
-the server, 409 for a duplicate email including two requests at the same moment). I reviewed
-the code against the issue and openapi.yaml, ran lint, build and local unit/HTTP tests
-(34 passing), and tested every case in Swagger.
+Used as the base for the User schema, the Role and AccountStatus enums, RegisterDto, the
+registration logic in AuthService and UsersService, and the controller route. I checked the
+output against the issue and openapi.yaml: the password rule is at least 8 characters with a
+letter and a digit, acceptTerms must be true, the email is trimmed and lowercased with a unique
+index, the password is stored only as a bcrypt hash (cost 12, same as the seeded admin), the
+consent time is saved, and a role sent in the body is ignored. I matched the schema field names
+to the seeded admin in seed.ts so login (ACC-04) can read both. I reviewed the duplicate-email
+handling for two registrations at the same moment (unique index, error 11000 returns 409).
+Verified with npm run lint, npm run build, local unit tests, and by testing every valid and
+invalid case in Swagger and checking the stored document in Atlas.
+================================================
+
+================================================
+Date: 2026-10-30
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-04 (with the session and cookie groundwork from NEW-07 and ACC-19)
+
+Prompt:
+Continuing Area 2 after registration, I asked the assistant to implement GitHub issue #120
+(ACC-04): log in with email and password for every role (registered user, admin, airline and
+hotel moderator), a generic "invalid email or password" message on failure, an "account
+suspended" message for suspended accounts, and GET /api/auth/me. I asked it to follow
+docs/api/openapi.yaml (httpOnly access_token and refresh_token cookies, response fields, 400 /
+401 / 403 codes), the NEW-07 and ACC-19 definitions in ASSUMED_REQUIREMENTS.md, and to build the
+JwtAuthGuard and @CurrentUser() that the other areas are waiting for, leaving the lockout
+(ACC-05), logout (ACC-06) and refresh rotation (NEW-07) for their own issues.
+
+How the output was used:
+Used as the base for the Session schema, SessionsService, the login DTO and logic, the cookie
+helper, JwtAuthGuard, @CurrentUser(), the AuthUser interface and GET /api/auth/me. I checked it
+against the issue and openapi.yaml: tokens are only in httpOnly, Secure, SameSite cookies and
+never in the body; the refresh token is stored only as a SHA-256 hash; a wrong password and an
+unknown email give the same 401 message; the suspended and deactivated messages appear only
+after the right password; moderators get their airlineId or hotelId; the guard rejects revoked
+sessions and suspended accounts on every request and sets req.user.id as the other modules
+expect. I added cookie-parser to main.ts and the two JWT secrets to the required environment
+variables. Verified with npm run lint, npm run build, local unit and HTTP tests, and by logging
+in as a user, the seeded admin and a suspended account in Swagger and calling /api/auth/me.
 ================================================
