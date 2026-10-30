@@ -10,6 +10,7 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import {
   ClientSession,
   Connection,
+  FilterQuery,
   isValidObjectId,
   Model,
   Types,
@@ -56,11 +57,24 @@ import { dateOnly, formatDate, stayNights, todayUtc } from './stay-dates';
 // TODO(GEN-01, Area 3): notify the user on confirmation (see tryConfirm).
 // TODO(HTL-20; Area 6): the list and the details go here too. The details must include
 // RefundsService.findRefundForBooking() and the refund preview (HTL-21):
-// HotelsService.getRefundTier(hotelId, daysBeforeCheckIn(checkIn)) (stay-dates.ts) on the full
-// total, the same calculation the cancellation uses.
+// HotelBookingLifecycleService.previewCancellation(booking), the same function the cancellation
+// uses. For the Upcoming group of the list use upcomingHotelBookings() below (NEW-01).
 
 // HTL-18: all rooms are held together for 10 minutes.
 export const HOLD_MINUTES = 10;
+
+// NEW-01 "upcoming" (ACC-12, Area 2; the Upcoming group of HTL-20, Area 6): Confirmed, with a
+// check-in date still in the future (UTC), i.e. a stay not yet started; it can still be cancelled
+// (HTL-21). A stay in progress is not upcoming any more and becomes Completed the day after its
+// check-out date (completeStays).
+export function upcomingHotelBookings(
+  now = new Date(),
+): FilterQuery<HotelBooking> {
+  return {
+    status: BookingStatus.Confirmed,
+    checkIn: { $gt: todayUtc(now) },
+  };
+}
 
 const HOTELS_COLLECTION = 'hotels';
 const ROOMS_COLLECTION = 'rooms';
@@ -244,6 +258,20 @@ export class HotelBookingsService implements BookingPaymentHandler {
       : null;
     if (!booking) throw new NotFoundException('Reservation not found.');
     return booking;
+  }
+
+  // ACC-12 (Area 2): deactivating an account is blocked while the user has an upcoming hotel
+  // reservation (NEW-01, see upcomingHotelBookings()).
+  async hasUpcomingBookings(
+    userId: string,
+    now = new Date(),
+  ): Promise<boolean> {
+    if (!isValidObjectId(userId)) return false;
+    const found = await this.bookingModel.exists({
+      userId,
+      ...upcomingHotelBookings(now),
+    });
+    return found !== null;
   }
 
   // --- Used by the payments module (PAY-01, PAY-02) ---

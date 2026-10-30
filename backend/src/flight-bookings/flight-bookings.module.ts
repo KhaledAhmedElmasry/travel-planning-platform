@@ -14,6 +14,10 @@ import { SeatInventoryService } from './seat-inventory.service';
 
 // PaymentsModule uses FlightBookingsService (payments for a booking) and this module uses
 // PaymentsService / RefundsService (expiry, cancellation): forwardRef on both sides.
+// FlightBookingLifecycleService is exported for Area 5 (FLT-06: cancelBookingsForFlight() and
+// finishFlightCancellation()); FlightsModule imports this module. This module imports
+// AirlinesModule, so if AirlinesModule ever imports FlightsModule, use forwardRef on that loop.
+// FlightBookingsService is exported for Area 2 (ACC-12: hasUpcomingBookings()).
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -29,6 +33,10 @@ import { SeatInventoryService } from './seat-inventory.service';
     FlightBookingQuoteService,
     SeatInventoryService,
   ],
-  exports: [FlightBookingsService, SeatInventoryService],
+  exports: [
+    FlightBookingsService,
+    FlightBookingLifecycleService,
+    SeatInventoryService,
+  ],
 })
 export class FlightBookingsModule {}
