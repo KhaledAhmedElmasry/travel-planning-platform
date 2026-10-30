@@ -10,6 +10,12 @@ import { UserDocument } from '../users/schemas/user.schema';
 import { UsersService } from '../users/users.service';
 import { AuthTokens } from './auth-cookies';
 import { LoginDto } from './dto/login.dto';
+import {
+  isLocked,
+  LOCK_DURATION_MS,
+  lockedMessage,
+  MAX_FAILED_LOGINS,
+} from './login-lockout';
 import { RegisterDto } from './dto/register.dto';
 import { BCRYPT_ROUNDS } from './password-rule';
 import { ACCOUNT_SUSPENDED, SessionsService } from './sessions.service';
@@ -98,17 +104,32 @@ export class AuthService {
   }
 
   // ACC-04: log in any role with email and password and start a session (NEW-07).
+  // ACC-05: 5 consecutive wrong passwords lock the account for 15 minutes.
   async login(dto: LoginDto): Promise<LoginResult> {
     const user = await this.usersService.findByEmailWithPassword(dto.email);
+
+    // ACC-05: a locked account is refused before the password is checked, even the right one.
+    if (user && isLocked(user.lockUntil)) {
+      throw new ForbiddenException(lockedMessage(user.lockUntil));
+    }
+
     const passwordOk = await bcrypt.compare(
       dto.password,
       user?.passwordHash ?? (await this.dummyHash),
     );
 
-    // TODO ACC-05: before this check, reject a locked account (lockUntil in the future) with 403;
-    // on a wrong password increase failedLoginAttempts and lock for 15 minutes at 5; on success
-    // reset the counter.
     if (!user || !passwordOk) {
+      if (user) {
+        // ACC-05: the 5th wrong password locks the account and shows the lockout message at once.
+        const lockedUntil = await this.usersService.recordFailedLogin(
+          user._id,
+          MAX_FAILED_LOGINS,
+          LOCK_DURATION_MS,
+        );
+        if (lockedUntil) {
+          throw new ForbiddenException(lockedMessage(lockedUntil));
+        }
+      }
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
 
@@ -119,6 +140,11 @@ export class AuthService {
     }
     if (user.status === AccountStatus.Deactivated) {
       throw new ForbiddenException(ACCOUNT_DEACTIVATED);
+    }
+
+    // ACC-05: a successful login resets the counter, so only consecutive failures count.
+    if (user.failedLoginAttempts > 0 || user.lockUntil) {
+      await this.usersService.resetFailedLogins(user._id);
     }
 
     const tokens = await this.sessionsService.start(user._id.toString());
