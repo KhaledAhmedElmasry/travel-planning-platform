@@ -15,6 +15,11 @@ out/
 coverage/
 *.tsbuildinfo
 
+# Unit / e2e tests stay local (not part of the submission)
+*.spec.ts
+*.e2e-spec.ts
+*.test.ts
+
 # Uploaded images (GEN-08) — created at runtime
 backend/uploads/
 

@@ -10,7 +10,9 @@ import { AppModule } from './app.module';
 const OPENAPI_FILE = join(__dirname, '..', '..', 'docs', 'api', 'openapi.yaml');
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: keeps the exact request bytes in req.rawBody, needed to verify the Stripe webhook
+  // signature (PAY-01). JSON bodies are still parsed as usual.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.setGlobalPrefix('api');
 
@@ -18,7 +20,6 @@ async function bootstrap() {
   //   - cookie parsing for the httpOnly auth cookies (ACC-19)
   //   - the global validation pipe and exception filter (GEN-02, GEN-13, PDF section 6.7)
   //   - CORS with credentials for the Next.js frontend (Milestone 2)
-  //   - the raw request body needed to verify Stripe webhooks (PAY-01)
   //   - serving uploaded images (GEN-08)
 
   const document = load(readFileSync(OPENAPI_FILE, 'utf8')) as OpenAPIObject;
