@@ -1,8 +1,11 @@
-// Area: Payments & Refunds
-// Used by: POST /api/bookings/:type/:id/accept-policies (body)
-// Requirements: PAY-02
-//
-// TODO: define the DTO class with class-validator rules for the fields this endpoint needs,
-// exactly as documented in docs/api/openapi.yaml.
+import { Equals } from 'class-validator';
 
-export {};
+// Area: Payments & Refunds
+// Used by: POST /api/bookings/:type/:id/accept-policies (body), openapi.yaml "AcceptPoliciesRequest"
+// Requirements: PAY-02
+
+export class AcceptPoliciesDto {
+  // The acceptance checkbox. Anything other than true (false, "true", missing) is refused.
+  @Equals(true, { message: 'accepted must be true' })
+  accepted: boolean;
+}

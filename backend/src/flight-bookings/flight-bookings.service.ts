@@ -1,6 +1,7 @@
 import { Injectable, NotImplementedException } from '@nestjs/common';
 import type {
   BookingPaymentHandler,
+  BookingPolicies,
   ConfirmPaidBookingResult,
   PayableBooking,
 } from '../payments/interfaces/payable-booking.interface';
@@ -10,13 +11,17 @@ import type {
 // Scheduled jobs needed: expire unpaid 10-minute holds and release seats (FLT-22, NEW-01),
 // and mark bookings Completed after the flight (GEN-11).
 //
-// PAY-01 is waiting for this service. PaymentsService calls the two BookingPaymentHandler
-// methods below; they throw 501 until the flight booking schema and the seat hold exist.
+// PAY-01, PAY-02 and PAY-03 are waiting for this service. The payments module calls the four
+// BookingPaymentHandler methods below; they throw 501 until the flight booking schema and the
+// seat hold exist.
+// TODO(FLT-26): cancelling a Confirmed booking must call RefundsService.refundBooking() with the
+// airline tier for the days left before departure (reason user_cancellation, tierDaysBefore).
+// Booking details (FLT-25) show RefundsService.findRefundForBooking() and policiesAcceptedAt.
 @Injectable()
 export class FlightBookingsService implements BookingPaymentHandler {
   // TODO: implement.
 
-  // --- Used by PaymentsService (PAY-01) ---
+  // --- Used by the payments module (PAY-01, PAY-02) ---
 
   // WAITING FOR: flight-booking.schema.ts and the seat hold (FLT-22), and policiesAcceptedAt
   // set by PAY-02.
@@ -49,6 +54,35 @@ export class FlightBookingsService implements BookingPaymentHandler {
   ): Promise<ConfirmPaidBookingResult> {
     throw new NotImplementedException(
       'Flight booking confirmation is not implemented yet (FLT-23).',
+    );
+  }
+
+  // WAITING FOR: the flight booking (FLT-22) and the airline's policies: cancellation tiers
+  // (FLT-09), extra-bag price and maximum (FLT-08), free bags and max weight per cabin (FLT-04),
+  // all Area 5.
+  // TODO(PAY-02): find the booking by id (null if not found) and return FlightBookingPolicies:
+  //   bookingType 'flight', the airline (id, name), its cancellationTiers sorted by daysBefore
+  //   (highest first), and baggage: for each booked segment the flight id/number, cabinClass,
+  //   freeBags and maxBagWeightKg of that cabin, plus extraBagPrice (cents) and
+  //   maxExtraBagsPerPassenger.
+  getBookingPolicies(_bookingId: string): Promise<BookingPolicies | null> {
+    throw new NotImplementedException(
+      'Flight bookings are not implemented yet (FLT-22).',
+    );
+  }
+
+  // WAITING FOR: flight-booking.schema.ts with policiesAcceptedAt (FLT-22).
+  // TODO(PAY-02): one atomic update, so a hold that expires at the same moment cannot be accepted:
+  //   findOneAndUpdate(
+  //     { _id: bookingId, status: 'pending_payment', holdExpiresAt: { $gt: acceptedAt } },
+  //     { $set: { policiesAcceptedAt: acceptedAt } })
+  //   and return true if a document was updated, false otherwise.
+  recordPolicyAcceptance(
+    _bookingId: string,
+    _acceptedAt: Date,
+  ): Promise<boolean> {
+    throw new NotImplementedException(
+      'Flight bookings are not implemented yet (FLT-22).',
     );
   }
 

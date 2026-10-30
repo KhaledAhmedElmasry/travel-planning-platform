@@ -2344,7 +2344,15 @@ paths:
         - $ref: '#/components/parameters/Id'
       responses:
         '200':
-          description: The policies, and acceptedAt if the user already accepted them.
+          description: |
+            `{ bookingType, bookingId, currency, policies, acceptedAt }`. `acceptedAt` is null until the
+            user accepts. `policies` for a flight: `airline {id, name}`, `cancellationTiers`
+            (highest daysBefore first), `baggage {cabins: [{flightId, flightNumber, cabinClass, freeBags,
+            maxBagWeightKg}], extraBagPrice (cents), maxExtraBagsPerPassenger}`. For a hotel:
+            `hotel {id, name}`, `cancellationTiers`, `checkInTime`, `checkOutTime`.
+        '400':
+          description: type is not flight or hotel.
+          content: *error
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -2359,7 +2367,8 @@ paths:
         **Access:** the user who made the booking.
 
         Records the acceptance with a timestamp on the booking. Payment is blocked until the policies
-        are accepted. Only for a `pending_payment` booking whose hold has not expired.
+        are accepted. Only for a `pending_payment` booking whose hold has not expired. Accepting again
+        returns the first acceptance time.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/BookingTypePath'
@@ -2372,9 +2381,9 @@ paths:
               $ref: '#/components/schemas/AcceptPoliciesRequest'
       responses:
         '200':
-          description: Accepted. Returns acceptedAt.
+          description: 'Accepted: `{ bookingType, bookingId, acceptedAt }`.'
         '400':
-          description: accepted is not true.
+          description: accepted is not true, or type is not flight or hotel.
           content: *error
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -2486,7 +2495,8 @@ paths:
           notification (FLT-23, HTL-17). If the hold had already expired, the payment is refunded.
         - `payment_intent.payment_failed`: marks the payment failed; the booking stays pending and the
           user may retry until the hold expires.
-        - Refund events update the refund status (PAY-03).
+        - `refund.created`, `refund.updated`, `refund.failed`: update the refund status (PAY-03) from
+          the refund's current state in Stripe.
       security: []
       parameters:
         - name: stripe-signature
@@ -2516,13 +2526,19 @@ paths:
         **Access:** the user who owns the refunded booking.
 
         A refund is created for every cancellation with a positive amount: user cancellations use the
-        provider's tiers, provider cancellations refund 100%. It is issued through the Stripe Refunds API.
+        provider's tiers, provider cancellations refund 100%. A payment confirmed after its hold expired
+        is also refunded 100%. It is issued through the Stripe Refunds API, at most one per booking.
+        The amount is the percentage of the amount paid, rounded down to whole cents.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
         '200':
-          description: Booking type and id, amount in cents, status (pending, refunded, failed), the tier or percentage applied, Stripe refund id, dates.
+          description: |
+            id, bookingType, bookingId, paymentId, amount (cents), currency, refundPercentage,
+            tierDaysBefore (the tier used for a user cancellation, otherwise null), reason
+            (user_cancellation, provider_cancellation, hold_expired), status (pending, refunded,
+            failed), stripeRefundId, failureReason, createdAt, updatedAt.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':

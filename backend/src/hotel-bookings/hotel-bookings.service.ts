@@ -1,6 +1,7 @@
 import { Injectable, NotImplementedException } from '@nestjs/common';
 import type {
   BookingPaymentHandler,
+  BookingPolicies,
   ConfirmPaidBookingResult,
   PayableBooking,
 } from '../payments/interfaces/payable-booking.interface';
@@ -10,13 +11,18 @@ import type {
 // Scheduled jobs needed: expire unpaid 10-minute holds and release rooms (HTL-18, NEW-01),
 // and mark reservations Completed after check-out (HTL-23, GEN-11).
 //
-// PAY-01 is waiting for this service. PaymentsService calls the two BookingPaymentHandler
-// methods below; they throw 501 until the hotel booking schema and the room hold exist.
+// PAY-01, PAY-02 and PAY-03 are waiting for this service. The payments module calls the four
+// BookingPaymentHandler methods below; they throw 501 until the hotel booking schema and the
+// room hold exist.
+// TODO(HTL-21): cancelling a Confirmed reservation must call RefundsService.refundBooking() with
+// the hotel tier for the days left before check-in, on the full total (reason
+// user_cancellation, tierDaysBefore). Reservation details (HTL-20) show
+// RefundsService.findRefundForBooking() and policiesAcceptedAt.
 @Injectable()
 export class HotelBookingsService implements BookingPaymentHandler {
   // TODO: implement.
 
-  // --- Used by PaymentsService (PAY-01) ---
+  // --- Used by the payments module (PAY-01, PAY-02) ---
 
   // WAITING FOR: hotel-booking.schema.ts and the room hold (HTL-16, HTL-18), and
   // policiesAcceptedAt set by PAY-02.
@@ -48,6 +54,32 @@ export class HotelBookingsService implements BookingPaymentHandler {
   ): Promise<ConfirmPaidBookingResult> {
     throw new NotImplementedException(
       'Hotel booking confirmation is not implemented yet (HTL-17).',
+    );
+  }
+
+  // WAITING FOR: the hotel reservation (HTL-16, HTL-18) and the hotel's policies: check-in and
+  // check-out times (HTL-09) and cancellation tiers (HTL-10), both Area 7.
+  // TODO(PAY-02): find the reservation by id (null if not found) and return HotelBookingPolicies:
+  //   bookingType 'hotel', the hotel (id, name), its cancellationTiers sorted by daysBefore
+  //   (highest first), checkInTime and checkOutTime (HH:mm).
+  getBookingPolicies(_bookingId: string): Promise<BookingPolicies | null> {
+    throw new NotImplementedException(
+      'Hotel bookings are not implemented yet (HTL-16, HTL-18).',
+    );
+  }
+
+  // WAITING FOR: hotel-booking.schema.ts with policiesAcceptedAt (HTL-18).
+  // TODO(PAY-02): one atomic update, so a hold that expires at the same moment cannot be accepted:
+  //   findOneAndUpdate(
+  //     { _id: bookingId, status: 'pending_payment', holdExpiresAt: { $gt: acceptedAt } },
+  //     { $set: { policiesAcceptedAt: acceptedAt } })
+  //   and return true if a document was updated, false otherwise.
+  recordPolicyAcceptance(
+    _bookingId: string,
+    _acceptedAt: Date,
+  ): Promise<boolean> {
+    throw new NotImplementedException(
+      'Hotel bookings are not implemented yet (HTL-16, HTL-18).',
     );
   }
 
