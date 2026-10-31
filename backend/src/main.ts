@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { readFileSync } from 'fs';
 import { load } from 'js-yaml';
 import { join } from 'path';
@@ -16,8 +17,10 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
+  // Reads the httpOnly auth cookies (access_token, refresh_token) into req.cookies (ACC-19).
+  app.use(cookieParser());
+
   // TODO: register app-wide setup here as it is built, for example:
-  //   - cookie parsing for the httpOnly auth cookies (ACC-19)
   //   - the global validation pipe and exception filter (GEN-02, GEN-13, PDF section 6.7)
   //   - CORS with credentials for the Next.js frontend (Milestone 2)
   //   - serving uploaded images (GEN-08)
