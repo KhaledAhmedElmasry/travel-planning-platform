@@ -27,7 +27,7 @@ import { RegisterDto } from './dto/register.dto';
 // Requirements: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19, NEW-07
 // Endpoints to implement (PDF section 8):
 //   POST  /api/auth/register          ACC-01, ACC-03   done
-//   POST  /api/auth/login             ACC-04, ACC-05   done (ACC-04); lockout ACC-05 to do
+//   POST  /api/auth/login             ACC-04, ACC-05   done
 //   POST  /api/auth/logout            ACC-06
 //   PATCH /api/auth/change-password   ACC-08
 //   GET   /api/auth/me                ACC-04, ACC-11   done

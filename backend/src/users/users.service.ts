@@ -32,6 +32,44 @@ export class UsersService {
       .exec();
   }
 
+  // ACC-05: count one more failed login. When the count reaches maxAttempts the account is locked
+  // until now + lockForMs and the counter starts again from 0. Returns the lock end, or null if
+  // the account is not locked by this attempt.
+  // $inc is atomic, so parallel wrong guesses are all counted and cannot slip past the limit.
+  async recordFailedLogin(
+    userId: Types.ObjectId,
+    maxAttempts: number,
+    lockForMs: number,
+  ): Promise<Date | null> {
+    const updated = await this.userModel
+      .findOneAndUpdate(
+        { _id: userId },
+        { $inc: { failedLoginAttempts: 1 } },
+        { new: true },
+      )
+      .exec();
+    if (!updated || updated.failedLoginAttempts < maxAttempts) return null;
+
+    const lockUntil = new Date(Date.now() + lockForMs);
+    await this.userModel
+      .updateOne(
+        { _id: userId, failedLoginAttempts: { $gte: maxAttempts } },
+        { $set: { lockUntil, failedLoginAttempts: 0 } },
+      )
+      .exec();
+    return lockUntil;
+  }
+
+  // ACC-05: a successful login resets the counter and any expired lock.
+  async resetFailedLogins(userId: Types.ObjectId): Promise<void> {
+    await this.userModel
+      .updateOne(
+        { _id: userId },
+        { $set: { failedLoginAttempts: 0, lockUntil: null } },
+      )
+      .exec();
+  }
+
   findById(id: string): Promise<UserDocument | null> {
     if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
     return this.userModel.findById(id).exec();

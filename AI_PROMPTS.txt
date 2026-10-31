@@ -158,3 +158,29 @@ expect. I added cookie-parser to main.ts and the two JWT secrets to the required
 variables. Verified with npm run lint, npm run build, local unit and HTTP tests, and by logging
 in as a user, the seeded admin and a suspended account in Swagger and calling /api/auth/me.
 ================================================
+
+================================================
+Date: 2026-10-30
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-05
+
+Prompt:
+After login (ACC-04), I asked the assistant to implement GitHub issue #2 (ACC-05): after 5
+consecutive failed login attempts the account is locked for 15 minutes with a lockout message,
+and a successful login resets the counter. I asked it to build on the existing login code and
+User schema fields (failedLoginAttempts, lockUntil), follow the 403 response in
+docs/api/openapi.yaml, and make the counter safe when several wrong guesses arrive at once.
+
+How the output was used:
+Used as the base for login-lockout.ts (limit, duration and message), the recordFailedLogin and
+resetFailedLogins methods in UsersService, and the lockout checks in AuthService.login. I checked
+the behaviour against the issue: wrong passwords 1 to 4 give the generic 401, the 5th returns 403
+with "Account locked after 5 failed login attempts. Try again in 15 minutes", a locked account is
+refused even with the right password, the lock ends after 15 minutes and gives 5 new tries, a
+successful login resets the counter, unknown emails are never locked, and the counter uses an
+atomic $inc so parallel guesses cannot pass the limit. Verified with npm run lint, npm run build,
+local tests (including checks that fail when the lock check or the reset is removed), and by
+triggering the lockout in Swagger and checking failedLoginAttempts and lockUntil in Atlas
+(demo scenario 1).
+================================================
