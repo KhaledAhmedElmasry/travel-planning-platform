@@ -13,7 +13,7 @@ import type { Response } from 'express';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
-import { setAuthCookies } from './auth-cookies';
+import { clearAuthCookies, setAuthCookies } from './auth-cookies';
 import {
   AccountResponse,
   AuthService,
@@ -28,7 +28,7 @@ import { RegisterDto } from './dto/register.dto';
 // Endpoints to implement (PDF section 8):
 //   POST  /api/auth/register          ACC-01, ACC-03   done
 //   POST  /api/auth/login             ACC-04, ACC-05   done
-//   POST  /api/auth/logout            ACC-06
+//   POST  /api/auth/logout            ACC-06           done
 //   PATCH /api/auth/change-password   ACC-08
 //   GET   /api/auth/me                ACC-04, ACC-11   done
 // Extra endpoints may be needed (not in the PDF tables) for:
@@ -70,6 +70,19 @@ export class AuthController {
     const { account, tokens } = await this.authService.login(dto);
     setAuthCookies(res, tokens);
     return account;
+  }
+
+  // ACC-06: revokes the session on the server and clears both cookies. Its tokens stop working
+  // at once, even if they have not expired yet. Other sessions of the account stay logged in.
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async logout(
+    @CurrentUser() user: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.authService.logout(user.sessionId);
+    clearAuthCookies(res);
   }
 
   // ACC-04, ACC-19: the frontend reads the logged-in account here instead of storing it.
