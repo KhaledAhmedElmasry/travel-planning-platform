@@ -1,6 +1,22 @@
 // Shared enums (roles, statuses, cabin classes, ...) used by several modules.
 // Add values here instead of repeating string literals in each module.
 
+// Account roles (PDF section 4), openapi.yaml "Role". Registration always creates Role.User;
+// admins are seeded (ACC-18) and moderators are created by an admin (ACC-13).
+export enum Role {
+  User = 'user',
+  Admin = 'admin',
+  AirlineModerator = 'airline_moderator',
+  HotelModerator = 'hotel_moderator',
+}
+
+// Account status, openapi.yaml "AccountStatus" (ACC-03, ACC-12, ACC-15, ACC-16).
+export enum AccountStatus {
+  Active = 'active',
+  Suspended = 'suspended',
+  Deactivated = 'deactivated',
+}
+
 // The ":type" of a booking in URLs and payments (openapi.yaml "BookingType").
 export enum BookingType {
   Flight = 'flight',
