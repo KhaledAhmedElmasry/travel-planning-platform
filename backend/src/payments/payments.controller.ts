@@ -12,7 +12,6 @@ import {
   type RawBodyRequest,
   Req,
   UnauthorizedException,
-  ValidationPipe,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { BookingType } from '../common/enums';
@@ -51,8 +50,7 @@ import { RefundResponse, RefundsService } from './refunds.service';
 //     2. allow only role `user` on those routes (403 for admins and moderators): PAY-01 and
 //        PAY-02 are Registered User actions;
 //     3. replace currentUserId(req) with the @CurrentUser() decorator and delete the helper.
-// WAITING FOR (Area 3, GEN-02 / GEN-13): the global ValidationPipe in main.ts. Then remove the
-//   local `new ValidationPipe(...)` from the @Body() parameters below.
+// DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
 @Controller()
 export class PaymentsController {
   constructor(
@@ -79,7 +77,7 @@ export class PaymentsController {
     @Param('type', bookingTypePipe()) type: BookingType,
     @Param('id') id: string,
     // Validated only (accepted must be true); the value itself is not needed.
-    @Body(new ValidationPipe({ whitelist: true })) _dto: AcceptPoliciesDto,
+    @Body() _dto: AcceptPoliciesDto,
   ): Promise<AcceptPoliciesResponse> {
     return this.policiesService.acceptPolicies(currentUserId(req), type, id);
   }
@@ -88,7 +86,7 @@ export class PaymentsController {
   @Post('payments')
   createPayment(
     @Req() req: Request,
-    @Body(new ValidationPipe({ whitelist: true })) dto: CreatePaymentDto,
+    @Body() dto: CreatePaymentDto,
   ): Promise<PaymentResponse> {
     return this.paymentsService.createPayment(currentUserId(req), dto);
   }
@@ -108,7 +106,7 @@ export class PaymentsController {
   retryPayment(
     @Req() req: Request,
     @Param('id') id: string,
-    @Body(new ValidationPipe({ whitelist: true })) dto: RetryPaymentDto,
+    @Body() dto: RetryPaymentDto,
   ): Promise<PaymentResponse> {
     return this.paymentsService.retryPayment(currentUserId(req), id, dto ?? {});
   }

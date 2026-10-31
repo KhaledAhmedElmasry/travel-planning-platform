@@ -9,7 +9,6 @@ import {
   Req,
   StreamableFile,
   UnauthorizedException,
-  ValidationPipe,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { FlightBookingRequestDto } from './dto/hold-flight-booking.dto';
@@ -44,7 +43,7 @@ import {
 // WAITING FOR (Area 2, ACC-04 / ACC-11 / ACC-19): JwtAuthGuard, the user role check (403 for
 //   non-users) and @CurrentUser(). Until then currentUserId() below answers 401. When they are
 //   merged, add the guard to every route and replace currentUserId(req) with @CurrentUser().
-// WAITING FOR (Area 3, GEN-02 / GEN-13): the global ValidationPipe; then remove the local one.
+// DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
 //   PATCH /api/flight-bookings/:id/change-flight   FLT-27 (Optional)
@@ -60,7 +59,7 @@ export class FlightBookingsController {
   @Post('hold')
   hold(
     @Req() req: Request,
-    @Body(new ValidationPipe({ whitelist: true })) dto: FlightBookingRequestDto,
+    @Body() dto: FlightBookingRequestDto,
   ): Promise<FlightBookingResponse> {
     return this.flightBookingsService.hold(currentUserId(req), dto);
   }

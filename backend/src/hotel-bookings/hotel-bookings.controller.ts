@@ -7,7 +7,6 @@ import {
   Post,
   Req,
   UnauthorizedException,
-  ValidationPipe,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { CreateHotelBookingDto } from './dto/create-hotel-booking.dto';
@@ -41,7 +40,7 @@ import {
 // WAITING FOR (Area 2, ACC-04 / ACC-11 / ACC-19): JwtAuthGuard, the user role check (403 for
 //   non-users) and @CurrentUser(). Until then currentUserId() below answers 401. When they are
 //   merged, add the guard to every route and replace currentUserId(req) with @CurrentUser().
-// WAITING FOR (Area 3, GEN-02 / GEN-13): the global ValidationPipe; then remove the local one.
+// DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
 @Controller('hotel-bookings')
 export class HotelBookingsController {
   constructor(
@@ -53,7 +52,7 @@ export class HotelBookingsController {
   @Post()
   book(
     @Req() req: Request,
-    @Body(new ValidationPipe({ whitelist: true })) dto: CreateHotelBookingDto,
+    @Body() dto: CreateHotelBookingDto,
   ): Promise<HotelBookingResponse> {
     return this.hotelBookingsService.book(currentUserId(req), dto);
   }
