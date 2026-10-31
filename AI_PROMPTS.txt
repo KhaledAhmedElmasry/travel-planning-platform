@@ -100,3 +100,16 @@ duplicates and never resets the administrator password. Field names follow docs/
 I reviewed the script, verified it with a successful build and lint, ran it twice against the
 shared database and confirmed the stored documents and the hashed administrator password.
 ================================================
+================================================
+Date: 2026-10-31
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01
+Prompt:
+Asked for step-by-step help with Area 7 (Hotels & Rooms): project setup, .env and MongoDB Atlas
+connection, and an implementation of HTL-01 (hotel schema, create/update DTOs, hotels service,
+module wiring) based on the repo scaffold and docs/api/openapi.yaml.
+How the output was used:
+Reviewed and adapted the generated schema, DTOs and service; fixed build errors; the build passes.
+Controller and tests are still to be done once the shared auth/upload code is merged.
+================================================
