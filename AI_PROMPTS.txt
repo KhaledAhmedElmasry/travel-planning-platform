@@ -41,45 +41,6 @@ Verified by building, linting and starting the server against a local MongoDB.
 
 ================================================
 Date: 2026-10-29
-Student: Khaled Ahmed
-Tool: Claude Code (Claude Opus 5.5)
-Related Requirement: None implemented (planning and documentation for Milestone 1)
-
-Prompt:
-Make sure that all the endpoints and Excel requirement codes are written in the files and none
-are missing, delete any extra ones, cross-check, then check the GitHub issues. Make a small PDF of
-the usual workflow from the Excel code until it is done, a .md file with empty assignee tags, and
-8 PDF task sheets so every team member knows their Milestone 1 tasks and the workflow.
-
-How the output was used:
-Cross-checked the 117 PDF section 8 endpoints, the 104 mandatory + 11 bonus workbook ids and the
-7 assumed ids against the controller comments, DTO/schema headers, openapi.yaml and GitHub issues.
-Removed 5 suggested endpoints from controller notes that the documented API already covers
-(refund previews, logo/photo uploads, exchange-rate lookup). Removed the 10 endpoint paths the AI
-had guessed for features the PDF tables do not cover (session refresh, reference-data lists,
-notifications, user reports); the Excel never names endpoints, so the controllers now list only the
-117 PDF endpoints and say "extra endpoints may be needed" for those features, and the team decides.
-A final scan of all 198 text files made every endpoint line (controllers, openapi.yaml summaries,
-TASKS.md) carry exactly the PDF's requirement ids; ids the PDF omits (FLT-02, HTL-06, HTL-09,
-ACC-19, ITN-25) were moved into notes/descriptions, and guessed paths were removed from
-ASSUMED_REQUIREMENTS.md.
-Then re-split the work at the leader's request: area 1 takes the hardest, most critical
-requirements (payments, seat/room holds, confirmation, cancellations and refunds, booking
-automation; 14 requirements, 29 difficulty points), and areas 2-8 are balanced by
-difficulty at 19-21 points with 8 tasks each (more requirements where they are easier). Removed
-the deadline box from the handouts.
-Added DEPENDENCIES.pdf (who depends on whom, with requirement codes and dates), generated from
-the same dependency list as the handouts so both always agree.
-Re-checked every dependency against the Excel "Dependencies" column (added ACC-13 -> FLT-01/HTL-01,
-PAY-02 -> FLT-08/HTL-09, HTL-06/08/11/15 -> reservations, FLT-05/06 -> bookings and others) and
-removed all dates and deadlines from the PDFs and TASKS.md. Regenerated TASKS.md, the TEAM_PLAN area table and all 9 PDFs in a dark purple/green design. Created the 4 missing GitHub issues
-(ACC-04, ACC-12, BLG-09, FLT-11) and fixed the inverted ACC-19 issue title. Generated
-docs/milestone1/TASKS.md, WORKFLOW.pdf and the 8 area handouts (no names); reviewed every page
-and verified that all 105 Milestone 1 requirements and 118 endpoints appear exactly once.
-================================================
-
-================================================
-Date: 2026-10-29
 Student: Khaled Ahmed (team leader)
 Tool: Claude Code (Claude Opus 5.5)
 Related Requirement: GEN-12, FLT-02, NEW-05, ACC-18
@@ -100,8 +61,18 @@ duplicates and never resets the administrator password. Field names follow docs/
 I reviewed the script, verified it with a successful build and lint, ran it twice against the
 shared database and confirmed the stored documents and the hashed administrator password.
 ================================================
+Date: 2026-10-31
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01
+Prompt:
+Asked for step-by-step help with Area 7 (Hotels & Rooms): project setup, .env and MongoDB Atlas
+connection, and an implementation of HTL-01 (hotel schema, create/update DTOs, hotels service,
+module wiring) based on the repo scaffold and docs/api/openapi.yaml.
+How the output was used:
+Reviewed and adapted the generated schema, DTOs and service; fixed build errors; the build passes.
+Controller and tests are still to be done once the shared auth/upload code is merged.
 
-================================================
 Date: 2026-10-30
 Student: Ibrahim El Shafey
 Tool: Claude
@@ -128,9 +99,7 @@ to the seeded admin in seed.ts so login (ACC-04) can read both. I reviewed the d
 handling for two registrations at the same moment (unique index, error 11000 returns 409).
 Verified with npm run lint, npm run build, local unit tests, and by testing every valid and
 invalid case in Swagger and checking the stored document in Atlas.
-================================================
 
-================================================
 Date: 2026-10-30
 Student: Ibrahim El Shafey
 Tool: Claude
@@ -157,9 +126,7 @@ sessions and suspended accounts on every request and sets req.user.id as the oth
 expect. I added cookie-parser to main.ts and the two JWT secrets to the required environment
 variables. Verified with npm run lint, npm run build, local unit and HTTP tests, and by logging
 in as a user, the seeded admin and a suspended account in Swagger and calling /api/auth/me.
-================================================
 
-================================================
 Date: 2026-10-30
 Student: Ibrahim El Shafey
 Tool: Claude
@@ -183,9 +150,7 @@ atomic $inc so parallel guesses cannot pass the limit. Verified with npm run lin
 local tests (including checks that fail when the lock check or the reset is removed), and by
 triggering the lockout in Swagger and checking failedLoginAttempts and lockUntil in Atlas
 (demo scenario 1).
-================================================
 
-================================================
 Date: 2026-10-31
 Student: Ibrahim El Shafey
 Tool: Claude
