@@ -100,3 +100,24 @@ duplicates and never resets the administrator password. Field names follow docs/
 I reviewed the script, verified it with a successful build and lint, ran it twice against the
 shared database and confirmed the stored documents and the hashed administrator password.
 ================================================
+
+================================================
+Date: 2026-10-30
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-01, ACC-03
+
+Prompt:
+Finish GitHub issue #1 (ACC-01) in our NestJS + MongoDB backend and get it ready for testing:
+registration with name, unique email, password and the mandatory terms-and-privacy consent,
+following the issue text, docs/api/openapi.yaml and the Area 2 task sheet.
+
+How the output was used:
+Used as the implementation of POST /api/auth/register: the User schema (field names matched to
+the seeded admin in seed.ts), the Role and AccountStatus enums, RegisterDto with the ACC-01 rules
+and clear field messages, and the registration logic in AuthService/UsersService (lowercased
+unique email, bcrypt hash with cost 12, consent timestamp, role user and status active forced by
+the server, 409 for a duplicate email including two requests at the same moment). I reviewed
+the code against the issue and openapi.yaml, ran lint, build and local unit/HTTP tests
+(34 passing), and tested every case in Swagger.
+================================================
