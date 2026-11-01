@@ -151,6 +151,11 @@ export class AuthService {
     return { account: toAccount(user), tokens };
   }
 
+  // ACC-06: revoke the current session on the server. The controller clears the cookies.
+  logout(sessionId: string): Promise<void> {
+    return this.sessionsService.revoke(sessionId);
+  }
+
   // ACC-04, ACC-19: the account of the current session, for GET /api/auth/me.
   async me(userId: string): Promise<MeResponse> {
     const user = await this.usersService.findById(userId);

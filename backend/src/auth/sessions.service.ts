@@ -26,6 +26,10 @@ interface TokenPayload {
 const SESSION_ENDED = 'Your session has ended. Please log in again';
 export const ACCOUNT_SUSPENDED = 'Account suspended';
 
+// ACC-06: every authenticated request moves the 30-minute idle deadline forward. To avoid a
+// database write on every request, the session is updated at most once a minute.
+const ACTIVITY_WRITE_INTERVAL_MS = 60 * 1000;
+
 // Area: Auth & Accounts
 // Token-based sessions (NEW-07) and the check behind JwtAuthGuard (ACC-04, ACC-19).
 // Exported by AuthModule, which is global, so the guard works in every module.
@@ -66,8 +70,19 @@ export class SessionsService {
     return { accessToken, refreshToken };
   }
 
+  // ACC-06: logout revokes the session on the server, so its tokens stop working at once.
+  // Revoking an already revoked session changes nothing.
+  async revoke(sessionId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(sessionId)) return;
+    await this.sessionModel
+      .updateOne(
+        { _id: sessionId, revokedAt: null },
+        { $set: { revokedAt: new Date() } },
+      )
+      .exec();
+  }
+
   // JwtAuthGuard: the logged-in account for an access token, or 401/403.
-  // TODO NEW-07 / ACC-06: update lastActivityAt here for the 30-minute idle expiry.
   async authenticate(accessToken: string): Promise<AuthUser> {
     let payload: TokenPayload;
     try {
@@ -79,13 +94,16 @@ export class SessionsService {
     }
 
     // A logged-out or revoked session stops working at once, even with an unexpired token.
+    // ACC-06: expiresAt is 30 minutes after the last authenticated request, so an idle session
+    // fails here and needs a new login.
     const session = Types.ObjectId.isValid(payload.sid)
       ? await this.sessionModel.findById(payload.sid).exec()
       : null;
+    const now = new Date();
     if (
       !session ||
       session.revokedAt ||
-      session.expiresAt <= new Date() ||
+      session.expiresAt <= now ||
       session.userId.toString() !== payload.sub
     ) {
       throw new UnauthorizedException(SESSION_ENDED);
@@ -100,6 +118,8 @@ export class SessionsService {
       throw new ForbiddenException(ACCOUNT_SUSPENDED);
     }
 
+    await this.recordActivity(session._id, session.lastActivityAt, now);
+
     return {
       id: user._id.toString(),
       role: user.role,
@@ -113,6 +133,27 @@ export class SessionsService {
           ? user.hotelId.toString()
           : null,
     };
+  }
+
+  private async recordActivity(
+    sessionId: Types.ObjectId,
+    lastActivityAt: Date,
+    now: Date,
+  ): Promise<void> {
+    if (now.getTime() - lastActivityAt.getTime() < ACTIVITY_WRITE_INTERVAL_MS) {
+      return;
+    }
+    await this.sessionModel
+      .updateOne(
+        { _id: sessionId, revokedAt: null },
+        {
+          $set: {
+            lastActivityAt: now,
+            expiresAt: new Date(now.getTime() + SESSION_IDLE_SECONDS * 1000),
+          },
+        },
+      )
+      .exec();
   }
 }
 

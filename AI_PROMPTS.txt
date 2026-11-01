@@ -184,3 +184,27 @@ local tests (including checks that fail when the lock check or the reset is remo
 triggering the lockout in Swagger and checking failedLoginAttempts and lockUntil in Atlas
 (demo scenario 1).
 ================================================
+
+================================================
+Date: 2026-10-31
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-06
+
+Prompt:
+After login and lockout, I asked the assistant to implement GitHub issue #3 (ACC-06): a logged-in
+user can log out, which clears the authentication cookies and revokes the refresh token on the
+server, and a session with no authenticated request for 30 minutes expires and requires a new
+login. I asked it to build on the existing sessions collection and JwtAuthGuard, and to follow
+POST /api/auth/logout in docs/api/openapi.yaml (204, 401 when not logged in).
+
+How the output was used:
+Used as the base for POST /api/auth/logout, SessionsService.revoke, clearAuthCookies and the
+idle-expiry update in SessionsService.authenticate. I checked it against the issue: logout returns
+204, sets revokedAt on the session and clears both cookies with the same path and flags they were
+set with; the old access token stops working at once, even before it expires; other devices stay
+logged in; every authenticated request moves the 30-minute idle deadline forward (written at most
+once a minute), and an idle session gets 401 and needs a new login. Verified with npm run lint,
+npm run build, local tests (including checks that fail when the revoke or the activity update is
+removed), and in Swagger by logging out, calling /api/auth/me and checking revokedAt in Atlas.
+================================================

@@ -38,3 +38,10 @@ export function setAuthCookies(res: Response, tokens: AuthTokens): void {
     maxAge: SESSION_IDLE_SECONDS * 1000,
   });
 }
+
+// ACC-06: logout. The options must match the ones the cookies were set with, or the browser keeps
+// them.
+export function clearAuthCookies(res: Response): void {
+  res.clearCookie(ACCESS_COOKIE, { ...BASE, path: '/api' });
+  res.clearCookie(REFRESH_COOKIE, { ...BASE, path: '/api/auth' });
+}
