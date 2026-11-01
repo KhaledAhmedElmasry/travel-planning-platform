@@ -5,6 +5,8 @@
 // checked when a webhook arrives.
 const REQUIRED = [
   'MONGODB_URI',
+  'JWT_ACCESS_SECRET', // ACC-04, NEW-07
+  'JWT_REFRESH_SECRET', // NEW-07
   'STRIPE_SECRET_KEY',
   'PLATFORM_CURRENCY',
 ] as const;
