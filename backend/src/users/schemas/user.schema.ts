@@ -58,6 +58,10 @@ export class User {
   @Prop({ type: Date, default: null })
   lockUntil: Date | null;
 
+  // ACC-12: when the account was deactivated by its owner.
+  @Prop({ type: Date, default: null })
+  deactivatedAt: Date | null;
+
   // ACC-07a, ACC-13: a temporary password must be changed at the next login.
   @Prop({ required: true, default: false })
   mustChangePassword: boolean;

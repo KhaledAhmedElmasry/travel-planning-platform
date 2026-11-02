@@ -314,3 +314,31 @@ schemas. Verified with npm run lint, npm run build and local unit tests for ever
 checks that fail when the admin rule, the moderator's provider check or the private-itinerary
 rule is changed.
 ================================================
+
+================================================
+Date: 2026-11-03
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-12
+
+Prompt:
+I asked the assistant to implement GitHub issue #121 (ACC-12): a registered user deactivates
+their own account after confirmation; it is blocked while the user has upcoming Confirmed bookings,
+and a deactivated user cannot log in. I asked it to follow DELETE /api/users/me in
+docs/api/openapi.yaml (registered users only, 204 with the cookies cleared, 401, 403 for other
+roles, 409 for upcoming confirmed bookings, all sessions revoked) and to use the real booking
+fields from the flight booking and hotel reservation schemas.
+
+How the output was used:
+Used as the base for the DELETE route in UsersController, AuthService.deactivateOwnAccount,
+UsersService.hasUpcomingConfirmedBookings and deactivate, and the deactivatedAt field. I checked it
+against the issue and openapi.yaml: admins and moderators get 403; a confirmed flight with a leg
+that has not departed (including only the return flight) or a confirmed stay with check-in today
+or later gives 409 and changes nothing; past, cancelled, expired, pending and other users'
+bookings do not block; on success the status becomes deactivated, every session is revoked, the
+cookies are cleared and the account can no longer log in. Hiding posts and public itineraries and
+showing "Deleted user" belong to the blog, reviews and itineraries areas, which filter on the
+deactivated status. Verified with npm run lint, npm run build, local tests (including checks that
+fail when the booking check, the session revoke or the role restriction is removed), a check of
+the real module wiring, and in Swagger.
+================================================
