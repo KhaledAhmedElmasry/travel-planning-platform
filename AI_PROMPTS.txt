@@ -173,3 +173,27 @@ once a minute), and an idle session gets 401 and needs a new login. Verified wit
 npm run build, local tests (including checks that fail when the revoke or the activity update is
 removed), and in Swagger by logging out, calling /api/auth/me and checking revokedAt in Atlas.
 ================================================
+
+================================================
+Date: 2026-11-02
+Student: Omar Ahmed Alaga
+Tool: GitHub Copilot
+Related Requirement: FLT-11
+
+Prompt:
+I was implementing FLT-11 public flight search in our NestJS/Mongoose
+backend and asked Copilot for help with specific parts: how to structure
+the query validation, how to handle departure-local dates, how to calculate
+seat availability, and how to approach pagination and the placeholder
+integrations.
+
+How the output was used:
+I designed the overall approach and wrote the public flight search
+controller, service, DTOs, and replaceable dependency placeholders myself.
+Copilot offered suggestions and code snippets, which I reviewed, adapted to
+our project's structure, and in some cases rejected. I used it mainly for
+the validation approach, date handling, and the optional idempotent
+development seed script. I verified my work with a successful backend
+build, flight-scoped lint, and 7 passing flight-search behavior tests that
+I ran and checked. The seed script was not run against MongoDB.
+================================================

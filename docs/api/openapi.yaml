@@ -1077,89 +1077,39 @@ paths:
         - No match gives an empty list, shown as "no flights found" (GEN-04).
       security: []
       parameters:
-        - name: origin
+        - name: from
           in: query
           required: true
-          description: IATA code of the departure airport.
+          description: Departure airport IATA code.
           schema:
             type: string
+            pattern: '^[A-Za-z]{3}$'
             example: CAI
-        - name: destination
+        - name: to
           in: query
           required: true
-          description: IATA code of the arrival airport.
+          description: Arrival airport IATA code.
           schema:
             type: string
+            pattern: '^[A-Za-z]{3}$'
             example: DXB
-        - name: departureDate
+        - name: date
           in: query
           required: true
-          description: Local date at the departure airport.
+          description: Departure date in the departure airport's local time.
           schema:
             type: string
             format: date
-            example: '2027-03-01'
-        - name: tripType
+            example: '2026-11-02'
+        - name: passengers
           in: query
-          description: Defaults to `one_way`.
-          schema:
-            $ref: '#/components/schemas/TripType'
-        - name: returnDate
-          in: query
-          description: Required for `round_trip`. Not before departureDate.
-          schema:
-            type: string
-            format: date
-            example: '2027-03-10'
-        - name: adults
-          in: query
-          description: Passengers aged 12 or more. At least 1.
+          required: true
+          description: Number of passengers.
           schema:
             type: integer
             minimum: 1
-            default: 1
-        - name: children
-          in: query
-          description: Passengers aged 2 to 11.
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
-        - name: infants
-          in: query
-          description: Passengers under 2. No more than adults.
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
-        - name: cabinClass
-          in: query
-          description: Optional cabin filter (FLT-12).
-          schema:
-            $ref: '#/components/schemas/CabinClass'
-        - name: minPrice
-          in: query
-          description: Minimum fare in cents, inclusive.
-          schema:
-            type: integer
-            minimum: 0
-            example: 10000
-        - name: maxPrice
-          in: query
-          description: Maximum fare in cents, inclusive.
-          schema:
-            type: integer
-            minimum: 0
-            example: 50000
-        - name: sortBy
-          in: query
-          schema:
-            $ref: '#/components/schemas/FlightSortBy'
-        - name: sortOrder
-          in: query
-          description: Defaults to `asc`.
-          schema:
-            $ref: '#/components/schemas/SortOrder'
+            maximum: 99
+            example: 3
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
