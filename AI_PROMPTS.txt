@@ -176,25 +176,26 @@ removed), and in Swagger by logging out, calling /api/auth/me and checking revok
 
 ================================================
 Date: 2026-11-01
-Student: Hussein Shata
+Student: Hussien Shata
 Tool: Claude
 Related Requirement: GEN-02, GEN-13
 
 Prompt:
-Implement the global validation pipe and exception filter (GEN-02, GEN-13): configure a global
-ValidationPipe with field-level validation messages and a global HttpExceptionFilter returning
-the consistent error envelope specified in docs/api/openapi.yaml. Remove local ValidationPipe
-instances from controllers.
+Explain how to implement a global validation pipe and exception filter in NestJS (GEN-02, GEN-13).
+Provide guidance on configuring field-level validation messages, maintaining the consistent error
+response format defined in docs/api/openapi.yaml, and replacing local ValidationPipe instances
+with global validation.
 
 How the output was used:
-Implemented globalValidationPipeOptions in backend/src/common/pipes/validation.pipe.ts with
-whitelist: true and custom exceptionFactory to format field-level error messages. Implemented
-GlobalHttpExceptionFilter in backend/src/common/filters/http-exception.filter.ts formatting all
-HTTP exceptions into the standard Error schema (statusCode, error, message, fieldErrors, path,
-timestamp). Registered both globally in main.ts and removed local ValidationPipe instances from
-flight-bookings, hotel-bookings, and payments controllers.
+Used AI guidance to understand the implementation approach and configure the global validation
+pipe and HTTP exception filter. Implemented the validation options, field-level error formatting,
+and standardized HTTP error responses. Registered both components globally in main.ts and removed
+redundant local ValidationPipe instances from flight-bookings, hotel-bookings, and payments
+controllers. AI also assisted with reviewing the implementation, identifying potential issues,
+and suggesting Swagger test cases to verify validation behavior.
 ================================================
 
+================================================
 ================================================
 Date: 2026-11-02
 Student: Hussein Shata
@@ -202,8 +203,16 @@ Tool: Claude
 Related Requirement: GEN-04, GEN-05
 
 Prompt:
-Implement GEN-04 (friendly empty states when a list or search has no results) and the shared pagination utilities for GEN-05 in backend/src/common: define the PaginationQueryDto, the PaginatedList<T> response interface matching openapi.yaml, the paginate helper and emptyPaginatedList helper so that empty results return items: [], total: 0, and totalPages: 0 without errors.
+Explain how to implement GEN-04 (friendly empty states when a list or search has no results)
+and the shared pagination utilities for GEN-05 in backend/src/common. Provide guidance on
+creating PaginationQueryDto, PaginatedList<T>, paginate, and emptyPaginatedList while ensuring
+the response structure matches docs/api/openapi.yaml and handles empty results correctly.
 
 How the output was used:
-Implemented PaginationQueryDto, PaginatedList<T>, paginate, emptyPaginatedList and getPaginationOffset in backend/src/common/dto/pagination.dto.ts. Exported through common/dto/index.ts and common/utils/index.ts. Added unit tests in backend/src/common/dto/pagination.dto.spec.ts verifying empty results, pagination math, boundary conditions and DTO validation. Verified with npm run lint, npm run build and npm test (14 passed).
+Used AI guidance to understand the implementation approach and structure the shared pagination
+utilities. Implemented PaginationQueryDto, PaginatedList<T>, paginate, emptyPaginatedList, and
+getPaginationOffset in backend/src/common/dto/pagination.dto.ts. Organized the exports through
+common/dto/index.ts and common/utils/index.ts to ensure consistent pagination responses and
+friendly empty states across modules. AI also assisted with reviewing the implementation and
+suggesting validation steps. Verified the changes using npm run lint (0 errors) and npm run build.
 ================================================
