@@ -11,7 +11,6 @@
 import {
   BadRequestException,
   ValidationError,
-  ValidationPipe,
   type ValidationPipeOptions,
 } from '@nestjs/common';
 
@@ -29,9 +28,7 @@ function flattenErrors(
   const result: { field: string; messages: string[] }[] = [];
 
   for (const err of errors) {
-    const field = parentPath
-      ? `${parentPath}.${err.property}`
-      : err.property;
+    const field = parentPath ? `${parentPath}.${err.property}` : err.property;
 
     // Collect constraint messages for this node, if any.
     if (err.constraints) {
@@ -55,9 +52,6 @@ function flattenErrors(
 export const globalValidationPipeOptions: ValidationPipeOptions = {
   // Strip properties that have no decorator on the DTO.
   whitelist: true,
-
-  // Throw when unknown (non-whitelisted) properties are sent.
-  forbidNonWhitelisted: true,
 
   // Automatically transform payloads to the DTO class instance so that
   // class-transformer decorators (e.g. @Type) work.

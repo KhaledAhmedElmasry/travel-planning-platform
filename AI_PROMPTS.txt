@@ -41,45 +41,6 @@ Verified by building, linting and starting the server against a local MongoDB.
 
 ================================================
 Date: 2026-10-29
-Student: Khaled Ahmed
-Tool: Claude Code (Claude Opus 5.5)
-Related Requirement: None implemented (planning and documentation for Milestone 1)
-
-Prompt:
-Make sure that all the endpoints and Excel requirement codes are written in the files and none
-are missing, delete any extra ones, cross-check, then check the GitHub issues. Make a small PDF of
-the usual workflow from the Excel code until it is done, a .md file with empty assignee tags, and
-8 PDF task sheets so every team member knows their Milestone 1 tasks and the workflow.
-
-How the output was used:
-Cross-checked the 117 PDF section 8 endpoints, the 104 mandatory + 11 bonus workbook ids and the
-7 assumed ids against the controller comments, DTO/schema headers, openapi.yaml and GitHub issues.
-Removed 5 suggested endpoints from controller notes that the documented API already covers
-(refund previews, logo/photo uploads, exchange-rate lookup). Removed the 10 endpoint paths the AI
-had guessed for features the PDF tables do not cover (session refresh, reference-data lists,
-notifications, user reports); the Excel never names endpoints, so the controllers now list only the
-117 PDF endpoints and say "extra endpoints may be needed" for those features, and the team decides.
-A final scan of all 198 text files made every endpoint line (controllers, openapi.yaml summaries,
-TASKS.md) carry exactly the PDF's requirement ids; ids the PDF omits (FLT-02, HTL-06, HTL-09,
-ACC-19, ITN-25) were moved into notes/descriptions, and guessed paths were removed from
-ASSUMED_REQUIREMENTS.md.
-Then re-split the work at the leader's request: area 1 takes the hardest, most critical
-requirements (payments, seat/room holds, confirmation, cancellations and refunds, booking
-automation; 14 requirements, 29 difficulty points), and areas 2-8 are balanced by
-difficulty at 19-21 points with 8 tasks each (more requirements where they are easier). Removed
-the deadline box from the handouts.
-Added DEPENDENCIES.pdf (who depends on whom, with requirement codes and dates), generated from
-the same dependency list as the handouts so both always agree.
-Re-checked every dependency against the Excel "Dependencies" column (added ACC-13 -> FLT-01/HTL-01,
-PAY-02 -> FLT-08/HTL-09, HTL-06/08/11/15 -> reservations, FLT-05/06 -> bookings and others) and
-removed all dates and deadlines from the PDFs and TASKS.md. Regenerated TASKS.md, the TEAM_PLAN area table and all 9 PDFs in a dark purple/green design. Created the 4 missing GitHub issues
-(ACC-04, ACC-12, BLG-09, FLT-11) and fixed the inverted ACC-19 issue title. Generated
-docs/milestone1/TASKS.md, WORKFLOW.pdf and the 8 area handouts (no names); reviewed every page
-and verified that all 105 Milestone 1 requirements and 118 endpoints appear exactly once.
-================================================
-
-================================================
-Date: 2026-10-29
 Student: Khaled Ahmed (team leader)
 Tool: Claude Code (Claude Opus 5.5)
 Related Requirement: GEN-12, FLT-02, NEW-05, ACC-18
@@ -99,4 +60,137 @@ writing (NEW-05) and is idempotent: re-running it updates reference data without
 duplicates and never resets the administrator password. Field names follow docs/api/openapi.yaml.
 I reviewed the script, verified it with a successful build and lint, ran it twice against the
 shared database and confirmed the stored documents and the hashed administrator password.
+================================================
+Date: 2026-10-31
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01
+Prompt:
+Asked for step-by-step help with Area 7 (Hotels & Rooms): project setup, .env and MongoDB Atlas
+connection, and an implementation of HTL-01 (hotel schema, create/update DTOs, hotels service,
+module wiring) based on the repo scaffold and docs/api/openapi.yaml.
+How the output was used:
+Reviewed and adapted the generated schema, DTOs and service; fixed build errors; the build passes.
+Controller and tests are still to be done once the shared auth/upload code is merged.
+
+Date: 2026-10-30
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-01, ACC-03
+
+Prompt:
+I am on Area 2 (Auth & Sessions) and want to finish GitHub issue #1 (ACC-01) step by step.
+I shared the project repository, the Area 2 task sheet and the project description, and asked
+the assistant to implement registration in our NestJS + MongoDB backend and get it ready for
+testing. The endpoint is POST /api/auth/register with name, unique email, password and the
+mandatory terms-and-privacy consent. I asked it to follow the requirement text in the issue,
+the RegisterRequest schema and status codes in docs/api/openapi.yaml, docs/CONVENTIONS.md and
+the existing code patterns, and to cover ACC-03 (new account = Registered User + Active, no
+admin self-registration).
+
+How the output was used:
+Used as the base for the User schema, the Role and AccountStatus enums, RegisterDto, the
+registration logic in AuthService and UsersService, and the controller route. I checked the
+output against the issue and openapi.yaml: the password rule is at least 8 characters with a
+letter and a digit, acceptTerms must be true, the email is trimmed and lowercased with a unique
+index, the password is stored only as a bcrypt hash (cost 12, same as the seeded admin), the
+consent time is saved, and a role sent in the body is ignored. I matched the schema field names
+to the seeded admin in seed.ts so login (ACC-04) can read both. I reviewed the duplicate-email
+handling for two registrations at the same moment (unique index, error 11000 returns 409).
+Verified with npm run lint, npm run build, local unit tests, and by testing every valid and
+invalid case in Swagger and checking the stored document in Atlas.
+
+Date: 2026-10-30
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-04 (with the session and cookie groundwork from NEW-07 and ACC-19)
+
+Prompt:
+Continuing Area 2 after registration, I asked the assistant to implement GitHub issue #120
+(ACC-04): log in with email and password for every role (registered user, admin, airline and
+hotel moderator), a generic "invalid email or password" message on failure, an "account
+suspended" message for suspended accounts, and GET /api/auth/me. I asked it to follow
+docs/api/openapi.yaml (httpOnly access_token and refresh_token cookies, response fields, 400 /
+401 / 403 codes), the NEW-07 and ACC-19 definitions in ASSUMED_REQUIREMENTS.md, and to build the
+JwtAuthGuard and @CurrentUser() that the other areas are waiting for, leaving the lockout
+(ACC-05), logout (ACC-06) and refresh rotation (NEW-07) for their own issues.
+
+How the output was used:
+Used as the base for the Session schema, SessionsService, the login DTO and logic, the cookie
+helper, JwtAuthGuard, @CurrentUser(), the AuthUser interface and GET /api/auth/me. I checked it
+against the issue and openapi.yaml: tokens are only in httpOnly, Secure, SameSite cookies and
+never in the body; the refresh token is stored only as a SHA-256 hash; a wrong password and an
+unknown email give the same 401 message; the suspended and deactivated messages appear only
+after the right password; moderators get their airlineId or hotelId; the guard rejects revoked
+sessions and suspended accounts on every request and sets req.user.id as the other modules
+expect. I added cookie-parser to main.ts and the two JWT secrets to the required environment
+variables. Verified with npm run lint, npm run build, local unit and HTTP tests, and by logging
+in as a user, the seeded admin and a suspended account in Swagger and calling /api/auth/me.
+
+Date: 2026-10-30
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-05
+
+Prompt:
+After login (ACC-04), I asked the assistant to implement GitHub issue #2 (ACC-05): after 5
+consecutive failed login attempts the account is locked for 15 minutes with a lockout message,
+and a successful login resets the counter. I asked it to build on the existing login code and
+User schema fields (failedLoginAttempts, lockUntil), follow the 403 response in
+docs/api/openapi.yaml, and make the counter safe when several wrong guesses arrive at once.
+
+How the output was used:
+Used as the base for login-lockout.ts (limit, duration and message), the recordFailedLogin and
+resetFailedLogins methods in UsersService, and the lockout checks in AuthService.login. I checked
+the behaviour against the issue: wrong passwords 1 to 4 give the generic 401, the 5th returns 403
+with "Account locked after 5 failed login attempts. Try again in 15 minutes", a locked account is
+refused even with the right password, the lock ends after 15 minutes and gives 5 new tries, a
+successful login resets the counter, unknown emails are never locked, and the counter uses an
+atomic $inc so parallel guesses cannot pass the limit. Verified with npm run lint, npm run build,
+local tests (including checks that fail when the lock check or the reset is removed), and by
+triggering the lockout in Swagger and checking failedLoginAttempts and lockUntil in Atlas
+(demo scenario 1).
+
+Date: 2026-10-31
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-06
+
+Prompt:
+After login and lockout, I asked the assistant to implement GitHub issue #3 (ACC-06): a logged-in
+user can log out, which clears the authentication cookies and revokes the refresh token on the
+server, and a session with no authenticated request for 30 minutes expires and requires a new
+login. I asked it to build on the existing sessions collection and JwtAuthGuard, and to follow
+POST /api/auth/logout in docs/api/openapi.yaml (204, 401 when not logged in).
+
+How the output was used:
+Used as the base for POST /api/auth/logout, SessionsService.revoke, clearAuthCookies and the
+idle-expiry update in SessionsService.authenticate. I checked it against the issue: logout returns
+204, sets revokedAt on the session and clears both cookies with the same path and flags they were
+set with; the old access token stops working at once, even before it expires; other devices stay
+logged in; every authenticated request moves the 30-minute idle deadline forward (written at most
+once a minute), and an idle session gets 401 and needs a new login. Verified with npm run lint,
+npm run build, local tests (including checks that fail when the revoke or the activity update is
+removed), and in Swagger by logging out, calling /api/auth/me and checking revokedAt in Atlas.
+================================================
+
+================================================
+Date: 2026-11-01
+Student: Hussein Shata
+Tool: Claude
+Related Requirement: GEN-02, GEN-13
+
+Prompt:
+Implement the global validation pipe and exception filter (GEN-02, GEN-13): configure a global
+ValidationPipe with field-level validation messages and a global HttpExceptionFilter returning
+the consistent error envelope specified in docs/api/openapi.yaml. Remove local ValidationPipe
+instances from controllers.
+
+How the output was used:
+Implemented globalValidationPipeOptions in backend/src/common/pipes/validation.pipe.ts with
+whitelist: true and custom exceptionFactory to format field-level error messages. Implemented
+GlobalHttpExceptionFilter in backend/src/common/filters/http-exception.filter.ts formatting all
+HTTP exceptions into the standard Error schema (statusCode, error, message, fieldErrors, path,
+timestamp). Registered both globally in main.ts and removed local ValidationPipe instances from
+flight-bookings, hotel-bookings, and payments controllers.
 ================================================

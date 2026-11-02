@@ -5,10 +5,12 @@ import {
   HttpStatus,
   Param,
   Post,
-  Req,
-  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import { CurrentUser } from '../common/decorators';
+import { JwtAuthGuard } from '../common/guards/auth.guard';
+import type { AuthUser } from '../common/interfaces';
+import { RegisteredUserGuard } from '../payments/registered-user.guard';
 import { CreateHotelBookingDto } from './dto/create-hotel-booking.dto';
 import {
   CancelledHotelBookingResponse,
@@ -37,9 +39,9 @@ import {
 //   All selected rooms are held together or not at all (HTL-18, PDF section 6.3).
 //   HTL-17 (confirmation) has no endpoint: the Stripe webhook confirms the reservation.
 //
-// WAITING FOR (Area 2, ACC-04 / ACC-11 / ACC-19): JwtAuthGuard, the user role check (403 for
-//   non-users) and @CurrentUser(). Until then currentUserId() below answers 401. When they are
-//   merged, add the guard to every route and replace currentUserId(req) with @CurrentUser().
+//   Book and cancel need a login (401, JwtAuthGuard) and the role `user` (403 for admins
+//   and moderators, RegisteredUserGuard); the services also check that the booking is the user's
+//   own (404 otherwise, ACC-11).
 // DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
 @Controller('hotel-bookings')
 export class HotelBookingsController {
@@ -50,29 +52,22 @@ export class HotelBookingsController {
 
   // HTL-16, HTL-18: book one or more rooms and hold them for 10 minutes (pending_payment).
   @Post()
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   book(
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreateHotelBookingDto,
   ): Promise<HotelBookingResponse> {
-    return this.hotelBookingsService.book(currentUserId(req), dto);
+    return this.hotelBookingsService.book(user.id, dto);
   }
 
   // HTL-21: cancel a confirmed reservation before check-in; returns it with its refund.
   @Post(':id/cancel')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   @HttpCode(HttpStatus.OK)
   cancel(
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Param('id') id: string,
   ): Promise<CancelledHotelBookingResponse> {
-    return this.lifecycle.cancel(currentUserId(req), id);
+    return this.lifecycle.cancel(user.id, id);
   }
-}
-
-// Temporary, same as in payments.controller.ts, until Area 2 adds @CurrentUser().
-function currentUserId(req: Request): string {
-  const user = (req as Request & { user?: { id?: string } }).user;
-  if (!user?.id) {
-    throw new UnauthorizedException('You must be logged in.');
-  }
-  return user.id;
 }

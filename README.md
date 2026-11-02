@@ -55,8 +55,10 @@ Open http://localhost:3000/api/docs. Swagger UI shows every endpoint of PDF sect
 
 ```bash
 stripe login
-stripe listen --forward-to localhost:3000/api/payments/webhook
+stripe listen --events payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,refund.created,refund.updated,refund.failed --forward-to localhost:3000/api/payments/webhook
 ```
+
+The Stripe CLI needs the `--events` list (these are the events the backend handles, PAY-01 and PAY-03).
 
 Copy the printed `whsec_...` value into `STRIPE_WEBHOOK_SECRET` in your `backend/.env`. Each developer has their own value.
 

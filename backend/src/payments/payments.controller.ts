@@ -11,10 +11,13 @@ import {
   Post,
   type RawBodyRequest,
   Req,
-  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { CurrentUser } from '../common/decorators';
 import { BookingType } from '../common/enums';
+import { JwtAuthGuard } from '../common/guards/auth.guard';
+import type { AuthUser } from '../common/interfaces';
 import { AcceptPoliciesDto } from './dto/accept-policies.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { RetryPaymentDto } from './dto/retry-payment.dto';
@@ -25,6 +28,7 @@ import {
   PoliciesService,
 } from './policies.service';
 import { RefundResponse, RefundsService } from './refunds.service';
+import { RegisteredUserGuard } from './registered-user.guard';
 
 // Area: Payments & Refunds
 // Requirements: PAY-01, PAY-02, PAY-03, PAY-04, NEW-04
@@ -42,14 +46,10 @@ import { RefundResponse, RefundsService } from './refunds.service';
 //   (rawBody: true in main.ts).
 //   Never store card data: only the Stripe payment id, amount, currency and status (PAY-01).
 //
-// WAITING FOR (Area 2, ACC-04 / ACC-11 / ACC-19): JwtAuthGuard, the user role check and
-//   @CurrentUser(). Until they exist, currentUserId() below finds no logged-in user and every
-//   endpoint except the webhook answers 401. When they are merged:
-//     1. add @UseGuards(JwtAuthGuard) to every route except handleWebhook (or a global guard +
-//        @Public() on handleWebhook, which Stripe calls without a login);
-//     2. allow only role `user` on those routes (403 for admins and moderators): PAY-01 and
-//        PAY-02 are Registered User actions;
-//     3. replace currentUserId(req) with the @CurrentUser() decorator and delete the helper.
+//   Every route except the webhook needs a login (401 for guests, JwtAuthGuard, ACC-04) and the
+//   role `user` (403 for admins and moderators, RegisteredUserGuard): PAY-01 and PAY-02 are
+//   Registered User actions. The guards are on each route, not on the class, because Stripe calls
+//   the webhook without a login.
 // DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
 @Controller()
 export class PaymentsController {
@@ -61,34 +61,37 @@ export class PaymentsController {
 
   // PAY-02: the provider policies to accept before paying, and acceptedAt if already accepted.
   @Get('bookings/:type/:id/policies')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   getPolicies(
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Param('type', bookingTypePipe()) type: BookingType,
     @Param('id') id: string,
   ): Promise<PoliciesResponse> {
-    return this.policiesService.getPolicies(currentUserId(req), type, id);
+    return this.policiesService.getPolicies(user.id, type, id);
   }
 
   // PAY-02: accept the policies; stored with a timestamp on the booking.
   @Post('bookings/:type/:id/accept-policies')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   @HttpCode(HttpStatus.OK)
   acceptPolicies(
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Param('type', bookingTypePipe()) type: BookingType,
     @Param('id') id: string,
     // Validated only (accepted must be true); the value itself is not needed.
     @Body() _dto: AcceptPoliciesDto,
   ): Promise<AcceptPoliciesResponse> {
-    return this.policiesService.acceptPolicies(currentUserId(req), type, id);
+    return this.policiesService.acceptPolicies(user.id, type, id);
   }
 
   // PAY-01: create a Stripe PaymentIntent for a pending_payment booking.
   @Post('payments')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   createPayment(
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreatePaymentDto,
   ): Promise<PaymentResponse> {
-    return this.paymentsService.createPayment(currentUserId(req), dto);
+    return this.paymentsService.createPayment(user.id, dto);
   }
 
   // PAY-01: called by Stripe only. Must stay public (no login guard).
@@ -103,30 +106,33 @@ export class PaymentsController {
 
   // PAY-01: retry a failed payment while the hold is still valid.
   @Post('payments/:id/retry')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   retryPayment(
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Param('id') id: string,
     @Body() dto: RetryPaymentDto,
   ): Promise<PaymentResponse> {
-    return this.paymentsService.retryPayment(currentUserId(req), id, dto ?? {});
+    return this.paymentsService.retryPayment(user.id, id, dto ?? {});
   }
 
   // PAY-01: payment status for the user who made it.
   @Get('payments/:id')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   getPayment(
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Param('id') id: string,
   ): Promise<PaymentResponse> {
-    return this.paymentsService.getPayment(currentUserId(req), id);
+    return this.paymentsService.getPayment(user.id, id);
   }
 
   // PAY-03: a refund and its status (pending, refunded, failed) for the owner of the booking.
   @Get('refunds/:id')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   getRefund(
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Param('id') id: string,
   ): Promise<RefundResponse> {
-    return this.refundsService.getRefund(currentUserId(req), id);
+    return this.refundsService.getRefund(user.id, id);
   }
 }
 
@@ -136,14 +142,4 @@ function bookingTypePipe() {
     exceptionFactory: () =>
       new BadRequestException('type must be "flight" or "hotel"'),
   });
-}
-
-// Temporary until Area 2 adds @CurrentUser() (see WAITING FOR above). Expects the auth guard to
-// put the logged-in user on req.user with an `id` string; adjust if Area 2 names it differently.
-function currentUserId(req: Request): string {
-  const user = (req as Request & { user?: { id?: string } }).user;
-  if (!user?.id) {
-    throw new UnauthorizedException('You must be logged in.');
-  }
-  return user.id;
 }

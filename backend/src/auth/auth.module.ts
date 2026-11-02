@@ -1,11 +1,25 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { MongooseModule } from '@nestjs/mongoose';
+import { JwtAuthGuard } from '../common/guards/auth.guard';
+import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { Session, SessionSchema } from './schemas/session.schema';
+import { SessionsService } from './sessions.service';
 
-// TODO: register this module's schemas here with MongooseModule.forFeature([...]).
+// Global so that every module can use @UseGuards(JwtAuthGuard) without importing AuthModule.
+// The User schema is registered in UsersModule; AuthService reaches it through UsersService.
+// The JWT secrets are passed on each sign/verify call (JWT_ACCESS_SECRET, JWT_REFRESH_SECRET).
+@Global()
 @Module({
+  imports: [
+    UsersModule,
+    JwtModule.register({}),
+    MongooseModule.forFeature([{ name: Session.name, schema: SessionSchema }]),
+  ],
   controllers: [AuthController],
-  providers: [AuthService],
-  exports: [AuthService],
+  providers: [AuthService, SessionsService, JwtAuthGuard],
+  exports: [AuthService, SessionsService, JwtAuthGuard],
 })
 export class AuthModule {}

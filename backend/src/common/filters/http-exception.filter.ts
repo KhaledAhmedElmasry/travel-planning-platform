@@ -23,11 +23,8 @@ import type { Request, Response } from 'express';
 
 /** Maps an HTTP status code to its short constant name, e.g. 400 → "BAD_REQUEST". */
 function httpStatusLabel(status: number): string {
-  // HttpStatus is an enum whose keys are the labels (BAD_REQUEST, NOT_FOUND, …).
-  const entry = Object.entries(HttpStatus).find(
-    ([, v]) => v === status,
-  );
-  return entry ? (entry[0] as string) : 'UNKNOWN_ERROR';
+  const label = HttpStatus[status] as string | undefined;
+  return label ?? 'UNKNOWN_ERROR';
 }
 
 interface FieldError {
@@ -57,7 +54,10 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
 
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
-      } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+      } else if (
+        typeof exceptionResponse === 'object' &&
+        exceptionResponse !== null
+      ) {
         const body = exceptionResponse as Record<string, unknown>;
 
         // The global ValidationPipe puts the human-readable message at body.message.

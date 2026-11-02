@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { readFileSync } from 'fs';
 import { load } from 'js-yaml';
 import { join } from 'path';
@@ -19,6 +20,9 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
+  // Reads the httpOnly auth cookies (access_token, refresh_token) into req.cookies (ACC-19).
+  app.use(cookieParser());
+
   // GEN-02: Global validation pipe — validates every @Body() and @Query() using
   // class-validator decorators on DTOs. Strips unknown fields (whitelist) and
   // returns field-level error messages in the standard Error format.
@@ -29,8 +33,7 @@ async function bootstrap() {
   // docs/api/openapi.yaml (statusCode, error, message, fieldErrors?, path, timestamp).
   app.useGlobalFilters(new GlobalHttpExceptionFilter());
 
-  // TODO: register remaining app-wide setup here as it is built, for example:
-  //   - cookie parsing for the httpOnly auth cookies (ACC-19)
+  // TODO: register app-wide setup here as it is built, for example:
   //   - CORS with credentials for the Next.js frontend (Milestone 2)
   //   - serving uploaded images (GEN-08)
 
