@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -8,9 +9,11 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { Types } from 'mongoose';
 import { AccountStatus, Role } from '../common/enums';
+import type { AuthUser } from '../common/interfaces';
 import { UserDocument } from '../users/schemas/user.schema';
 import { UsersService } from '../users/users.service';
 import { AuthTokens } from './auth-cookies';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import {
   isLocked,
@@ -53,6 +56,11 @@ export interface ResetPasswordResponse {
   message: string;
   id: string;
   mustChangePassword: true;
+}
+
+// PATCH /api/auth/change-password 200 (ACC-08).
+export interface ChangePasswordResponse {
+  message: string;
 }
 
 export interface LoginResult {
@@ -197,6 +205,32 @@ export class AuthService {
       id: targetId.toString(),
       mustChangePassword: true,
     };
+  }
+
+  // ACC-08: change the own password with the current one. Ends a temporary password (ACC-07a,
+  // ACC-13). The new password must meet the rules (checked by the DTO) and differ from the current
+  // one. Other devices are signed out; this session stays logged in.
+  async changePassword(
+    user: AuthUser,
+    dto: ChangePasswordDto,
+  ): Promise<ChangePasswordResponse> {
+    const account = await this.usersService.findByIdWithPassword(user.id);
+    // The guard has just loaded this account, so this only happens if it was deleted meanwhile.
+    if (!account) throw new UnauthorizedException('You must be logged in');
+
+    if (!(await bcrypt.compare(dto.currentPassword, account.passwordHash))) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+    if (await bcrypt.compare(dto.newPassword, account.passwordHash)) {
+      throw new BadRequestException(
+        'New password must be different from the current password',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+    await this.usersService.setPassword(account._id, passwordHash);
+    await this.sessionsService.revokeOthers(account._id, user.sessionId);
+    return { message: 'Password changed' };
   }
 
   // ACC-04, ACC-19: the account of the current session, for GET /api/auth/me.

@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Res,
   UseGuards,
@@ -17,9 +18,11 @@ import { clearAuthCookies, setAuthCookies } from './auth-cookies';
 import {
   AccountResponse,
   AuthService,
+  ChangePasswordResponse,
   MeResponse,
   RegisterResponse,
 } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -29,7 +32,7 @@ import { RegisterDto } from './dto/register.dto';
 //   POST  /api/auth/register          ACC-01, ACC-03   done
 //   POST  /api/auth/login             ACC-04, ACC-05   done
 //   POST  /api/auth/logout            ACC-06           done
-//   PATCH /api/auth/change-password   ACC-08
+//   PATCH /api/auth/change-password   ACC-08           done
 //   GET   /api/auth/me                ACC-04, ACC-11   done
 // Extra endpoints may be needed (not in the PDF tables) for:
 //   refreshing the session (NEW-07)
@@ -85,6 +88,20 @@ export class AuthController {
   ): Promise<void> {
     await this.authService.logout(user.sessionId);
     clearAuthCookies(res);
+  }
+
+  // ACC-08: change the own password with the current one. Allowed with a temporary password
+  // (ACC-07a, ACC-13): this is how such an account gets unblocked.
+  @Patch('change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @AllowPendingPasswordChange()
+  changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body(new ValidationPipe({ whitelist: true, transform: true }))
+    dto: ChangePasswordDto,
+  ): Promise<ChangePasswordResponse> {
+    return this.authService.changePassword(user, dto);
   }
 
   // ACC-04, ACC-19: the frontend reads the logged-in account here instead of storing it.

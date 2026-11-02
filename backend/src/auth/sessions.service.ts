@@ -93,6 +93,24 @@ export class SessionsService {
       .exec();
   }
 
+  // ACC-08: after a password change, every other device is signed out; the session that made the
+  // change stays logged in.
+  async revokeOthers(
+    userId: Types.ObjectId,
+    keepSessionId: string,
+  ): Promise<void> {
+    await this.sessionModel
+      .updateMany(
+        {
+          userId,
+          revokedAt: null,
+          _id: { $ne: new Types.ObjectId(keepSessionId) },
+        },
+        { $set: { revokedAt: new Date() } },
+      )
+      .exec();
+  }
+
   // JwtAuthGuard: the logged-in account for an access token, or 401/403.
   async authenticate(accessToken: string): Promise<AuthUser> {
     let payload: TokenPayload;
