@@ -173,3 +173,30 @@ once a minute), and an idle session gets 401 and needs a new login. Verified wit
 npm run build, local tests (including checks that fail when the revoke or the activity update is
 removed), and in Swagger by logging out, calling /api/auth/me and checking revokedAt in Atlas.
 ================================================
+
+Date: 2026-11-03  
+Student: Omar Ahmed Alaga  
+Tool: Copilot  
+Related Requirement: FLT-15
+
+**Prompt:**
+
+Implement FLT-15 price filtering and sorting for the existing flight search functionality (FLT-11/FLT-12) in the NestJS and Mongoose backend.
+
+The prompt instructed Copilot to:
+- Inspect the existing flight controller, service, DTOs, helpers, tests, and OpenAPI documentation before making changes.
+- Add optional `minPrice`, `maxPrice`, `sortBy`, and `sortOrder` query parameters.
+- Validate price values and ensure `minPrice` does not exceed `maxPrice`.
+- Apply inclusive price filtering using rounded two-decimal `totalPrice` values.
+- Support sorting by price, duration, and departure time, in ascending or descending order, with deterministic tie-breakers.
+- Apply sorting independently to outbound and return flight results.
+- Preserve existing search, pagination, and empty-response behavior.
+- Update Swagger documentation and add Jest tests for filtering, validation, sorting, and tie-breaking.
+- Keep all changes within `backend/src/flights/` and avoid unrelated requirements.
+
+**How the output was used:**
+
+Copilot's generated code was used as a starting point for implementing FLT-15. The changes were reviewed against the existing flight-search implementation and adjusted where necessary to preserve FLT-11 and FLT-12 behavior.
+
+Verification included reviewing the Swagger endpoint, testing price filters and sorting options, checking invalid price ranges, and running the relevant Jest tests.
+
