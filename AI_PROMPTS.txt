@@ -262,3 +262,28 @@ npm run lint, npm run build, local tests (including checks that fail when the cu
 check, the flag reset, the sign-out of other devices or the same-password check is removed), and
 in Swagger.
 ================================================
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-09 (with GET /api/users/me for ACC-11)
+
+Prompt:
+I asked the assistant to implement GitHub issue #6 (ACC-09): any logged-in user edits name, phone
+number and preferred currency, saving only if all fields pass validation. I asked it to follow
+PATCH /api/users/me and UpdateProfileRequest in docs/api/openapi.yaml (send only the fields to
+change, phone pattern, 3-letter currency from the supported currency list of GEN-12) and to add
+GET /api/users/me so the profile can be read.
+
+How the output was used:
+Used as the base for UpdateProfileDto, UsersService.getProfile / updateProfile /
+isSupportedCurrency and the two routes in UsersController. I checked it against the issue and
+openapi.yaml: every sent field is validated and nothing is saved if one fails (including a valid
+name sent with an unsupported currency), the currency is checked against the seeded currencies
+collection (read directly so it does not depend on the reference-data module), lowercase codes
+are accepted, an empty body gives 400, and email, role, status and password can never be changed
+here (stripped by the ValidationPipe and ignored by the service). Verified with npm run lint,
+npm run build, local tests (including checks that fail when the currency check or both
+protections against extra fields are removed), and in Swagger.
+================================================
