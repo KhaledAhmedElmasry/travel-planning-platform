@@ -173,3 +173,24 @@ once a minute), and an idle session gets 401 and needs a new login. Verified wit
 npm run build, local tests (including checks that fail when the revoke or the activity update is
 removed), and in Swagger by logging out, calling /api/auth/me and checking revokedAt in Atlas.
 ================================================
+
+================================================
+Date: 2026-11-02
+Student: Omar Ahmed Alaga
+Tool: GitHub Copilot
+Related Requirement: FLT-12
+
+Prompt:
+I was implementing FLT-12 flight search in our NestJS flights module and
+asked Copilot for help with specific parts: how to approach round-trip
+options, adult/child/infant passenger counts and pricing, cabin filtering,
+local-time date handling, seat availability, validation, and pagination. I
+asked for guidance on keeping the legacy passengers parameter as a
+deprecated alias for adults, structuring reusable passenger-pricing helpers
+and focused Jest tests, and marking placeholders for dependencies that have
+not yet been merged. I also asked for help updating the Swagger OpenAPI
+definition so it matches the endpoint's actual query parameters and
+response. I kept my changes scoped to flights/, except for the required
+OpenAPI documentation update, and did not ask for help with booking,
+cancellation, price filters, or sorting.
+================================================

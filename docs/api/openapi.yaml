@@ -1059,7 +1059,7 @@ paths:
     get:
       operationId: getFlightsSearch
       tags: ['Airlines, Flights, and Flight Inventory']
-      summary: 'Search flights (FLT-11, FLT-12, FLT-15)'
+      summary: 'Search flights (FLT-11, FLT-12)'
       description: |
         **Access:** everyone, including guests.
 
@@ -1071,59 +1071,65 @@ paths:
         - **Round trip:** returns outbound and return options. They are booked together as one booking
           with two segments, one payment and one reference (FLT-12).
         - **Passengers:** at least one adult, and no more infants than adults.
-        - **Price filter:** inclusive minimum and maximum of the cabin fare. `minPrice` greater than
-          `maxPrice` gives 400 (FLT-15).
-        - **Sorting:** by price, duration or departure time (FLT-15).
+        - `adults` is required unless the deprecated FLT-11 `passengers` alias is supplied.
+        - `returnDate` is required for round trips and rejected for one-way searches.
         - No match gives an empty list, shown as "no flights found" (GEN-04).
       security: []
       parameters:
-        - name: origin
+        - name: from
           in: query
           required: true
-          description: IATA code of the departure airport.
+          description: Departure airport IATA code.
           schema:
             type: string
+            pattern: '^[A-Za-z]{3}$'
             example: CAI
-        - name: destination
+        - name: to
           in: query
           required: true
-          description: IATA code of the arrival airport.
+          description: Arrival airport IATA code.
           schema:
             type: string
+            pattern: '^[A-Za-z]{3}$'
             example: DXB
-        - name: departureDate
+        - name: date
           in: query
           required: true
-          description: Local date at the departure airport.
+          description: Departure date in the departure airport's local time.
           schema:
             type: string
             format: date
-            example: '2027-03-01'
+            example: '2026-11-02'
         - name: tripType
           in: query
-          description: Defaults to `one_way`.
+          description: Defaults to one-way.
           schema:
-            $ref: '#/components/schemas/TripType'
+            type: string
+            enum: [one-way, round-trip]
+            default: one-way
+            example: round-trip
         - name: returnDate
           in: query
-          description: Required for `round_trip`. Not before departureDate.
+          description: Required for round-trip; local date at the original arrival airport. Rejected for one-way searches.
           schema:
             type: string
             format: date
-            example: '2027-03-10'
+            example: '2026-11-03'
         - name: adults
           in: query
-          description: Passengers aged 12 or more. At least 1.
+          description: Adults aged 12 or more. At least one adult is required. If omitted, deprecated passengers is used.
           schema:
             type: integer
             minimum: 1
+            maximum: 99
             default: 1
         - name: children
           in: query
-          description: Passengers aged 2 to 11.
+          description: Children aged 2 to 11; they occupy seats and pay the cabin fare.
           schema:
             type: integer
             minimum: 0
+            maximum: 99
             default: 0
         - name: infants
           in: query
@@ -1131,53 +1137,55 @@ paths:
           schema:
             type: integer
             minimum: 0
+            maximum: 99
             default: 0
-        - name: cabinClass
+        - name: passengers
           in: query
-          description: Optional cabin filter (FLT-12).
-          schema:
-            $ref: '#/components/schemas/CabinClass'
-        - name: minPrice
-          in: query
-          description: Minimum fare in cents, inclusive.
+          deprecated: true
+          description: Deprecated FLT-11 alias for adults; used only when adults is absent.
           schema:
             type: integer
-            minimum: 0
-            example: 10000
-        - name: maxPrice
+            minimum: 1
+            maximum: 99
+            example: 2
+        - name: cabin
           in: query
-          description: Maximum fare in cents, inclusive.
+          description: Optional cabin filter. Only the selected cabin is returned.
+          schema:
+            type: string
+            enum: [Economy, Premium Economy, Business, First]
+            example: Economy
+        - name: page
+          in: query
+          description: Outbound page; 10 flights per page.
           schema:
             type: integer
-            minimum: 0
-            example: 50000
-        - name: sortBy
+            minimum: 1
+            default: 1
+        - name: returnPage
           in: query
+          description: Return page for round-trip searches; 10 flights per page.
           schema:
-            $ref: '#/components/schemas/FlightSortBy'
-        - name: sortOrder
-          in: query
-          description: Defaults to `asc`.
-          schema:
-            $ref: '#/components/schemas/SortOrder'
-        - $ref: '#/components/parameters/Page'
+            type: integer
+            minimum: 1
+            default: 1
       responses:
         '200':
           description: |
-            One-way: a paginated list. Round trip: an object with an `outbound` and a `return` list,
-            each in the same paginated format.
+            One-way: a paginated list. Round trip: separate paginated `outbound` and `return` results.
+            Empty legs return HTTP 200 with a friendly message.
 
             Each flight - id, airline (name, code, logo), flight number, departure and arrival airports,
             local departure and arrival times with time zones, duration, and each matching cabin with
-            its fare and seats available.
+            its fare, passenger price breakdown, total price and seats available.
           content: *paginated
         '400':
-          description: Missing or invalid search fields, an airport not in the list, minPrice greater than maxPrice, more infants than adults, or round trip without returnDate.
+          description: Invalid search fields, unknown or identical airports, invalid passenger counts, more infants than adults, or round trip without returnDate.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Missing or invalid search fields, an airport not in the list, minPrice greater than maxPrice, more infants than adults, or round trip without returnDate.", "path": "/api/flights/search", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid search fields, unknown or identical airports, invalid passenger counts, more infants than adults, or round trip without returnDate.", "path": "/api/flights/search", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/flights/{id}:
     get:
