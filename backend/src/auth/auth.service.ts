@@ -2,9 +2,11 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { Types } from 'mongoose';
 import { AccountStatus, Role } from '../common/enums';
 import { UserDocument } from '../users/schemas/user.schema';
 import { UsersService } from '../users/users.service';
@@ -46,6 +48,13 @@ export interface MeResponse extends AccountResponse {
   status: AccountStatus;
 }
 
+// POST /api/admin/users/:id/reset-password 200 (ACC-07a).
+export interface ResetPasswordResponse {
+  message: string;
+  id: string;
+  mustChangePassword: true;
+}
+
 export interface LoginResult {
   account: AccountResponse;
   tokens: AuthTokens;
@@ -57,7 +66,8 @@ const INVALID_CREDENTIALS = 'Invalid email or password';
 const ACCOUNT_DEACTIVATED = 'This account has been deactivated';
 
 // Area: Auth & Accounts
-// Business logic and database access for: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19, NEW-07
+// Business logic and database access for: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-07a, ACC-08,
+// ACC-19, NEW-07
 @Injectable()
 export class AuthService {
   // Compared against when the email is unknown, so a wrong email takes as long as a wrong
@@ -154,6 +164,39 @@ export class AuthService {
   // ACC-06: revoke the current session on the server. The controller clears the cookies.
   logout(sessionId: string): Promise<void> {
     return this.sessionsService.revoke(sessionId);
+  }
+
+  // ACC-07a: an admin sets a temporary password for a registered user or a moderator. The account
+  // must set a new one at its next login, and every session it has is revoked at once.
+  // Admin accounts are seeded (ACC-18) and cannot be reset here.
+  async resetPasswordByAdmin(
+    targetId: Types.ObjectId,
+    temporaryPassword: string,
+  ): Promise<ResetPasswordResponse> {
+    const target = await this.usersService.findById(targetId.toString());
+    if (!target) throw new NotFoundException('Account not found');
+    if (target.role === Role.Admin) {
+      throw new ForbiddenException(
+        "Only a registered user's or a moderator's password can be reset",
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(temporaryPassword, BCRYPT_ROUNDS);
+    if (
+      !(await this.usersService.setTemporaryPassword(targetId, passwordHash))
+    ) {
+      throw new NotFoundException('Account not found');
+    }
+    await this.sessionsService.revokeAllForUser(targetId);
+
+    // WAITING FOR (GEN-07): AuditService. Record action "reset_password" with the admin id and
+    // targetId here once it is implemented.
+    return {
+      message:
+        'Password reset. The account must set a new password at its next login',
+      id: targetId.toString(),
+      mustChangePassword: true,
+    };
   }
 
   // ACC-04, ACC-19: the account of the current session, for GET /api/auth/me.

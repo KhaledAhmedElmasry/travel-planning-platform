@@ -208,3 +208,32 @@ once a minute), and an idle session gets 401 and needs a new login. Verified wit
 npm run build, local tests (including checks that fail when the revoke or the activity update is
 removed), and in Swagger by logging out, calling /api/auth/me and checking revokedAt in Atlas.
 ================================================
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-07a (with RolesGuard and @Roles() for ACC-11)
+
+Prompt:
+I asked the assistant to implement GitHub issue #4 (ACC-07a): an admin resets a registered user's
+or moderator's password to a temporary password, and the account must set a new password that
+meets the rules at its next login. I asked it to follow POST /api/admin/users/:id/reset-password
+in docs/api/openapi.yaml (admin only, revokes all sessions, mustChangePassword, 400/401/403/404),
+and to add the RolesGuard and @Roles() decorator that my team leader asked for, since this is
+the first admin-only endpoint.
+
+How the output was used:
+Used as the base for RolesGuard and @Roles() in common/, the AdminResetPasswordDto, the
+AdminUsersController route, AuthService.resetPasswordByAdmin, UsersService.setTemporaryPassword,
+SessionsService.revokeAllForUser, and the temporary-password check in JwtAuthGuard with
+@AllowPendingPasswordChange(). I checked it against the issue and openapi.yaml: only admins can
+call it (403 for users and moderators), the temporary password must meet the password rules, the
+account gets mustChangePassword, all its sessions are revoked, a login lockout is cleared, admin
+accounts cannot be reset, unknown ids give 404 and malformed ids 400. While the password is
+temporary, only /api/auth/me and logout work and every other protected route returns 403. The
+route lives in auth/ with the openapi URL so it does not conflict with Area 3's admin controller.
+The audit log entry (GEN-07) waits for AuditService. Verified with npm run lint, npm run build,
+local tests (including checks that fail when the role check, the session revoke or the
+temporary-password block is removed), and in Swagger as the seeded admin.
+================================================

@@ -82,6 +82,17 @@ export class SessionsService {
       .exec();
   }
 
+  // ACC-07a: an admin password reset (and later suspension ACC-15, deactivation ACC-12) ends every
+  // session of the account at once, on every device.
+  async revokeAllForUser(userId: Types.ObjectId): Promise<void> {
+    await this.sessionModel
+      .updateMany(
+        { userId, revokedAt: null },
+        { $set: { revokedAt: new Date() } },
+      )
+      .exec();
+  }
+
   // JwtAuthGuard: the logged-in account for an access token, or 401/403.
   async authenticate(accessToken: string): Promise<AuthUser> {
     let payload: TokenPayload;
@@ -132,6 +143,7 @@ export class SessionsService {
         user.role === Role.HotelModerator && user.hotelId
           ? user.hotelId.toString()
           : null,
+      mustChangePassword: user.mustChangePassword,
     };
   }
 

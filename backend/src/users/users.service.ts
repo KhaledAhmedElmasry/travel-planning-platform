@@ -70,6 +70,29 @@ export class UsersService {
       .exec();
   }
 
+  // ACC-07a: replace the password with a temporary one that must be changed at the next login.
+  // Also clears any login lockout (ACC-05), so the account can log in with it straight away.
+  // Returns false if the account does not exist.
+  async setTemporaryPassword(
+    userId: Types.ObjectId,
+    passwordHash: string,
+  ): Promise<boolean> {
+    const result = await this.userModel
+      .updateOne(
+        { _id: userId },
+        {
+          $set: {
+            passwordHash,
+            mustChangePassword: true,
+            failedLoginAttempts: 0,
+            lockUntil: null,
+          },
+        },
+      )
+      .exec();
+    return result.matchedCount === 1;
+  }
+
   findById(id: string): Promise<UserDocument | null> {
     if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
     return this.userModel.findById(id).exec();
