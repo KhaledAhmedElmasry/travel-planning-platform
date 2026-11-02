@@ -287,3 +287,30 @@ here (stripped by the ValidationPipe and ignored by the service). Verified with 
 npm run build, local tests (including checks that fail when the currency check or both
 protections against extra fields are removed), and in Swagger.
 ================================================
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-11
+
+Prompt:
+I asked the assistant to implement GitHub issue #8 (ACC-11): bookings and private itineraries are
+accessible only to their owner, except that admins may view all bookings (ACC-17) and moderators
+the bookings of their own hotel or airline (FLT-29, HTL-22), with unauthorised requests rejected
+(403/404). JwtAuthGuard, RolesGuard and @CurrentUser() already existed, so I asked for the shared
+ownership helper from the Area 2 task sheet, following the 403/404 rules in docs/CONVENTIONS.md
+and the access notes in docs/api/openapi.yaml.
+
+How the output was used:
+Used as backend/src/common/guards/ownership.ts: assertOwner (own data, otherwise 404),
+canViewBooking / assertCanViewBooking (owner, admin, or the moderator of the booking's airline or
+hotel, otherwise 404), bookingVisibilityFilter (the MongoDB filter for booking lists per role),
+assertManagesAirline / assertManagesHotel (provider data, otherwise 403) and canViewItinerary /
+assertCanViewItinerary (public for everyone, private or hidden only for the owner, no admin
+exception). I checked every rule against the requirement and openapi.yaml and checked that the
+field names match the flight booking (userId, airlineId) and hotel reservation (userId, hotelId)
+schemas. Verified with npm run lint, npm run build and local unit tests for every role, including
+checks that fail when the admin rule, the moderator's provider check or the private-itinerary
+rule is changed.
+================================================
