@@ -194,3 +194,16 @@ HTTP exceptions into the standard Error schema (statusCode, error, message, fiel
 timestamp). Registered both globally in main.ts and removed local ValidationPipe instances from
 flight-bookings, hotel-bookings, and payments controllers.
 ================================================
+
+================================================
+Date: 2026-11-02
+Student: Hussein Shata
+Tool: Claude
+Related Requirement: GEN-04, GEN-05
+
+Prompt:
+Implement GEN-04 (friendly empty states when a list or search has no results) and the shared pagination utilities for GEN-05 in backend/src/common: define the PaginationQueryDto, the PaginatedList<T> response interface matching openapi.yaml, the paginate helper and emptyPaginatedList helper so that empty results return items: [], total: 0, and totalPages: 0 without errors.
+
+How the output was used:
+Implemented PaginationQueryDto, PaginatedList<T>, paginate, emptyPaginatedList and getPaginationOffset in backend/src/common/dto/pagination.dto.ts. Exported through common/dto/index.ts and common/utils/index.ts. Added unit tests in backend/src/common/dto/pagination.dto.spec.ts verifying empty results, pagination math, boundary conditions and DTO validation. Verified with npm run lint, npm run build and npm test (14 passed).
+================================================
