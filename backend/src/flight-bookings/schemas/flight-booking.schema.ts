@@ -188,3 +188,6 @@ export const FlightBookingSchema = SchemaFactory.createForClass(FlightBooking);
 
 // Finds the holds to expire quickly (NEW-01 job).
 FlightBookingSchema.index({ status: 1, holdExpiresAt: 1 });
+// Finds the bookings of one flight quickly (FLT-06 cancelBookingsForFlight, FLT-29 bookings and
+// passenger list).
+FlightBookingSchema.index({ 'segments.flightId': 1 });

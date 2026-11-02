@@ -35,8 +35,10 @@ import {
 // Notes:
 //   The booking details (GET /api/flight-bookings/:id) show the refund the user would get before
 //   they cancel (FLT-26: "after viewing the refund amount computed from the airline's tiers");
-//   there is no separate refund-preview endpoint.
-//   Users see only their own bookings (ACC-11). Group the list as Upcoming / Past / Cancelled (FLT-25).
+//   there is no separate refund-preview endpoint: use FlightBookingLifecycleService
+//   .previewCancellation(booking) (the same function cancel uses).
+//   Users see only their own bookings (ACC-11). Group the list as Upcoming / Past / Cancelled (FLT-25);
+//   Upcoming = upcomingFlightBookings() in flight-bookings.service.ts (NEW-01).
 //   The e-ticket is a downloadable PDF made with pdfkit (FLT-23).
 //
 // WAITING FOR (Area 2, ACC-04 / ACC-11 / ACC-19): JwtAuthGuard, the user role check (403 for

@@ -8,7 +8,9 @@ import { UsersService } from './users.service';
 //   PATCH  /api/users/me   ACC-09
 //   DELETE /api/users/me   ACC-12
 // Notes:
-//   Deactivation is blocked while the user has upcoming Confirmed bookings (ACC-12, NEW-01).
+//   Deactivation is blocked while the user has upcoming Confirmed bookings (ACC-12, NEW-01):
+//   FlightBookingsService.hasUpcomingBookings(userId) and
+//   HotelBookingsService.hasUpcomingBookings(userId) (both modules export them).
 //   Preferred currency must come from the supported currency list (ACC-09, GEN-12).
 @Controller('users')
 export class UsersController {

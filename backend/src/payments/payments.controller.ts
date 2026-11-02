@@ -43,12 +43,14 @@ import { RefundResponse, RefundsService } from './refunds.service';
 //   (rawBody: true in main.ts).
 //   Never store card data: only the Stripe payment id, amount, currency and status (PAY-01).
 //
-// WAITING FOR (Area 2, ACC-04 / ACC-11 / ACC-19): JwtAuthGuard and @CurrentUser().
-//   Until they exist, currentUserId() below finds no logged-in user and every endpoint except
-//   the webhook answers 401. When they are merged:
+// WAITING FOR (Area 2, ACC-04 / ACC-11 / ACC-19): JwtAuthGuard, the user role check and
+//   @CurrentUser(). Until they exist, currentUserId() below finds no logged-in user and every
+//   endpoint except the webhook answers 401. When they are merged:
 //     1. add @UseGuards(JwtAuthGuard) to every route except handleWebhook (or a global guard +
 //        @Public() on handleWebhook, which Stripe calls without a login);
-//     2. replace currentUserId(req) with the @CurrentUser() decorator and delete the helper.
+//     2. allow only role `user` on those routes (403 for admins and moderators): PAY-01 and
+//        PAY-02 are Registered User actions;
+//     3. replace currentUserId(req) with the @CurrentUser() decorator and delete the helper.
 // WAITING FOR (Area 3, GEN-02 / GEN-13): the global ValidationPipe in main.ts. Then remove the
 //   local `new ValidationPipe(...)` from the @Body() parameters below.
 @Controller()

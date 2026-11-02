@@ -15,6 +15,9 @@ import { FlightsService } from './flights.service';
 // Notes:
 //   Flight search is in flight-search.controller.ts. It is listed first in
 //   flights.module.ts so /flights/search is not matched as /flights/:id.
+//   POST /api/flights/:id/cancel (FLT-06, NEW-02): the bookings of the flight are changed by
+//   FlightBookingLifecycleService (Area 1); see "Effect on existing flight bookings" in
+//   schemas/flight.schema.ts.
 @Controller('flights')
 export class FlightsController {
   constructor(private readonly flightsService: FlightsService) {}

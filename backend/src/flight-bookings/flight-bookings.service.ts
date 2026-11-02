@@ -6,7 +6,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, isValidObjectId, Model, Types } from 'mongoose';
+import {
+  Connection,
+  FilterQuery,
+  isValidObjectId,
+  Model,
+  Types,
+} from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
 import { BookingStatus, BookingType } from '../common/enums';
 import { allowedFrom } from '../payments/booking-lifecycle';
@@ -43,11 +49,23 @@ import { SeatInventoryService } from './seat-inventory.service';
 // TODO(GEN-01, Area 3): notify the user on confirmation (see confirmPaidBooking).
 // TODO(FLT-19, FLT-21, FLT-25; Area 6): the summary, the list and the details go here too. The
 // details must include RefundsService.findRefundForBooking() and the refund preview (FLT-26):
-// AirlinesService.getRefundTier(outbound airlineId, daysBeforeDeparture(outbound departureAt))
-// (flight-booking-lifecycle.service.ts), the same calculation the cancellation uses.
+// FlightBookingLifecycleService.previewCancellation(booking), the same function the cancellation
+// uses. For the Upcoming group of the list use upcomingFlightBookings() below (NEW-01).
 
 // FLT-22: seats are held for 10 minutes.
 export const HOLD_MINUTES = 10;
+
+// NEW-01 "upcoming" (ACC-12, Area 2; the Upcoming group of FLT-25, Area 6): Confirmed, with a
+// flight not yet departed. A round trip whose outbound flight has flown is still upcoming (its
+// return flight is ahead); it becomes Completed when its last flight departs (completeDeparted).
+export function upcomingFlightBookings(
+  now = new Date(),
+): FilterQuery<FlightBooking> {
+  return {
+    status: BookingStatus.Confirmed,
+    $expr: { $gt: [{ $max: '$segments.departureAt' }, now] },
+  };
+}
 
 export interface FlightBookingResponse {
   id: string;
@@ -191,6 +209,20 @@ export class FlightBookingsService implements BookingPaymentHandler {
       : null;
     if (!booking) throw new NotFoundException('Booking not found.');
     return booking;
+  }
+
+  // ACC-12 (Area 2): deactivating an account is blocked while the user has an upcoming flight
+  // booking (NEW-01, see upcomingFlightBookings()).
+  async hasUpcomingBookings(
+    userId: string,
+    now = new Date(),
+  ): Promise<boolean> {
+    if (!isValidObjectId(userId)) return false;
+    const found = await this.bookingModel.exists({
+      userId,
+      ...upcomingFlightBookings(now),
+    });
+    return found !== null;
   }
 
   // --- Used by the payments module (PAY-01, PAY-02) ---
