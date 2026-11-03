@@ -52,31 +52,42 @@ export class AdminService {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Account not found.');
     }
+    const userObjectId = new Types.ObjectId(id);
 
-    const user = await this.userModel.findById(id).exec();
-    if (!user) {
-      throw new NotFoundException('Account not found.');
-    }
+    // Atomic conditional update to prevent double-click duplicate notifications and audits
+    const updatedUser = await this.userModel
+      .findOneAndUpdate(
+        {
+          _id: userObjectId,
+          role: { $ne: Role.Admin },
+          status: AccountStatus.Active,
+        },
+        { $set: { status: AccountStatus.Suspended } },
+        { new: true },
+      )
+      .exec();
 
-    if (user.role === Role.Admin) {
-      throw new ForbiddenException('Not an admin, or the target is an admin.');
-    }
-
-    if (user.status !== AccountStatus.Active) {
+    if (!updatedUser) {
+      const existing = await this.userModel.findById(userObjectId).exec();
+      if (!existing) {
+        throw new NotFoundException('Account not found.');
+      }
+      if (existing.role === Role.Admin) {
+        throw new ForbiddenException(
+          'Not an admin, or the target is an admin.',
+        );
+      }
       throw new ConflictException(
         'The account is not active (already suspended or deactivated).',
       );
     }
 
-    user.status = AccountStatus.Suspended;
-    await user.save();
-
-    // Revoke all active sessions of this user (NEW-07, ACC-15)
-    await this.sessionsService.revokeAllForUser(user._id);
+    // Revoke all active sessions of this user (NEW-07, ACC-15, ACC-16)
+    await this.sessionsService.revokeAllForUser(updatedUser._id);
 
     // In-app notification to affected user (GEN-01)
     await this.notificationsService.notify(
-      user._id,
+      updatedUser._id,
       'Account Suspended',
       dto?.reason
         ? `Your account has been suspended: ${dto.reason}`
@@ -88,17 +99,17 @@ export class AdminService {
       adminId: admin.id,
       action: 'suspend_account',
       targetType: 'account',
-      targetId: user._id.toString(),
+      targetId: updatedUser._id.toString(),
       details: {
         reason: dto?.reason,
-        email: user.email,
-        role: user.role,
+        email: updatedUser.email,
+        role: updatedUser.role,
         previousStatus: AccountStatus.Active,
         newStatus: AccountStatus.Suspended,
       },
     });
 
-    return this.toAccountResponse(user);
+    return this.toAccountResponse(updatedUser);
   }
 
   // ACC-15, ACC-16: Reactivate a suspended user or moderator account
@@ -110,24 +121,37 @@ export class AdminService {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Account not found.');
     }
+    const userObjectId = new Types.ObjectId(id);
 
-    const user = await this.userModel.findById(id).exec();
-    if (!user) {
-      throw new NotFoundException('Account not found.');
-    }
+    // Atomic conditional update to prevent double-click duplicate notifications and audits
+    const updatedUser = await this.userModel
+      .findOneAndUpdate(
+        {
+          _id: userObjectId,
+          status: AccountStatus.Suspended,
+        },
+        {
+          $set: {
+            status: AccountStatus.Active,
+            failedLoginAttempts: 0,
+            lockUntil: null,
+          },
+        },
+        { new: true },
+      )
+      .exec();
 
-    if (user.status !== AccountStatus.Suspended) {
+    if (!updatedUser) {
+      const existing = await this.userModel.findById(userObjectId).exec();
+      if (!existing) {
+        throw new NotFoundException('Account not found.');
+      }
       throw new ConflictException('The account is not suspended.');
     }
 
-    user.status = AccountStatus.Active;
-    user.failedLoginAttempts = 0;
-    user.lockUntil = null;
-    await user.save();
-
     // In-app notification to affected user (GEN-01)
     await this.notificationsService.notify(
-      user._id,
+      updatedUser._id,
       'Account Reactivated',
       dto?.reason
         ? `Your account has been reactivated: ${dto.reason}`
@@ -139,17 +163,17 @@ export class AdminService {
       adminId: admin.id,
       action: 'reactivate_account',
       targetType: 'account',
-      targetId: user._id.toString(),
+      targetId: updatedUser._id.toString(),
       details: {
         reason: dto?.reason,
-        email: user.email,
-        role: user.role,
+        email: updatedUser.email,
+        role: updatedUser.role,
         previousStatus: AccountStatus.Suspended,
         newStatus: AccountStatus.Active,
       },
     });
 
-    return this.toAccountResponse(user);
+    return this.toAccountResponse(updatedUser);
   }
 
   // ACC-15: Deactivate an airline
@@ -162,27 +186,29 @@ export class AdminService {
       throw new NotFoundException('Airline not found.');
     }
     const db = this.connection.db;
-    const airline = await db
-      ?.collection('airlines')
-      .findOne({ _id: new Types.ObjectId(id) });
-    if (!airline) {
-      throw new NotFoundException('Airline not found.');
-    }
-    if (airline.active === false) {
-      throw new ConflictException('The airline is already deactivated.');
-    }
+    const objectId = new Types.ObjectId(id);
 
-    await db
+    const updateResult = await db
       ?.collection('airlines')
       .updateOne(
-        { _id: new Types.ObjectId(id) },
+        { _id: objectId, active: { $ne: false } },
         { $set: { active: false, updatedAt: new Date() } },
       );
+
+    if (!updateResult || updateResult.matchedCount === 0) {
+      const airline = await db
+        ?.collection('airlines')
+        .findOne({ _id: objectId });
+      if (!airline) {
+        throw new NotFoundException('Airline not found.');
+      }
+      throw new ConflictException('The airline is already deactivated.');
+    }
 
     // Notify assigned moderator if any (GEN-01)
     const moderator = await this.userModel.findOne({
       role: Role.AirlineModerator,
-      airlineId: new Types.ObjectId(id),
+      airlineId: objectId,
     });
     if (moderator) {
       await this.notificationsService.notify(
@@ -215,26 +241,28 @@ export class AdminService {
       throw new NotFoundException('Airline not found.');
     }
     const db = this.connection.db;
-    const airline = await db
-      ?.collection('airlines')
-      .findOne({ _id: new Types.ObjectId(id) });
-    if (!airline) {
-      throw new NotFoundException('Airline not found.');
-    }
-    if (airline.active !== false) {
-      throw new ConflictException('The airline is not deactivated.');
-    }
+    const objectId = new Types.ObjectId(id);
 
-    await db
+    const updateResult = await db
       ?.collection('airlines')
       .updateOne(
-        { _id: new Types.ObjectId(id) },
+        { _id: objectId, active: false },
         { $set: { active: true, updatedAt: new Date() } },
       );
 
+    if (!updateResult || updateResult.matchedCount === 0) {
+      const airline = await db
+        ?.collection('airlines')
+        .findOne({ _id: objectId });
+      if (!airline) {
+        throw new NotFoundException('Airline not found.');
+      }
+      throw new ConflictException('The airline is not deactivated.');
+    }
+
     const moderator = await this.userModel.findOne({
       role: Role.AirlineModerator,
-      airlineId: new Types.ObjectId(id),
+      airlineId: objectId,
     });
     if (moderator) {
       await this.notificationsService.notify(
@@ -267,26 +295,26 @@ export class AdminService {
       throw new NotFoundException('Hotel not found.');
     }
     const db = this.connection.db;
-    const hotel = await db
-      ?.collection('hotels')
-      .findOne({ _id: new Types.ObjectId(id) });
-    if (!hotel) {
-      throw new NotFoundException('Hotel not found.');
-    }
-    if (hotel.active === false) {
-      throw new ConflictException('The hotel is already deactivated.');
-    }
+    const objectId = new Types.ObjectId(id);
 
-    await db
+    const updateResult = await db
       ?.collection('hotels')
       .updateOne(
-        { _id: new Types.ObjectId(id) },
+        { _id: objectId, active: { $ne: false } },
         { $set: { active: false, updatedAt: new Date() } },
       );
 
+    if (!updateResult || updateResult.matchedCount === 0) {
+      const hotel = await db?.collection('hotels').findOne({ _id: objectId });
+      if (!hotel) {
+        throw new NotFoundException('Hotel not found.');
+      }
+      throw new ConflictException('The hotel is already deactivated.');
+    }
+
     const moderator = await this.userModel.findOne({
       role: Role.HotelModerator,
-      hotelId: new Types.ObjectId(id),
+      hotelId: objectId,
     });
     if (moderator) {
       await this.notificationsService.notify(
@@ -319,26 +347,26 @@ export class AdminService {
       throw new NotFoundException('Hotel not found.');
     }
     const db = this.connection.db;
-    const hotel = await db
-      ?.collection('hotels')
-      .findOne({ _id: new Types.ObjectId(id) });
-    if (!hotel) {
-      throw new NotFoundException('Hotel not found.');
-    }
-    if (hotel.active !== false) {
-      throw new ConflictException('The hotel is not deactivated.');
-    }
+    const objectId = new Types.ObjectId(id);
 
-    await db
+    const updateResult = await db
       ?.collection('hotels')
       .updateOne(
-        { _id: new Types.ObjectId(id) },
+        { _id: objectId, active: false },
         { $set: { active: true, updatedAt: new Date() } },
       );
 
+    if (!updateResult || updateResult.matchedCount === 0) {
+      const hotel = await db?.collection('hotels').findOne({ _id: objectId });
+      if (!hotel) {
+        throw new NotFoundException('Hotel not found.');
+      }
+      throw new ConflictException('The hotel is not deactivated.');
+    }
+
     const moderator = await this.userModel.findOne({
       role: Role.HotelModerator,
-      hotelId: new Types.ObjectId(id),
+      hotelId: objectId,
     });
     if (moderator) {
       await this.notificationsService.notify(

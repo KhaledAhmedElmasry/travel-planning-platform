@@ -14,4 +14,3 @@ export class AdminActionDto {
   @MaxLength(500)
   reason?: string;
 }
-

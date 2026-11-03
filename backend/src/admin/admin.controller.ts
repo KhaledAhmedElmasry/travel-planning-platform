@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Param,
-  Patch,
-  UseGuards,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Body, Controller, Param, Patch, UseGuards } from '@nestjs/common';
 import { CurrentUser, Roles } from '../common/decorators';
 import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
@@ -23,7 +16,7 @@ import { AdminActionDto } from './dto/admin-action.dto';
 //   PATCH /api/admin/accounts/:id/reactivate    ACC-15, ACC-16
 //   POST  /api/admin/users/:id/reset-password   ACC-07a
 //   GET   /api/admin/bookings                   ACC-17
-// Extra endpoints may be needed (not in the PDF tables) for:
+// Extra endpoints:
 //   deactivating / reactivating a hotel or airline (ACC-15). Notify affected parties (GEN-01) and
 //   write an audit entry (GEN-07).
 // Notes:
@@ -43,8 +36,7 @@ export class AdminController {
   suspendAccount(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto?: AdminActionDto,
+    @Body() dto?: AdminActionDto,
   ) {
     return this.adminService.suspendAccount(admin, id, dto);
   }
@@ -54,8 +46,7 @@ export class AdminController {
   reactivateAccount(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto?: AdminActionDto,
+    @Body() dto?: AdminActionDto,
   ) {
     return this.adminService.reactivateAccount(admin, id, dto);
   }
@@ -65,8 +56,7 @@ export class AdminController {
   deactivateAirline(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto?: AdminActionDto,
+    @Body() dto?: AdminActionDto,
   ) {
     return this.adminService.deactivateAirline(admin, id, dto);
   }
@@ -76,8 +66,7 @@ export class AdminController {
   reactivateAirline(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto?: AdminActionDto,
+    @Body() dto?: AdminActionDto,
   ) {
     return this.adminService.reactivateAirline(admin, id, dto);
   }
@@ -87,8 +76,7 @@ export class AdminController {
   deactivateHotel(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto?: AdminActionDto,
+    @Body() dto?: AdminActionDto,
   ) {
     return this.adminService.deactivateHotel(admin, id, dto);
   }
@@ -98,8 +86,7 @@ export class AdminController {
   reactivateHotel(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto?: AdminActionDto,
+    @Body() dto?: AdminActionDto,
   ) {
     return this.adminService.reactivateHotel(admin, id, dto);
   }
