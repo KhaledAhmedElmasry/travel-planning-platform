@@ -180,6 +180,11 @@ export class FlightBooking {
   @Prop({ type: PendingRefundSchema, default: null })
   pendingRefund: PendingRefund | null;
 
+  // GEN-01, NEW-02: notifications already sent for events that can be handled twice (the airline
+  // cancelling the flight), so the user gets each one once. See claimNotification().
+  @Prop({ type: [String], default: [] })
+  notified: string[];
+
   createdAt?: Date;
   updatedAt?: Date;
 }

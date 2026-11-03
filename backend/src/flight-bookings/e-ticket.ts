@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import PDFDocument from 'pdfkit';
+import { formatMoney } from '../payments/format-money';
 import {
   BookedPassenger,
   BookedSegment,
@@ -88,8 +89,4 @@ export function localTime(date: Date, timeZone: string): string {
   return local.isValid
     ? `${local.toFormat('yyyy-MM-dd HH:mm')} (${timeZone})`
     : `${DateTime.fromJSDate(date, { zone: 'utc' }).toFormat('yyyy-MM-dd HH:mm')} (UTC)`;
-}
-
-function formatMoney(cents: number, currency: string): string {
-  return `${(cents / 100).toFixed(2)} ${currency}`;
 }
