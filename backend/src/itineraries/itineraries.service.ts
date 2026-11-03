@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, isValidObjectId, Model, Types } from 'mongoose';
+import mongoose, { Connection, isValidObjectId, Model, Types } from 'mongoose';
 import {
   DEFAULT_PAGE_SIZE,
   emptyPaginatedList,
@@ -16,6 +16,7 @@ import {
 import {
   CityGroup,
   computeCityGroups,
+  dayDate,
   MAX_ITINERARY_DAYS,
   renumberDays,
 } from './day-schedule';
@@ -70,7 +71,16 @@ export class ItinerariesService {
       renumberDays(itinerary.days, itinerary.startDate);
     }
 
-    await itinerary.save();
+    try {
+      await itinerary.save();
+    } catch (error) {
+      if (error instanceof mongoose.Error.VersionError) {
+        throw new ConflictException(
+          'The itinerary was changed by another request. Please retry.',
+        );
+      }
+      throw error;
+    }
     return this.toResponse(itinerary);
   }
 
@@ -80,25 +90,42 @@ export class ItinerariesService {
     userId: string,
     dto: CreateDayDto,
   ): Promise<DayResponse> {
-    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
-    if (itinerary.days.length >= MAX_ITINERARY_DAYS) {
-      throw new ConflictException(
-        `The itinerary already has ${MAX_ITINERARY_DAYS} days.`,
-      );
-    }
     await this.assertCityExists(dto.cityId);
+    const ownerId = new Types.ObjectId(userId);
 
-    // number and date are placeholders here; renumberDays sets the real values below.
-    itinerary.days.push({
-      cityId: dto.cityId,
-      notes: dto.notes ?? '',
-      number: 0,
-      date: itinerary.startDate,
-    });
-    renumberDays(itinerary.days, itinerary.startDate);
-    await itinerary.save();
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+      const dayCount = itinerary.days.length;
+      if (dayCount >= MAX_ITINERARY_DAYS) {
+        throw new ConflictException(
+          `The itinerary already has ${MAX_ITINERARY_DAYS} days.`,
+        );
+      }
 
-    return toDayResponse(itinerary.days[itinerary.days.length - 1]);
+      const day = {
+        _id: new Types.ObjectId(),
+        cityId: dto.cityId,
+        notes: dto.notes ?? '',
+        number: dayCount + 1,
+        date: dayDate(itinerary.startDate, dayCount + 1),
+      };
+      const result = await this.itineraryModel
+        .updateOne(
+          {
+            _id: itinerary._id,
+            userId: ownerId,
+            days: { $size: dayCount },
+          },
+          { $push: { days: day } },
+        )
+        .exec();
+
+      if (result.matchedCount === 1) return toDayResponse(day);
+    }
+
+    throw new ConflictException(
+      'The itinerary was changed by another request. Please retry.',
+    );
   }
 
   // ITN-05: edits the city and / or notes of one day. Position and date are unchanged, but the
@@ -120,7 +147,16 @@ export class ItinerariesService {
     if (dto.notes !== undefined) day.notes = dto.notes;
 
     renumberDays(itinerary.days, itinerary.startDate);
-    await itinerary.save();
+    try {
+      await itinerary.save();
+    } catch (error) {
+      if (error instanceof mongoose.Error.VersionError) {
+        throw new ConflictException(
+          'The itinerary was changed by another request. Please retry.',
+        );
+      }
+      throw error;
+    }
     return toDayResponse(day);
   }
 
