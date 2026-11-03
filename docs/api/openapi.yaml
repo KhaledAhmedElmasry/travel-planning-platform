@@ -3463,6 +3463,8 @@ paths:
             Title, countries, start date, visibility, the days in order (id, number, date, city, notes,
             activities, budget entries), the city groups (city, first and last day, day count, budget
             subtotal), the transport costs, and the original author if it is a clone (ITN-21).
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
