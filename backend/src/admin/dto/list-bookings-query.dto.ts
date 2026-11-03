@@ -33,9 +33,6 @@ export class ListBookingsQueryDto extends PaginationQueryDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
     message: 'to must be a date (YYYY-MM-DD)',
   })
-  @IsDateString(
-    { strict: true },
-    { message: 'to must be a date (YYYY-MM-DD)' },
-  )
+  @IsDateString({ strict: true }, { message: 'to must be a date (YYYY-MM-DD)' })
   to?: string;
 }
