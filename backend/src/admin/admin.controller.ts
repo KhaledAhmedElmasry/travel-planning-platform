@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { Roles } from '../common/decorators';
 import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
@@ -36,13 +30,8 @@ import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  // WAITING FOR (Area 3, GEN-02 / GEN-13): the global ValidationPipe in main.ts.
-  // Then remove the local `new ValidationPipe(...)` from the @Query() parameter below.
   @Get('accounts')
-  getAccounts(
-    @Query(new ValidationPipe({ transform: true, whitelist: true }))
-    query: ListAccountsQueryDto,
-  ) {
+  getAccounts(@Query() query: ListAccountsQueryDto) {
     return this.adminService.listAccounts(query);
   }
 }
