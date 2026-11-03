@@ -269,3 +269,28 @@ The audit log entry (GEN-07) waits for AuditService. Verified with npm run lint,
 local tests (including checks that fail when the role check, the session revoke or the
 temporary-password block is removed), and in Swagger as the seeded admin.
 ================================================
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-08
+
+Prompt:
+I asked the assistant to implement GitHub issue #5 (ACC-08): a logged-in user changes their
+password by entering the current password and a new one that meets the rules. I asked it to
+follow PATCH /api/auth/change-password in docs/api/openapi.yaml (200, 400 for a wrong current
+password or a weak new one, 401 when not logged in, clears mustChangePassword) and to make it the
+way an account with a temporary password from ACC-07a gets unblocked.
+
+How the output was used:
+Used as the base for ChangePasswordDto, AuthService.changePassword, UsersService.setPassword and
+findByIdWithPassword, SessionsService.revokeOthers and the PATCH route. I checked it against the
+issue and openapi.yaml: the current password must be right (400 "Current password is incorrect"),
+the new one must meet the rules and differ from the current one, mustChangePassword is cleared so a
+reset account can use the other routes again, other devices are signed out while this session stays
+logged in, and wrong current passwords do not count towards the login lockout. Verified with
+npm run lint, npm run build, local tests (including checks that fail when the current-password
+check, the flag reset, the sign-out of other devices or the same-password check is removed), and
+in Swagger.
+================================================

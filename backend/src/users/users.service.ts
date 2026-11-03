@@ -93,6 +93,26 @@ export class UsersService {
     return result.matchedCount === 1;
   }
 
+  // ACC-08: the account with its password hash, to check the current password.
+  findByIdWithPassword(id: string): Promise<UserDocument | null> {
+    if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
+    return this.userModel.findById(id).select('+passwordHash').exec();
+  }
+
+  // ACC-08: store a new password chosen by the account itself. This also ends a temporary
+  // password (ACC-07a, ACC-13), so mustChangePassword is cleared.
+  async setPassword(
+    userId: Types.ObjectId,
+    passwordHash: string,
+  ): Promise<void> {
+    await this.userModel
+      .updateOne(
+        { _id: userId },
+        { $set: { passwordHash, mustChangePassword: false } },
+      )
+      .exec();
+  }
+
   findById(id: string): Promise<UserDocument | null> {
     if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
     return this.userModel.findById(id).exec();
