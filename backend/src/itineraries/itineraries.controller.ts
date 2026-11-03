@@ -2,21 +2,31 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 import { CurrentUser, Roles } from '../common/decorators';
 import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
+import { PaginatedList } from '../common/dto/pagination.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
+import { ListItinerariesQueryDto } from './dto/list-itineraries-query.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
-import { ItinerariesService, ItineraryResponse } from './itineraries.service';
+import {
+  ItinerariesService,
+  ItineraryResponse,
+  ItinerarySummary,
+} from './itineraries.service';
 
 // Area: Itineraries
 // Requirements: ITN-01..ITN-26
@@ -69,6 +79,28 @@ export class ItinerariesController {
     @Body() dto: CreateItineraryDto,
   ): Promise<ItineraryResponse> {
     return this.itinerariesService.create(user.id, dto);
+  }
+
+  // ITN-03 / GEN-04 / GEN-05: only the current user's itineraries, ten at a time.
+  @Get('itineraries')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListItinerariesQueryDto,
+  ): Promise<PaginatedList<ItinerarySummary>> {
+    return this.itinerariesService.list(user.id, query.page);
+  }
+
+  // ITN-03 / ACC-11: ownership is checked by the service; invalid ids are rejected at the edge.
+  @Get('itineraries/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  getOne(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<ItineraryResponse> {
+    return this.itinerariesService.getOne(id, user.id);
   }
 
   // ITN-01: ownership is enforced in the service so another user's itinerary is indistinguishable

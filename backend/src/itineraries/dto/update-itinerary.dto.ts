@@ -20,7 +20,7 @@ const trim = ({ value }: { value: unknown }): unknown =>
 
 const normalizeCountryCodes = ({ value }: { value: unknown }): unknown =>
   Array.isArray(value)
-    ? value.map((code) =>
+    ? value.map((code: unknown) =>
         typeof code === 'string' ? code.trim().toUpperCase() : code,
       )
     : value;
