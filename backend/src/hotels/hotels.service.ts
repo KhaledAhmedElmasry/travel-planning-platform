@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,13 +8,17 @@ import {
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
+import { formatDate } from '../hotel-bookings/stay-dates';
+import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
 import type {
   CancellationTier,
   RefundTier,
 } from '../payments/interfaces/payable-booking.interface';
 import { CreateHotelDto } from './dto/create-hotel.dto';
+import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 import { Hotel, HotelDocument, HotelPhoto } from './schemas/hotel.schema';
+import { Room, RoomDocument } from './schemas/room.schema';
 
 // Area: Hotels & Rooms
 // Business logic and database access for: HTL-01..HTL-06, HTL-08..HTL-12, HTL-15, HTL-22
@@ -26,8 +31,7 @@ export interface NewHotelPhoto {
   filename: string;
 }
 
-// The logged-in user. hotelId is the hotel a moderator is assigned to (ACC-13).
-// TODO: map this from the real current-user object once Area 2 is merged.
+// The logged-in user (AuthUser has these fields). hotelId is the hotel a moderator manages.
 export interface HotelActor {
   id: string;
   hotelId?: string | null;
@@ -48,6 +52,7 @@ export interface HotelBookingPoliciesData {
 export class HotelsService {
   constructor(
     @InjectModel(Hotel.name) private readonly hotelModel: Model<Hotel>,
+    @InjectModel(Room.name) private readonly roomModel: Model<Room>,
     @InjectConnection() private readonly connection: Connection,
   ) {}
 
@@ -84,12 +89,7 @@ export class HotelsService {
     newPhotos: NewHotelPhoto[] = [],
   ) {
     const hotel = await this.findHotelOrThrow(hotelId);
-
-    if (!actor.hotelId || String(actor.hotelId) !== hotel.id) {
-      throw new ForbiddenException(
-        'You can only edit the hotel you are assigned to.',
-      );
-    }
+    this.assertModeratorOf(hotel, actor);
 
     // If either the city or the country changes, the pair must still match.
     if (dto.cityId !== undefined || dto.countryCode !== undefined) {
@@ -100,7 +100,7 @@ export class HotelsService {
     }
 
     // Photos: remove the requested ones, add the new ones, at most 5 in total.
-    const removeIds = new Set(dto.removePhotoIds ?? []);
+    const removeIds = new Set<string>(dto.removePhotoIds ?? []);
     const existingIds = new Set(hotel.photos.map((p) => this.photoId(p)));
     const unknownIds = [...removeIds].filter((id) => !existingIds.has(id));
     if (unknownIds.length > 0) {
@@ -136,6 +136,34 @@ export class HotelsService {
     return this.toResponse(hotel);
   }
 
+  // --- HTL-03: add a room (only the moderator assigned to THIS hotel) ---
+
+  async createRoom(hotelId: string, actor: HotelActor, dto: CreateRoomDto) {
+    const hotel = await this.findHotelOrThrow(hotelId);
+    this.assertModeratorOf(hotel, actor);
+
+    try {
+      const room = await this.roomModel.create({
+        hotelId: hotel._id,
+        roomNumber: dto.roomNumber,
+        type: dto.type,
+        beds: dto.beds,
+        maxOccupancy: dto.maxOccupancy,
+        pricePerNight: dto.pricePerNight,
+        active: true,
+      });
+      return this.toRoomResponse(room);
+    } catch (error) {
+      // The unique (hotelId, roomNumber) index refused a second room with this number.
+      if (isDuplicateKeyError(error)) {
+        throw new ConflictException(
+          `Room "${dto.roomNumber}" already exists in this hotel.`,
+        );
+      }
+      throw error;
+    }
+  }
+
   // --- helpers ---
 
   private async findHotelOrThrow(hotelId: string): Promise<HotelDocument> {
@@ -144,6 +172,15 @@ export class HotelsService {
     const hotel = await this.hotelModel.findById(hotelId);
     if (!hotel) throw new NotFoundException('Hotel not found.');
     return hotel;
+  }
+
+  // ACC-11, ACC-13: a moderator manages exactly one hotel, and only that one.
+  private assertModeratorOf(hotel: HotelDocument, actor: HotelActor) {
+    if (!actor.hotelId || String(actor.hotelId) !== hotel.id) {
+      throw new ForbiddenException(
+        'You can only manage the hotel you are assigned to.',
+      );
+    }
   }
 
   // NEW-05: the country and city must exist, and the city must belong to the country.
@@ -196,6 +233,29 @@ export class HotelsService {
       ratingCount: hotel.ratingCount,
       createdAt: hotel.get('createdAt') as Date | undefined,
       updatedAt: hotel.get('updatedAt') as Date | undefined,
+    };
+  }
+
+  private toRoomResponse(room: RoomDocument) {
+    return {
+      id: room.id as string,
+      hotelId: String(room.hotelId),
+      roomNumber: room.roomNumber,
+      type: room.type,
+      beds: room.beds,
+      maxOccupancy: room.maxOccupancy,
+      pricePerNight: room.pricePerNight,
+      active: room.active,
+      availableRanges: room.availableRanges.map((r) => ({
+        from: formatDate(r.from),
+        to: formatDate(r.to),
+      })),
+      blockedRanges: room.blockedRanges.map((r) => ({
+        from: formatDate(r.from),
+        to: formatDate(r.to),
+      })),
+      createdAt: room.get('createdAt') as Date | undefined,
+      updatedAt: room.get('updatedAt') as Date | undefined,
     };
   }
 

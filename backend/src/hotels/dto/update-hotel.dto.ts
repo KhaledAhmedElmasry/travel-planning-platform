@@ -14,12 +14,17 @@ import {
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-const toArray = ({ value }: { value: unknown }) =>
-  value === undefined || value === null || value === ''
-    ? undefined
-    : Array.isArray(value)
-      ? value
-      : [value];
+// Swagger UI sends an array field in multipart as ONE comma-separated value ("wifi,pool"), while
+// Postman or code sends the field once per item. Accept both.
+const toList = ({ value }: { value: unknown }) => {
+  if (value === undefined || value === null || value === '') return undefined;
+  return (Array.isArray(value) ? value : [value])
+    .flatMap((item: unknown) =>
+      typeof item === 'string' ? item.split(',') : [item],
+    )
+    .map((item: unknown) => (typeof item === 'string' ? item.trim() : item))
+    .filter((item: unknown) => item !== '');
+};
 
 // Send only the fields to change (PATCH).
 export class UpdateHotelDto {
@@ -65,7 +70,7 @@ export class UpdateHotelDto {
 
   // Replaces the whole amenity list.
   @IsOptional()
-  @Transform(toArray)
+  @Transform(toList)
   @IsArray()
   @IsString({ each: true })
   @IsNotEmpty({ each: true })
@@ -74,7 +79,7 @@ export class UpdateHotelDto {
 
   // Ids of photos to remove.
   @IsOptional()
-  @Transform(toArray)
+  @Transform(toList)
   @IsArray()
   @IsString({ each: true })
   removePhotoIds?: string[];

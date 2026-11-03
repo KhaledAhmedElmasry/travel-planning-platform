@@ -319,3 +319,17 @@ here (stripped by the ValidationPipe and ignored by the service). Verified with 
 npm run build, local tests (including checks that fail when the currency check or both
 protections against extra fields are removed), and in Swagger.
 ================================================
+================================================
+Date: 2026-11-03
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01, HTL-03
+Prompt:
+Asked for the HTL-01 create/edit hotel routes and HTL-03 add-room feature: Room schema following the
+Area 1 contract, CreateRoomDto, service methods with ownership checks, controller routes with
+JwtAuthGuard/RolesGuard, a temporary hotel photo helper, and a fix for Swagger sending array fields
+as one comma-separated value.
+How the output was used:
+Reviewed and adapted the code, fixed build errors, and tested every route and error case in Swagger
+(screenshots attached to the PR).
+================================================
