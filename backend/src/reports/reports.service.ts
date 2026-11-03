@@ -274,27 +274,50 @@ export class ReportsService {
   // GEN-10: Admin resolves a report (dismiss, hide, or delete)
   async resolveReport(
     admin: AuthUser,
-    id: string,
+    id: Types.ObjectId | string,
     dto: ResolveReportDto,
   ): Promise<ReportItem> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid report ID');
+    const reportObjectId = typeof id === 'string' ? new Types.ObjectId(id) : id;
+
+    let targetStatus: ReportStatus;
+    if (dto.action === ReportResolutionAction.Dismiss) {
+      targetStatus = ReportStatus.Dismissed;
+    } else if (dto.action === ReportResolutionAction.Hide) {
+      targetStatus = ReportStatus.ContentHidden;
+    } else {
+      targetStatus = ReportStatus.ContentDeleted;
     }
 
-    const report = await this.reportModel.findById(id).exec();
-    if (!report) {
-      throw new NotFoundException('Report not found.');
-    }
+    const adminObjectId = new Types.ObjectId(admin.id);
+    const resolutionNote = dto.note?.trim() ?? undefined;
 
-    if (report.status !== ReportStatus.Open) {
+    // Atomic conditional update: only the request that updates an open report succeeds
+    const updatedReport = await this.reportModel
+      .findOneAndUpdate(
+        { _id: reportObjectId, status: ReportStatus.Open },
+        {
+          $set: {
+            status: targetStatus,
+            resolvedBy: adminObjectId,
+            resolvedAt: new Date(),
+            resolutionNote,
+          },
+        },
+        { new: true },
+      )
+      .exec();
+
+    if (!updatedReport) {
+      const existing = await this.reportModel.findById(reportObjectId).exec();
+      if (!existing) {
+        throw new NotFoundException('Report not found.');
+      }
       throw new ConflictException('The report is already resolved.');
     }
 
-    const collectionName = this.getCollectionName(report.contentType);
-    const contentId = report.contentId;
-    const adminObjectId = new Types.ObjectId(admin.id);
-    const resolutionNote = dto.note?.trim() ?? undefined;
-    const reportIdStr = report._id.toString();
+    const collectionName = this.getCollectionName(updatedReport.contentType);
+    const contentId = updatedReport.contentId;
+    const reportIdStr = updatedReport._id.toString();
 
     // Look up target content to extract authorId for notification
     const contentDoc = await this.connection.db
@@ -303,17 +326,11 @@ export class ReportsService {
     const authorId = this.extractAuthorId(contentDoc);
 
     if (dto.action === ReportResolutionAction.Dismiss) {
-      report.status = ReportStatus.Dismissed;
-      report.resolvedBy = adminObjectId;
-      report.resolvedAt = new Date();
-      report.resolutionNote = resolutionNote;
-      await report.save();
-
       // Write to audit log (GEN-07)
       await this.auditService.record({
         adminId: admin.id,
         action: AuditAction.DismissReport,
-        targetType: report.contentType,
+        targetType: updatedReport.contentType,
         targetId: contentId.toString(),
         details: {
           reportId: reportIdStr,
@@ -321,16 +338,10 @@ export class ReportsService {
         },
       });
 
-      return this.mapReportItem(report);
+      return this.mapReportItem(updatedReport);
     }
 
     if (dto.action === ReportResolutionAction.Hide) {
-      report.status = ReportStatus.ContentHidden;
-      report.resolvedBy = adminObjectId;
-      report.resolvedAt = new Date();
-      report.resolutionNote = resolutionNote;
-      await report.save();
-
       // Hide content in its collection
       await this.connection.db?.collection(collectionName).updateOne(
         { _id: contentId },
@@ -346,10 +357,10 @@ export class ReportsService {
       // Cascade resolution: resolve any other open reports about this content item
       await this.reportModel.updateMany(
         {
-          contentType: report.contentType,
+          contentType: updatedReport.contentType,
           contentId,
           status: ReportStatus.Open,
-          _id: { $ne: report._id },
+          _id: { $ne: updatedReport._id },
         },
         {
           $set: {
@@ -367,7 +378,7 @@ export class ReportsService {
       await this.auditService.record({
         adminId: admin.id,
         action: AuditAction.HideContent,
-        targetType: report.contentType,
+        targetType: updatedReport.contentType,
         targetId: contentId.toString(),
         details: {
           reportId: reportIdStr,
@@ -380,7 +391,7 @@ export class ReportsService {
         await this.notificationsService.notify(
           authorId,
           'Content Hidden',
-          `Your ${report.contentType} has been hidden by an administrator${
+          `Your ${updatedReport.contentType} has been hidden by an administrator${
             resolutionNote
               ? `: ${resolutionNote}`
               : ' for violating community guidelines.'
@@ -389,16 +400,10 @@ export class ReportsService {
         );
       }
 
-      return this.mapReportItem(report);
+      return this.mapReportItem(updatedReport);
     }
 
     if (dto.action === ReportResolutionAction.Delete) {
-      report.status = ReportStatus.ContentDeleted;
-      report.resolvedBy = adminObjectId;
-      report.resolvedAt = new Date();
-      report.resolutionNote = resolutionNote;
-      await report.save();
-
       // Delete content from its collection
       await this.connection.db
         ?.collection(collectionName)
@@ -407,10 +412,10 @@ export class ReportsService {
       // Cascade resolution: resolve any other open reports about this content item
       await this.reportModel.updateMany(
         {
-          contentType: report.contentType,
+          contentType: updatedReport.contentType,
           contentId,
           status: ReportStatus.Open,
-          _id: { $ne: report._id },
+          _id: { $ne: updatedReport._id },
         },
         {
           $set: {
@@ -428,7 +433,7 @@ export class ReportsService {
       await this.auditService.record({
         adminId: admin.id,
         action: AuditAction.DeleteContent,
-        targetType: report.contentType,
+        targetType: updatedReport.contentType,
         targetId: contentId.toString(),
         details: {
           reportId: reportIdStr,
@@ -441,7 +446,7 @@ export class ReportsService {
         await this.notificationsService.notify(
           authorId,
           'Content Deleted',
-          `Your ${report.contentType} has been deleted by an administrator${
+          `Your ${updatedReport.contentType} has been deleted by an administrator${
             resolutionNote
               ? `: ${resolutionNote}`
               : ' for violating community guidelines.'
@@ -450,23 +455,20 @@ export class ReportsService {
         );
       }
 
-      return this.mapReportItem(report);
+      return this.mapReportItem(updatedReport);
     }
 
-    return this.mapReportItem(report);
+    return this.mapReportItem(updatedReport);
   }
 
   // GEN-10: Admin deletes a post, comment, review or itinerary directly
   async deleteContentDirect(
     admin: AuthUser,
     type: ContentType,
-    id: string,
+    id: Types.ObjectId | string,
   ): Promise<void> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid content ID');
-    }
-
-    const contentObjectId = new Types.ObjectId(id);
+    const contentObjectId =
+      typeof id === 'string' ? new Types.ObjectId(id) : id;
     const collectionName = this.getCollectionName(type);
 
     const doc = await this.connection.db
@@ -506,7 +508,7 @@ export class ReportsService {
       adminId: admin.id,
       action: AuditAction.DeleteContent,
       targetType: type,
-      targetId: id,
+      targetId: contentObjectId.toString(),
     });
 
     // Send in-app notification to author (GEN-01)
@@ -525,7 +527,7 @@ export class ReportsService {
   async hideContentDirect(
     admin: AuthUser,
     type: ContentType,
-    id: string,
+    id: Types.ObjectId | string,
     hidden = true,
     reason?: string,
   ): Promise<{
@@ -534,11 +536,8 @@ export class ReportsService {
     hidden: boolean;
     message: string;
   }> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid content ID');
-    }
-
-    const contentObjectId = new Types.ObjectId(id);
+    const contentObjectId =
+      typeof id === 'string' ? new Types.ObjectId(id) : id;
     const collectionName = this.getCollectionName(type);
 
     const doc = await this.connection.db
@@ -587,7 +586,7 @@ export class ReportsService {
         adminId: admin.id,
         action: AuditAction.HideContent,
         targetType: type,
-        targetId: id,
+        targetId: contentObjectId.toString(),
         details: reason ? { reason } : undefined,
       });
 
@@ -604,7 +603,7 @@ export class ReportsService {
     }
 
     return {
-      id,
+      id: contentObjectId.toString(),
       type,
       hidden,
       message: hidden

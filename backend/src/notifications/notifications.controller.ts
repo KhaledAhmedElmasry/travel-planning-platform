@@ -6,6 +6,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
@@ -47,7 +49,10 @@ export class NotificationsController {
 
   // GEN-01: Mark a single notification as read
   @Patch(':id/read')
-  async markAsRead(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return await this.notificationsService.markAsRead(user, id);
+  async markAsRead(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+  ) {
+    return await this.notificationsService.markAsRead(user, id.toString());
   }
 }

@@ -6,17 +6,21 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseEnumPipe,
   Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 import { CurrentUser, Roles } from '../common/decorators';
 import { ContentType, Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { CreateReportDto } from './dto/create-report.dto';
+import { HideContentDto } from './dto/hide-content.dto';
 import { ListReportsQueryDto } from './dto/list-reports-query.dto';
 import { ResolveReportDto } from './dto/resolve-report.dto';
 import { ReportsService } from './reports.service';
@@ -60,7 +64,7 @@ export class ReportsController {
   @Roles(Role.Admin)
   async resolveReport(
     @CurrentUser() admin: AuthUser,
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
     @Body() dto: ResolveReportDto,
   ) {
     return await this.reportsService.resolveReport(admin, id, dto);
@@ -73,8 +77,8 @@ export class ReportsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteContent(
     @CurrentUser() admin: AuthUser,
-    @Param('type') type: ContentType,
-    @Param('id') id: string,
+    @Param('type', new ParseEnumPipe(ContentType)) type: ContentType,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
   ) {
     return await this.reportsService.deleteContentDirect(admin, type, id);
   }
@@ -85,16 +89,16 @@ export class ReportsController {
   @Roles(Role.Admin)
   async hideContent(
     @CurrentUser() admin: AuthUser,
-    @Param('type') type: ContentType,
-    @Param('id') id: string,
-    @Body() body?: { reason?: string },
+    @Param('type', new ParseEnumPipe(ContentType)) type: ContentType,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Body() dto: HideContentDto,
   ) {
     return await this.reportsService.hideContentDirect(
       admin,
       type,
       id,
       true,
-      body?.reason,
+      dto?.reason,
     );
   }
 
@@ -104,8 +108,8 @@ export class ReportsController {
   @Roles(Role.Admin)
   async unhideContent(
     @CurrentUser() admin: AuthUser,
-    @Param('type') type: ContentType,
-    @Param('id') id: string,
+    @Param('type', new ParseEnumPipe(ContentType)) type: ContentType,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
   ) {
     return await this.reportsService.hideContentDirect(admin, type, id, false);
   }
