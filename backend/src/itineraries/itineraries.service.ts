@@ -13,7 +13,12 @@ import {
   paginate,
   PaginatedList,
 } from '../common/dto/pagination.dto';
-import { MAX_ITINERARY_DAYS, renumberDays } from './day-schedule';
+import {
+  CityGroup,
+  computeCityGroups,
+  MAX_ITINERARY_DAYS,
+  renumberDays,
+} from './day-schedule';
 import { CreateDayDto } from './dto/create-day.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { UpdateDayDto } from './dto/update-day.dto';
@@ -205,6 +210,9 @@ export class ItinerariesService {
       startDate: itinerary.startDate.toISOString().slice(0, 10),
       visibility: itinerary.visibility,
       days: itinerary.days.map(toDayResponse),
+      // ITN-09: rebuilt from the days on every response, so it is always current after an add,
+      // edit (or later delete / reorder) that went through renumberDays.
+      cityGroups: computeCityGroups(itinerary.days),
       createdAt: itinerary.createdAt,
       updatedAt: itinerary.updatedAt,
     };
@@ -239,6 +247,8 @@ export interface ItineraryResponse {
   startDate: string;
   visibility: 'private' | 'public';
   days: DayResponse[];
+  // ITN-09: consecutive days in the same city, in day order.
+  cityGroups: CityGroup[];
   createdAt?: Date;
   updatedAt?: Date;
 }
