@@ -62,14 +62,18 @@ export class AuditService {
   async record(input: RecordAuditLogInput): Promise<AuditLogDocument | null> {
     try {
       const adminObjectId =
-        typeof input.adminId === 'string' && Types.ObjectId.isValid(input.adminId)
+        typeof input.adminId === 'string' &&
+        Types.ObjectId.isValid(input.adminId)
           ? new Types.ObjectId(input.adminId)
           : input.adminId;
 
       let adminName = input.adminName;
       let adminEmail = input.adminEmail;
 
-      if ((!adminName || !adminEmail) && Types.ObjectId.isValid(input.adminId)) {
+      if (
+        (!adminName || !adminEmail) &&
+        Types.ObjectId.isValid(input.adminId)
+      ) {
         const adminUser = await this.userModel
           .findById(input.adminId)
           .select('name email')
