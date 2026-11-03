@@ -10,4 +10,3 @@ export class HideContentDto {
   @MaxLength(500, { message: 'reason must not exceed 500 characters' })
   reason?: string;
 }
-
