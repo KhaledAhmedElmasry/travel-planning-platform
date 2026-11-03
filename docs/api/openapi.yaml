@@ -72,6 +72,8 @@ tags:
     description: PDF section 8.9
   - name: Content Reports
     description: Content reporting by registered users (GEN-09)
+  - name: Notifications
+    description: In-app notifications for users (GEN-01)
   - name: Health
     description: Not a requirement. Checks that the server and the database connection work.
 
@@ -977,6 +979,109 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 409, "error": "CONFLICT", "message": "You have already reported this item.", "path": "/api/reports", "timestamp": "2026-11-01T10:00:00.000Z"}
 
+  /api/notifications:
+    get:
+      operationId: getNotifications
+      tags: [Notifications]
+      summary: 'List user notifications (GEN-01, GEN-05)'
+      description: |
+        **Access:** logged-in user.
+
+        Retrieves the authenticated user's in-app notifications, newest first, paginated (10 per page).
+        Supports filtering unread only with `unreadOnly=true`.
+      security: *auth
+      parameters:
+        - name: unreadOnly
+          in: query
+          description: Filter only unread notifications.
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Paginated notifications.
+          content: *paginated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/unread-count:
+    get:
+      operationId: getNotificationsUnreadCount
+      tags: [Notifications]
+      summary: 'Get unread notification count (GEN-01)'
+      description: |
+        **Access:** logged-in user.
+
+        Returns the number of unread in-app notifications for the authenticated user.
+      security: *auth
+      responses:
+        '200':
+          description: Unread notification count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCountResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/read-all:
+    patch:
+      operationId: patchNotificationsReadAll
+      tags: [Notifications]
+      summary: 'Mark all notifications as read (GEN-01)'
+      description: |
+        **Access:** logged-in user.
+
+        Marks all unread notifications of the authenticated user as read.
+      security: *auth
+      responses:
+        '200':
+          description: All notifications marked as read.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: All notifications marked as read
+                  count:
+                    type: integer
+                    example: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/{id}/read:
+    patch:
+      operationId: patchNotificationsByIdRead
+      tags: [Notifications]
+      summary: 'Mark a notification as read (GEN-01)'
+      description: |
+        **Access:** logged-in user (must own the notification).
+
+        Marks a single notification as read.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The updated notification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationItem'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Notification not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Notification not found.", "path": "/api/notifications/665f1c2a9b1e8a00123400a1/read", "timestamp": "2026-11-01T10:00:00.000Z"}
+
   /api/admin/reports:
     get:
       operationId: getAdminReports
@@ -1100,6 +1205,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Content not found.", "path": "/api/admin/content/flight/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+
+  /api/admin/content/{type}/{id}/hide:
+    patch:
+      operationId: patchAdminContentByTypeByIdHide
+      tags: [Administration]
+      summary: 'Hide a post, comment, review or itinerary (GEN-10)'
+      description: |
+        **Access:** admin.
+
+        Hides inappropriate content directly. Hidden content is visible only to its author and admins.
+        Open reports about it are closed as `content_hidden`. The action is written to the audit log (GEN-07).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/ContentTypePath'
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Content hidden successfully.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/content/post/665f1c2a9b1e8a00123400a1/hide", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '404':
+          description: Content not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Content not found.", "path": "/api/admin/content/post/665f1c2a9b1e8a00123400a1/hide", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/admin/audit-logs:
     get:
@@ -6378,6 +6519,47 @@ components:
         date:
           type: string
           format: date-time
+
+    NotificationItem:
+      type: object
+      properties:
+        id:
+          type: string
+          example: '665f1c2a9b1e8a00123400b2'
+        userId:
+          type: string
+          example: '665f1c2a9b1e8a0012340099'
+        title:
+          type: string
+          example: Booking Confirmed
+        message:
+          type: string
+          example: Your flight booking MS123 has been confirmed.
+        type:
+          type: string
+          example: booking_confirmed
+        read:
+          type: boolean
+          example: false
+        readAt:
+          type: string
+          format: date-time
+        link:
+          type: string
+          example: /bookings/flight/665f1c2a9b1e8a00123400b2
+        createdAt:
+          type: string
+          format: date-time
+
+    UnreadCountResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 3
+        unreadCount:
+          type: integer
+          example: 3
 
     ResolveReportRequest:
       type: object
