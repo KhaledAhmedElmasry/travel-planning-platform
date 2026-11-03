@@ -197,7 +197,7 @@ and suggesting Swagger test cases to verify validation behavior.
 
 ================================================
 Date: 2026-11-02
-Student: Husien Shata
+Student: Hussien Shata
 Tool: Claude
 Related Requirement: GEN-13
 
@@ -222,7 +222,7 @@ with npm run lint and npm run build (0 errors).
 
 ================================================
 Date: 2026-11-02
-Student: Hussein Shata
+Student: Hussien Shata
 Tool: Claude
 Related Requirement: GEN-04, GEN-05
 
@@ -324,6 +324,51 @@ protections against extra fields are removed), and in Swagger.
 ================================================
 Date: 2026-11-03
 Student: Hussien Shata
+Tool: Claude
+Related Requirement: ACC-14
+
+Prompt:
+Help me plan how to implement ACC-14 (admin view of paginated accounts list). Provide
+guidance on designing a GET /api/admin/accounts endpoint with pagination, search by
+name/email, filtering by role and status, sorting newest first, and friendly empty
+states.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the endpoint.
+Implemented GET /api/admin/accounts myself, including paginated accounts listing,
+search by name/email, filtering by role and status, sorting newest first, and friendly
+empty states. AI also assisted with reviewing the implementation and identifying
+potential issues
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: ACC-15, ACC-16
+
+Prompt:
+Help me plan how to implement ACC-15 and ACC-16 (admin suspension and reactivation
+of moderator and registered user accounts). Provide guidance on designing
+PATCH /api/admin/accounts/:id/suspend and PATCH /api/admin/accounts/:id/reactivate
+endpoints, including session revocation (NEW-07), in-app notifications (GEN-01),
+audit logging (GEN-07), preventing admin accounts from being suspended, conflict
+checks for already suspended or active accounts, and extra provider
+deactivation/reactivation endpoints.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the
+endpoints. Implemented PATCH /api/admin/accounts/:id/suspend and
+PATCH /api/admin/accounts/:id/reactivate myself for moderator and registered user
+accounts, along with session revocation, in-app notifications, audit logging,
+prevention of admin suspension, conflict checks, and the extra provider
+deactivation/reactivation endpoints. AI also assisted with reviewing the
+implementation and identifying potential issues.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
 Tool: Antigravity
 Related Requirement: ACC-17
 
@@ -340,3 +385,4 @@ Used AI guidance to understand the implementation approach and structure the
 endpoint. Implemented ListBookingsQueryDto, AdminController.getBookings, and
 AdminService.listBookings myself, with Mongoose queries across the FlightBooking and
 HotelBooking collections.
+================================================
