@@ -1,11 +1,37 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  NotImplementedException,
+} from '@nestjs/common';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, isValidObjectId, Model, Types } from 'mongoose';
 import type {
   CancellationTier,
   RefundTier,
 } from '../payments/interfaces/payable-booking.interface';
+import { CreateHotelDto } from './dto/create-hotel.dto';
+import { UpdateHotelDto } from './dto/update-hotel.dto';
+import { Hotel, HotelDocument, HotelPhoto } from './schemas/hotel.schema';
 
 // Area: Hotels & Rooms
 // Business logic and database access for: HTL-01..HTL-06, HTL-08..HTL-12, HTL-15, HTL-22
+
+export const MAX_HOTEL_PHOTOS = 5; // GEN-08
+
+// A photo already stored by the upload service (GEN-08).
+export interface NewHotelPhoto {
+  url: string;
+  filename: string;
+}
+
+// The logged-in user. hotelId is the hotel a moderator is assigned to (ACC-13).
+// TODO: map this from the real current-user object once Area 2 is merged.
+export interface HotelActor {
+  id: string;
+  hotelId?: string | null;
+}
 
 // The hotel rules a reservation needs (HTL-09, HTL-10): shown before payment (PAY-02) and used
 // for refunds (HTL-21).
@@ -20,7 +46,158 @@ export interface HotelBookingPoliciesData {
 
 @Injectable()
 export class HotelsService {
-  // TODO: implement.
+  constructor(
+    @InjectModel(Hotel.name) private readonly hotelModel: Model<Hotel>,
+    @InjectConnection() private readonly connection: Connection,
+  ) {}
+
+  // --- HTL-01: create (admin only; the controller enforces the role) ---
+
+  async createHotel(dto: CreateHotelDto, photos: NewHotelPhoto[] = []) {
+    if (photos.length > MAX_HOTEL_PHOTOS) {
+      throw new BadRequestException(
+        `A hotel can have at most ${MAX_HOTEL_PHOTOS} photos.`,
+      );
+    }
+    await this.assertCityInCountry(dto.cityId, dto.countryCode);
+
+    const hotel = await this.hotelModel.create({
+      name: dto.name,
+      address: dto.address,
+      cityId: dto.cityId,
+      countryCode: dto.countryCode,
+      description: dto.description,
+      starRating: dto.starRating,
+      amenities: dto.amenities ?? [],
+      photos,
+      active: true,
+    });
+    return this.toResponse(hotel);
+  }
+
+  // --- HTL-01: edit (only the moderator assigned to THIS hotel) ---
+
+  async updateHotel(
+    hotelId: string,
+    actor: HotelActor,
+    dto: UpdateHotelDto,
+    newPhotos: NewHotelPhoto[] = [],
+  ) {
+    const hotel = await this.findHotelOrThrow(hotelId);
+
+    if (!actor.hotelId || String(actor.hotelId) !== hotel.id) {
+      throw new ForbiddenException(
+        'You can only edit the hotel you are assigned to.',
+      );
+    }
+
+    // If either the city or the country changes, the pair must still match.
+    if (dto.cityId !== undefined || dto.countryCode !== undefined) {
+      await this.assertCityInCountry(
+        dto.cityId ?? hotel.cityId,
+        dto.countryCode ?? hotel.countryCode,
+      );
+    }
+
+    // Photos: remove the requested ones, add the new ones, at most 5 in total.
+    const removeIds = new Set(dto.removePhotoIds ?? []);
+    const existingIds = new Set(hotel.photos.map((p) => this.photoId(p)));
+    const unknownIds = [...removeIds].filter((id) => !existingIds.has(id));
+    if (unknownIds.length > 0) {
+      throw new BadRequestException(
+        `Unknown photo id(s): ${unknownIds.join(', ')}.`,
+      );
+    }
+    const kept = hotel.photos
+      .filter((p) => !removeIds.has(this.photoId(p)))
+      .map((p) => ({
+        _id: this.rawPhotoId(p),
+        url: p.url,
+        filename: p.filename,
+      }));
+    if (kept.length + newPhotos.length > MAX_HOTEL_PHOTOS) {
+      throw new BadRequestException(
+        `A hotel can have at most ${MAX_HOTEL_PHOTOS} photos. It would have ${kept.length + newPhotos.length}.`,
+      );
+    }
+
+    // Apply only the fields that were sent.
+    if (dto.name !== undefined) hotel.name = dto.name;
+    if (dto.address !== undefined) hotel.address = dto.address;
+    if (dto.cityId !== undefined) hotel.cityId = dto.cityId;
+    if (dto.countryCode !== undefined) hotel.countryCode = dto.countryCode;
+    if (dto.description !== undefined) hotel.description = dto.description;
+    if (dto.starRating !== undefined) hotel.starRating = dto.starRating;
+    if (dto.amenities !== undefined) hotel.amenities = dto.amenities;
+    hotel.set('photos', [...kept, ...newPhotos]);
+
+    // NOTE: files of removed photos stay on disk until the upload service can delete them.
+    await hotel.save();
+    return this.toResponse(hotel);
+  }
+
+  // --- helpers ---
+
+  private async findHotelOrThrow(hotelId: string): Promise<HotelDocument> {
+    if (!isValidObjectId(hotelId))
+      throw new NotFoundException('Hotel not found.');
+    const hotel = await this.hotelModel.findById(hotelId);
+    if (!hotel) throw new NotFoundException('Hotel not found.');
+    return hotel;
+  }
+
+  // NEW-05: the country and city must exist, and the city must belong to the country.
+  // TODO: replace with ReferenceDataService once Area 5 exports its lookups.
+  private async assertCityInCountry(cityId: string, countryCode: string) {
+    const db = this.connection.db!;
+    const country = await db
+      .collection<{ _id: string }>('countries')
+      .findOne({ _id: countryCode });
+    if (!country) {
+      throw new BadRequestException(`Unknown countryCode "${countryCode}".`);
+    }
+    const city = await db
+      .collection<{ _id: string; countryCode: string }>('cities')
+      .findOne({ _id: cityId });
+    if (!city) {
+      throw new BadRequestException(`Unknown cityId "${cityId}".`);
+    }
+    if (city.countryCode !== countryCode) {
+      throw new BadRequestException(
+        `City "${cityId}" is not in country "${countryCode}".`,
+      );
+    }
+  }
+
+  private rawPhotoId(photo: HotelPhoto): Types.ObjectId {
+    return (photo as unknown as { _id: Types.ObjectId })._id;
+  }
+
+  private photoId(photo: HotelPhoto): string {
+    return String(this.rawPhotoId(photo));
+  }
+
+  private toResponse(hotel: HotelDocument) {
+    return {
+      id: hotel.id as string,
+      name: hotel.name,
+      address: hotel.address,
+      cityId: hotel.cityId,
+      countryCode: hotel.countryCode,
+      description: hotel.description,
+      starRating: hotel.starRating,
+      amenities: hotel.amenities,
+      photos: hotel.photos.map((p) => ({ id: this.photoId(p), url: p.url })),
+      checkInTime: hotel.checkInTime,
+      checkOutTime: hotel.checkOutTime,
+      cancellationTiers: hotel.cancellationTiers,
+      active: hotel.active,
+      averageRating: hotel.averageRating,
+      ratingCount: hotel.ratingCount,
+      createdAt: hotel.get('createdAt') as Date | undefined,
+      updatedAt: hotel.get('updatedAt') as Date | undefined,
+    };
+  }
 
   // --- Used by hotel bookings (Area 1: PAY-02, HTL-21) ---
 
