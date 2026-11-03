@@ -1,5 +1,22 @@
-import { Controller } from '@nestjs/common';
-import { ItinerariesService } from './itineraries.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { CurrentUser, Roles } from '../common/decorators';
+import { Role } from '../common/enums';
+import { JwtAuthGuard } from '../common/guards/auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import type { AuthUser } from '../common/interfaces';
+import { CreateItineraryDto } from './dto/create-itinerary.dto';
+import { UpdateItineraryDto } from './dto/update-itinerary.dto';
+import { ItinerariesService, ItineraryResponse } from './itineraries.service';
 
 // Area: Itineraries
 // Requirements: ITN-01..ITN-26
@@ -43,5 +60,38 @@ import { ItinerariesService } from './itineraries.service';
 export class ItinerariesController {
   constructor(private readonly itinerariesService: ItinerariesService) {}
 
-  // TODO: add the endpoints listed above.
+  // ITN-01: registered users create private itineraries only. Visibility changes are ITN-20.
+  @Post('itineraries')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  create(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateItineraryDto,
+  ): Promise<ItineraryResponse> {
+    return this.itinerariesService.create(user.id, dto);
+  }
+
+  // ITN-01: ownership is enforced in the service so another user's itinerary is indistinguishable
+  // from a missing one (ACC-11).
+  @Patch('itineraries/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  update(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateItineraryDto,
+  ): Promise<ItineraryResponse> {
+    return this.itinerariesService.update(id, user.id, dto);
+  }
+
+  @Delete('itineraries/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    await this.itinerariesService.remove(id, user.id);
+  }
 }
