@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,9 +13,16 @@ import {
   paginate,
   PaginatedList,
 } from '../common/dto/pagination.dto';
+import { MAX_ITINERARY_DAYS, renumberDays } from './day-schedule';
+import { CreateDayDto } from './dto/create-day.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
+import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
-import { Itinerary, ItineraryDocument } from './schemas/itinerary.schema';
+import {
+  Itinerary,
+  ItineraryDay,
+  ItineraryDocument,
+} from './schemas/itinerary.schema';
 
 // Area: Itineraries
 // Business logic and database access for: ITN-01..ITN-26
@@ -51,11 +59,64 @@ export class ItinerariesService {
       itinerary.countryCodes = dto.countryCodes;
     }
     if (dto.title !== undefined) itinerary.title = dto.title;
-    if (dto.startDate !== undefined)
+    if (dto.startDate !== undefined) {
       itinerary.startDate = toStartDate(dto.startDate);
+      // Changing the start date moves the dates of all days (openapi.yaml, PATCH /itineraries/{id}).
+      renumberDays(itinerary.days, itinerary.startDate);
+    }
 
     await itinerary.save();
     return this.toResponse(itinerary);
+  }
+
+  // ITN-05: adds a day at the end. Its number and date come from renumberDays.
+  async addDay(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+    dto: CreateDayDto,
+  ): Promise<DayResponse> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    if (itinerary.days.length >= MAX_ITINERARY_DAYS) {
+      throw new ConflictException(
+        `The itinerary already has ${MAX_ITINERARY_DAYS} days.`,
+      );
+    }
+    await this.assertCityExists(dto.cityId);
+
+    // number and date are placeholders here; renumberDays sets the real values below.
+    itinerary.days.push({
+      cityId: dto.cityId,
+      notes: dto.notes ?? '',
+      number: 0,
+      date: itinerary.startDate,
+    });
+    renumberDays(itinerary.days, itinerary.startDate);
+    await itinerary.save();
+
+    return toDayResponse(itinerary.days[itinerary.days.length - 1]);
+  }
+
+  // ITN-05: edits the city and / or notes of one day. Position and date are unchanged, but the
+  // days are still renumbered so every day change goes through the same helper.
+  async updateDay(
+    itineraryId: string | Types.ObjectId,
+    dayId: string | Types.ObjectId,
+    userId: string,
+    dto: UpdateDayDto,
+  ): Promise<DayResponse> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    const day = isValidObjectId(dayId) ? itinerary.days.id(dayId) : null;
+    if (!day) throw dayNotFound();
+
+    if (dto.cityId !== undefined) {
+      await this.assertCityExists(dto.cityId);
+      day.cityId = dto.cityId;
+    }
+    if (dto.notes !== undefined) day.notes = dto.notes;
+
+    renumberDays(itinerary.days, itinerary.startDate);
+    await itinerary.save();
+    return toDayResponse(day);
   }
 
   async list(
@@ -123,6 +184,19 @@ export class ItinerariesService {
     }
   }
 
+  // ITN-05 / NEW-05: the city must be in the seeded cities collection ({ _id: cityId }). Read
+  // directly, as for countries above, so this module does not depend on the reference-data module.
+  private async assertCityExists(cityId: string): Promise<void> {
+    const count = await this.connection
+      .collection<{ _id: string }>('cities')
+      .countDocuments({ _id: cityId }, { limit: 1 });
+    if (count !== 1) {
+      throw new BadRequestException(
+        `cityId '${cityId}' is not in the list of cities.`,
+      );
+    }
+  }
+
   private toResponse(itinerary: ItineraryDocument): ItineraryResponse {
     return {
       id: String(itinerary.id),
@@ -130,8 +204,7 @@ export class ItinerariesService {
       countryCodes: itinerary.countryCodes,
       startDate: itinerary.startDate.toISOString().slice(0, 10),
       visibility: itinerary.visibility,
-      // Day storage and day management are ITN-05. Before that issue, the full itinerary has no days.
-      days: [],
+      days: itinerary.days.map(toDayResponse),
       createdAt: itinerary.createdAt,
       updatedAt: itinerary.updatedAt,
     };
@@ -143,10 +216,20 @@ export class ItinerariesService {
       title: itinerary.title,
       countryCodes: itinerary.countryCodes,
       startDate: itinerary.startDate.toISOString().slice(0, 10),
-      numberOfDays: 0,
+      numberOfDays: itinerary.days.length,
       visibility: itinerary.visibility,
     };
   }
+}
+
+// ITN-05: the public shape of a day. Keep these fields stable (Area 6 and the frontend use them);
+// later issues add activities (ITN-10) and budget entries (ITN-14) alongside.
+export interface DayResponse {
+  id: string;
+  number: number;
+  date: string;
+  cityId: string;
+  notes: string;
 }
 
 export interface ItineraryResponse {
@@ -155,7 +238,7 @@ export interface ItineraryResponse {
   countryCodes: string[];
   startDate: string;
   visibility: 'private' | 'public';
-  days: [];
+  days: DayResponse[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -171,6 +254,22 @@ export interface ItinerarySummary {
 
 function toStartDate(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
+}
+
+function toDayResponse(day: ItineraryDay): DayResponse {
+  return {
+    id: String(day._id),
+    number: day.number,
+    date: day.date.toISOString().slice(0, 10),
+    cityId: day.cityId,
+    notes: day.notes ?? '',
+  };
+}
+
+function dayNotFound(): NotFoundException {
+  return new NotFoundException(
+    'Itinerary or day not found, or the itinerary belongs to another user.',
+  );
 }
 
 function itineraryNotFound(): NotFoundException {

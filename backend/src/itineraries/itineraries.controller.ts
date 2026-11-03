@@ -19,10 +19,13 @@ import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { PaginatedList } from '../common/dto/pagination.dto';
+import { CreateDayDto } from './dto/create-day.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { ListItinerariesQueryDto } from './dto/list-itineraries-query.dto';
+import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
 import {
+  DayResponse,
   ItinerariesService,
   ItineraryResponse,
   ItinerarySummary,
@@ -125,5 +128,30 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
     await this.itinerariesService.remove(id, user.id);
+  }
+
+  // ITN-05: adds a day at the end; the service sets its number and date.
+  @Post('itineraries/:id/days')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  addDay(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateDayDto,
+  ): Promise<DayResponse> {
+    return this.itinerariesService.addDay(id, user.id, dto);
+  }
+
+  // ITN-05: edits a day's city and notes. ITN-08 must declare PATCH days/reorder above this route.
+  @Patch('itineraries/:id/days/:dayId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  updateDay(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('dayId', ParseObjectIdPipe) dayId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateDayDto,
+  ): Promise<DayResponse> {
+    return this.itinerariesService.updateDay(id, dayId, user.id, dto);
   }
 }
