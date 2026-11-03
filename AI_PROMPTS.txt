@@ -320,7 +320,6 @@ npm run build, local tests (including checks that fail when the currency check o
 protections against extra fields are removed), and in Swagger.
 ================================================
 
-
 ================================================
 Date: 2026-11-03
 Student: Hussien Shata
@@ -338,7 +337,7 @@ Used AI guidance to understand the implementation approach and structure the end
 Implemented GET /api/admin/accounts myself, including paginated accounts listing,
 search by name/email, filtering by role and status, sorting newest first, and friendly
 empty states. AI also assisted with reviewing the implementation and identifying
-potential issues
+potential issues.
 ================================================
 
 ================================================
@@ -385,4 +384,25 @@ Used AI guidance to understand the implementation approach and structure the
 endpoint. Implemented ListBookingsQueryDto, AdminController.getBookings, and
 AdminService.listBookings myself, with Mongoose queries across the FlightBooking and
 HotelBooking collections.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-07
+
+Prompt:
+Help me plan how to implement GEN-07 (audit log of admin actions). Provide guidance
+on designing the AuditLog schema, structuring an AuditService with record() and list()
+methods, exposing GET /api/admin/audit-logs with filtering by action and date range
+(from, to), GEN-05 pagination (page size 10) and GEN-04 empty state, and connecting
+the reset-password admin action to the audit log.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the module.
+Created the AuditLog schema, ListAuditLogsQueryDto, AuditService, and AuditController
+myself, added the AuditAction enum, and linked password reset audit recording in
+AdminUsersController. AI also assisted with reviewing the implementation and
+identifying potential issues.
 ================================================

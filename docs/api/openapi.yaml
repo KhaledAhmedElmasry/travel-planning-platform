@@ -6118,6 +6118,10 @@ components:
         - dismiss_report
         - hide_content
         - delete_content
+        - deactivate_airline
+        - reactivate_airline
+        - deactivate_hotel
+        - reactivate_hotel
 
     # --- Authentication and Accounts ---
 
