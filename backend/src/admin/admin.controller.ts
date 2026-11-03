@@ -1,5 +1,10 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Roles } from '../common/decorators';
+import { Role } from '../common/enums';
+import { JwtAuthGuard } from '../common/guards/auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { AdminService } from './admin.service';
+import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 
 // Area: Auth & Accounts
 // Requirements: ACC-07a, ACC-13, ACC-14, ACC-15, ACC-16, ACC-17
@@ -20,8 +25,14 @@ import { AdminService } from './admin.service';
 // Bonus endpoints:
 //   an analytics endpoint: bookings and revenue per provider over a period   BON-01
 @Controller('admin')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.Admin)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  // TODO: add the endpoints listed above.
+  // ACC-17: View a read-only list of all flight and hotel bookings
+  @Get('bookings')
+  getBookings(@Query() query: ListBookingsQueryDto) {
+    return this.adminService.listBookings(query);
+  }
 }
