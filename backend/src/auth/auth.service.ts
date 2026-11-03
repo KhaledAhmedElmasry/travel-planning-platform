@@ -71,6 +71,14 @@ export interface LoginResult {
 const EMAIL_TAKEN = 'An account with this email already exists';
 // ACC-04: one generic message, so nobody can find out which emails are registered.
 const INVALID_CREDENTIALS = 'Invalid email or password';
+
+// GEN-02: a 400 for one form field, in the Error format of openapi.yaml (fieldErrors).
+function fieldError(field: string, message: string): BadRequestException {
+  return new BadRequestException({
+    message,
+    fieldErrors: [{ field, messages: [message] }],
+  });
+}
 const ACCOUNT_DEACTIVATED = 'This account has been deactivated';
 
 // Area: Auth & Accounts
@@ -218,11 +226,13 @@ export class AuthService {
     // The guard has just loaded this account, so this only happens if it was deleted meanwhile.
     if (!account) throw new UnauthorizedException('You must be logged in');
 
+    // GEN-02: returned as field errors, so the form shows them under the right field.
     if (!(await bcrypt.compare(dto.currentPassword, account.passwordHash))) {
-      throw new BadRequestException('Current password is incorrect');
+      throw fieldError('currentPassword', 'Current password is incorrect');
     }
     if (await bcrypt.compare(dto.newPassword, account.passwordHash)) {
-      throw new BadRequestException(
+      throw fieldError(
+        'newPassword',
         'New password must be different from the current password',
       );
     }

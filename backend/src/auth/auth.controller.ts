@@ -91,8 +91,7 @@ export class AuthController {
   @AllowPendingPasswordChange()
   changePassword(
     @CurrentUser() user: AuthUser,
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto: ChangePasswordDto,
+    @Body() dto: ChangePasswordDto,
   ): Promise<ChangePasswordResponse> {
     return this.authService.changePassword(user, dto);
   }
