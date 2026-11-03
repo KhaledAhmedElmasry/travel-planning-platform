@@ -429,3 +429,26 @@ with the GET /api/currencies route. Added the endpoint to docs/api/openapi.yaml 
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: NEW-05
+
+Prompt:
+Continuing my Area 5 work, I asked the assistant to implement NEW-05 on top of my GEN-12 branch:
+public read endpoints for the official countries, cities (filtered by country) and attractions
+(filtered by city), following docs/requirements/ASSUMED_REQUIREMENTS.md, and exported lookups in
+ReferenceDataService so other modules (hotels, itineraries) can reject an unknown country or city,
+or a city that is not in the given country, with a 400 error.
+
+How the output was used:
+Used the generated query DTOs (list-countries, list-cities, list-attractions) with class-validator
+rules, the list methods and the lookups assertCountry(), assertCountries(), assertCity() and
+assertCityInCountry() in ReferenceDataService (same error messages as the temporary check in
+hotels.service.ts so Area 7 can switch to them), and the routes GET /api/countries, /api/cities and
+/api/attractions. Added the three endpoints to docs/api/openapi.yaml as extra endpoints.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================

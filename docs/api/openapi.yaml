@@ -5217,6 +5217,117 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
 
+  /api/countries:
+    get:
+      operationId: getCountries
+      tags: [Reference Data]
+      summary: 'List the countries (NEW-05)'
+      description: |
+        **Access:** everyone, including guests.
+
+        The predefined, read-only country list loaded at setup from the official dataset (GEN-12),
+        sorted by name. Countries are keyed by their official `code` (e.g. `EG`); hotels and
+        itineraries accept only codes from this list (NEW-05). Extra endpoint, not in PDF section 8.
+      security: []
+      parameters:
+        - name: search
+          in: query
+          description: Part of the country code or name (case-insensitive).
+          schema:
+            type: string
+            maxLength: 100
+            example: egy
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - code, name, currency.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"code": "EG", "name": "Egypt", "currency": "EGP"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/cities:
+    get:
+      operationId: getCities
+      tags: [Reference Data]
+      summary: 'List the cities (NEW-05)'
+      description: |
+        **Access:** everyone, including guests.
+
+        The predefined, read-only city list loaded at setup from the official dataset (GEN-12),
+        sorted by name. Cities are keyed by their official `cityId` (e.g. `cairo`) and belong to one
+        country (NEW-05). Extra endpoint, not in PDF section 8.
+      security: []
+      parameters:
+        - name: country
+          in: query
+          description: Only the cities of this country (code from the countries list, any letter case).
+          schema:
+            type: string
+            example: EG
+        - name: search
+          in: query
+          description: Part of the city id or name (case-insensitive).
+          schema:
+            type: string
+            maxLength: 100
+            example: cai
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - cityId, name, countryCode.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"cityId": "cairo", "name": "Cairo", "countryCode": "EG"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+        '400':
+          description: Invalid query, or the country is not in the countries list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Unknown countryCode \"XX\".", "path": "/api/cities", "timestamp": "2026-11-01T10:00:00.000Z"}
+
+  /api/attractions:
+    get:
+      operationId: getAttractions
+      tags: [Reference Data]
+      summary: 'List the attractions (NEW-05)'
+      description: |
+        **Access:** everyone, including guests.
+
+        The predefined, read-only attraction list loaded at setup from the official dataset (GEN-12),
+        sorted by name. Attractions are keyed by their official `attractionId` (e.g. `att-1`) and
+        belong to one city. Extra endpoint, not in PDF section 8.
+      security: []
+      parameters:
+        - name: city
+          in: query
+          description: Only the attractions of this city (cityId from the cities list).
+          schema:
+            type: string
+            example: cairo
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - attractionId, name, cityId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"attractionId": "att-1", "name": "Giza Pyramids and Sphinx", "cityId": "cairo"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+        '400':
+          description: Invalid query, or the city is not in the cities list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Unknown cityId \"atlantis\".", "path": "/api/attractions", "timestamp": "2026-11-01T10:00:00.000Z"}
+
   # ---------------------------------------------------------------------------
   # Health (not a requirement)
   # ---------------------------------------------------------------------------
