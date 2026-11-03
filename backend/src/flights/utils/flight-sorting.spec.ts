@@ -21,7 +21,7 @@ function flight(
       `2026-11-02T${String(departureHour).padStart(2, '0')}:00:00.000Z`,
     ),
     durationMinutes,
-    cabins: cabinPrices.map((totalPrice) => ({ totalPrice })),
+    cabins: cabinPrices.map((price) => ({ price })),
   };
 }
 

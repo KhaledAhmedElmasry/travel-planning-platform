@@ -1,15 +1,13 @@
 // Requirement: FLT-17.
 import {
-  Inject,
-  Injectable,
   InternalServerErrorException,
+  Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Airline } from './placeholders/airline.schema';
 import { Airport } from './placeholders/airport.schema';
-import { Flight, FlightCabin } from './placeholders/flight.schema';
 import {
   calculateSeatsRemaining,
   getBookableState,
@@ -19,8 +17,7 @@ import {
 } from './utils/flight-details.helpers';
 import { calculateDurationMinutes } from './utils/flight-time';
 import { toLocalIsoString } from './placeholders/local-time.placeholder';
-import { SEAT_RESERVATION_PROVIDER } from './placeholders/seat-reservation-provider.placeholder';
-import type { SeatReservationProvider } from './placeholders/seat-reservation-provider.placeholder';
+import { Flight, FlightCabin } from './schemas/flight.schema';
 import {
   FlightDetailsCabinDto,
   FlightDetailsResponseDto,
@@ -28,7 +25,7 @@ import {
 
 type PopulatedAirport = Pick<
   Airport,
-  'iataCode' | 'name' | 'city' | 'country' | 'timeZone'
+  'iataCode' | 'name' | 'cityId' | 'countryCode' | 'timeZone'
 > & { _id: string };
 
 type PopulatedAirline = Pick<
@@ -36,9 +33,10 @@ type PopulatedAirline = Pick<
   | 'name'
   | 'code'
   | 'logoUrl'
-  | 'isActive'
-  | 'baggagePolicy'
-  | 'cancellationPolicy'
+  | 'active'
+  | 'extraBagPrice'
+  | 'maxExtraBagsPerPassenger'
+  | 'cancellationTiers'
 > & { _id: Types.ObjectId };
 
 type FlightWithPopulatedReferences = Omit<
@@ -52,23 +50,20 @@ type FlightWithPopulatedReferences = Omit<
 };
 
 const AIRPORT_POPULATION_FIELDS =
-  'iataCode name city country timeZone' as const;
+  'iataCode name cityId countryCode timeZone' as const;
 const AIRLINE_POPULATION_FIELDS =
-  'name code logoUrl isActive baggagePolicy cancellationPolicy' as const;
+  'name code logoUrl active extraBagPrice maxExtraBagsPerPassenger cancellationTiers' as const;
 
 @Injectable()
 export class FlightDetailsService {
   constructor(
     @InjectModel(Flight.name)
     private readonly flightModel: Model<Flight>,
-    @Inject(SEAT_RESERVATION_PROVIDER)
-    private readonly seatReservationProvider: SeatReservationProvider,
   ) {}
 
   async getFlightDetails(
     id: Types.ObjectId,
   ): Promise<FlightDetailsResponseDto> {
-    // TODO(FLT-06 / FLT-05): Cancellation and rescheduling update live status/times, which this fresh read reflects.
     const flight = await this.flightModel
       .findById(id)
       .populate<{
@@ -92,33 +87,18 @@ export class FlightDetailsService {
       );
     }
 
-    const flightId = flight._id.toString();
-    const reservationsByFlight =
-      await this.seatReservationProvider.getReservedSeats([flightId]);
-    const reservations = reservationsByFlight.get(flightId);
-    if (!reservations) {
-      throw new InternalServerErrorException(
-        `Seat reservation provider returned no counters for flight ${flightId}.`,
-      );
-    }
-
-    const cabins = this.toCabinDtos(
-      flight.cabins,
-      reservations,
-      flight.airline,
-    );
+    const cabins = this.toCabinDtos(flight.cabins, flight.airline);
     const tiers = sortAndDescribeCancellationTiers(
-      flight.airline.cancellationPolicy?.tiers,
+      flight.airline.cancellationTiers,
     );
     const bookable = getBookableState(
       flight.status,
-      flight.airline.isActive,
-      flight.departureUtc,
+      flight.airline.active,
+      flight.departureAt,
     );
-    const baggagePolicy = flight.airline.baggagePolicy;
 
     return {
-      id: flightId,
+      id: flight._id.toString(),
       airline: {
         id: flight.airline._id.toString(),
         name: flight.airline.name,
@@ -127,45 +107,24 @@ export class FlightDetailsService {
       },
       flightNumber: flight.flightNumber,
       status: flight.status,
-      departureAirport: {
-        id: String(flight.departureAirport._id),
-        iataCode: flight.departureAirport.iataCode,
-        name: flight.departureAirport.name,
-        city: flight.departureAirport.city,
-        country: flight.departureAirport.country,
-        timeZone: flight.departureAirport.timeZone,
-      },
-      arrivalAirport: {
-        id: String(flight.arrivalAirport._id),
-        iataCode: flight.arrivalAirport.iataCode,
-        name: flight.arrivalAirport.name,
-        city: flight.arrivalAirport.city,
-        country: flight.arrivalAirport.country,
-        timeZone: flight.arrivalAirport.timeZone,
-      },
-      // Format each UTC instant in its own airport zone; do not use the server's local zone.
+      departureAirport: this.toAirportDto(flight.departureAirport),
+      arrivalAirport: this.toAirportDto(flight.arrivalAirport),
       departureLocal: toLocalIsoString(
-        flight.departureUtc,
+        flight.departureAt,
         flight.departureAirport.timeZone,
       ),
       arrivalLocal: toLocalIsoString(
-        flight.arrivalUtc,
+        flight.arrivalAt,
         flight.arrivalAirport.timeZone,
       ),
-      departureUtc: flight.departureUtc.toISOString(),
-      arrivalUtc: flight.arrivalUtc.toISOString(),
+      departureUtc: flight.departureAt.toISOString(),
+      arrivalUtc: flight.arrivalAt.toISOString(),
       durationMinutes: calculateDurationMinutes(
-        flight.departureUtc,
-        flight.arrivalUtc,
+        flight.departureAt,
+        flight.arrivalAt,
       ),
       cabins,
-      extraBaggage: baggagePolicy
-        ? {
-            pricePerExtraBag: baggagePolicy.pricePerExtraBag,
-            maxExtraBagsPerPassenger: baggagePolicy.maxExtraBagsPerPassenger,
-            maxWeightKgPerBag: null,
-          }
-        : null,
+      extraBaggage: this.toExtraBaggageDto(flight.airline),
       cancellationPolicy: {
         tiers,
         note: tiers.length === 0 ? NO_CANCELLATION_REFUND_NOTE : null,
@@ -177,24 +136,16 @@ export class FlightDetailsService {
 
   private toCabinDtos(
     cabins: FlightCabin[],
-    reservations: Record<string, { booked: number; held: number }>,
     airline: PopulatedAirline,
   ): FlightDetailsCabinDto[] {
     return orderCabinsByCategory(cabins).map((cabin) => {
-      const cabinReservations = reservations[cabin.category];
-      if (!cabinReservations) {
-        throw new InternalServerErrorException(
-          `Seat reservation provider returned no counters for cabin ${cabin.category}.`,
-        );
-      }
       const seatsRemaining = calculateSeatsRemaining(
-        cabin.seatCount,
-        cabinReservations.booked,
-        cabinReservations.held,
+        cabin.total,
+        cabin.booked,
+        cabin.held,
       );
-      const baggagePolicy = airline.baggagePolicy;
       return {
-        category: cabin.category,
+        category: cabin.cabinClass,
         price: cabin.price,
         seatsRemaining,
         soldOut: seatsRemaining === 0,
@@ -202,14 +153,30 @@ export class FlightDetailsService {
           bags: cabin.freeBags,
           maxWeightKgPerBag: cabin.maxBagWeightKg,
         },
-        extraBaggage: baggagePolicy
-          ? {
-              pricePerExtraBag: baggagePolicy.pricePerExtraBag,
-              maxExtraBagsPerPassenger: baggagePolicy.maxExtraBagsPerPassenger,
-              maxWeightKgPerBag: cabin.maxBagWeightKg,
-            }
-          : null,
+        extraBaggage: this.toExtraBaggageDto(airline, cabin.maxBagWeightKg),
       };
     });
+  }
+
+  private toExtraBaggageDto(
+    airline: PopulatedAirline,
+    maxWeightKgPerBag: number | null = null,
+  ) {
+    return {
+      pricePerExtraBag: airline.extraBagPrice,
+      maxExtraBagsPerPassenger: airline.maxExtraBagsPerPassenger,
+      maxWeightKgPerBag,
+    };
+  }
+
+  private toAirportDto(airport: PopulatedAirport) {
+    return {
+      id: String(airport._id),
+      iataCode: airport.iataCode,
+      name: airport.name,
+      cityId: airport.cityId,
+      countryCode: airport.countryCode,
+      timeZone: airport.timeZone,
+    };
   }
 }

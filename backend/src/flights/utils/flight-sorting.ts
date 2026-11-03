@@ -1,19 +1,16 @@
 // Requirement: FLT-15.
 import { BadRequestException } from '@nestjs/common';
-import { roundCurrencyAmount } from './passenger-pricing';
 
 export enum FlightSortBy {
   Price = 'price',
   Duration = 'duration',
-  DepartureTime = 'departureTime',
+  DepartureTime = 'departure_time',
 }
 
 export enum FlightSortOrder {
   Ascending = 'asc',
   Descending = 'desc',
 }
-
-export const OPENAPI_DEPARTURE_TIME_SORT = 'departure_time';
 
 export interface PriceRange {
   minPrice?: number;
@@ -24,7 +21,7 @@ export interface SortableFlightResult {
   flightId: string;
   departureUtc: Date;
   durationMinutes: number;
-  cabins: { totalPrice: number }[];
+  cabins: { price: number }[];
 }
 
 export function validatePriceRange({ minPrice, maxPrice }: PriceRange): void {
@@ -36,26 +33,17 @@ export function validatePriceRange({ minPrice, maxPrice }: PriceRange): void {
 }
 
 export function isWithinPriceRange(
-  totalPrice: number,
+  cabinFare: number,
   { minPrice, maxPrice }: PriceRange,
 ): boolean {
-  // Round the displayed cabin total and bounds before inclusive comparisons to avoid float drift.
-  const roundedTotal = roundCurrencyAmount(totalPrice);
-  const roundedMinimum =
-    minPrice === undefined ? undefined : roundCurrencyAmount(minPrice);
-  const roundedMaximum =
-    maxPrice === undefined ? undefined : roundCurrencyAmount(maxPrice);
   return (
-    (roundedMinimum === undefined || roundedTotal >= roundedMinimum) &&
-    (roundedMaximum === undefined || roundedTotal <= roundedMaximum)
+    (minPrice === undefined || cabinFare >= minPrice) &&
+    (maxPrice === undefined || cabinFare <= maxPrice)
   );
 }
 
 function lowestMatchingCabinPrice(flight: SortableFlightResult): number {
-  // Price sorting follows the cheapest cabin still visible after all search filters.
-  return Math.min(
-    ...flight.cabins.map(({ totalPrice }) => roundCurrencyAmount(totalPrice)),
-  );
+  return Math.min(...flight.cabins.map(({ price }) => price));
 }
 
 export function compareFlightSearchResults(

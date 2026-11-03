@@ -1,4 +1,4 @@
-// TODO(AREA-5): PLACEHOLDER until Area 5 airport schema is merged. Replace this schema and delete this file.
+// TODO(AREA-5): Replace with the shared airport schema when it is available.
 // Requirement: FLT-12.
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
@@ -17,10 +17,10 @@ export class Airport {
   name: string;
 
   @Prop({ required: true })
-  city: string;
+  cityId: string;
 
   @Prop({ required: true })
-  country: string;
+  countryCode: string;
 
   @Prop({ required: true })
   timeZone: string;

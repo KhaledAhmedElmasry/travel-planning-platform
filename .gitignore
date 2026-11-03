@@ -16,10 +16,11 @@ out/
 coverage/
 *.tsbuildinfo
 
-# Unit / e2e tests stay local (not part of the submission)
+# Most unit / e2e tests stay local; the implemented flight feature tests are committed.
 *.spec.ts
 *.e2e-spec.ts
 *.test.ts
+!backend/src/flights/**/*.spec.ts
 
 # Uploaded images (GEN-08) — created at runtime
 backend/uploads/

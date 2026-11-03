@@ -1,8 +1,6 @@
 // Requirement: FLT-12.
 import { BadRequestException } from '@nestjs/common';
 
-// TODO(FLT-12): Confirm the total passenger limit when the requirements define one.
-export const MAX_TOTAL_PASSENGERS = 99;
 export const INFANT_FARE_RATE = 0.1;
 const CURRENCY_DECIMAL_PLACES = 2;
 const CURRENCY_ROUNDING_FACTOR = 10 ** CURRENCY_DECIMAL_PLACES;
@@ -52,11 +50,6 @@ export function validatePassengerCounts(
   }
   if (infants > adults) {
     throw new BadRequestException('Infants cannot outnumber adults.');
-  }
-  if (adults + children + infants > MAX_TOTAL_PASSENGERS) {
-    throw new BadRequestException(
-      `The total number of passengers cannot exceed ${MAX_TOTAL_PASSENGERS}.`,
-    );
   }
   // Infants travel in an adult's lap and must not reserve a cabin seat.
   return { ...counts, seatsRequired: adults + children };

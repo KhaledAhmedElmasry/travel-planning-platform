@@ -27,7 +27,7 @@ describe('passenger pricing and validation (FLT-12)', () => {
     expect(() => validatePassengerCounts(0, 1, 0)).toThrow(BadRequestException);
   });
 
-  it('rounds each passenger price total to two decimal places', () => {
+  it('calculates passenger totals with the infant discount', () => {
     const passengers = validatePassengerCounts(1, 1, 1);
     expect(calculatePassengerPricing(12.345, passengers)).toMatchObject({
       adultFare: 12.35,

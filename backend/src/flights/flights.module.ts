@@ -8,11 +8,7 @@ import { FlightsController } from './flights.controller';
 import { FlightsService } from './flights.service';
 import { Airline, AirlineSchema } from './placeholders/airline.schema';
 import { Airport, AirportSchema } from './placeholders/airport.schema';
-import { Flight, FlightSchema } from './placeholders/flight.schema';
-import {
-  PlaceholderSeatReservationProvider,
-  SEAT_RESERVATION_PROVIDER,
-} from './placeholders/seat-reservation-provider.placeholder';
+import { Flight, FlightSchema } from './schemas/flight.schema';
 
 @Module({
   imports: [
@@ -28,15 +24,7 @@ import {
     FlightDetailsController,
     FlightsController,
   ],
-  providers: [
-    FlightsService,
-    FlightSearchService,
-    FlightDetailsService,
-    {
-      provide: SEAT_RESERVATION_PROVIDER,
-      useClass: PlaceholderSeatReservationProvider,
-    },
-  ],
+  providers: [FlightsService, FlightSearchService, FlightDetailsService],
   exports: [FlightsService, FlightSearchService, FlightDetailsService],
 })
 export class FlightsModule {}
