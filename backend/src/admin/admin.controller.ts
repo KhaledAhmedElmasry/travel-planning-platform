@@ -15,6 +15,7 @@ import type { AuthUser } from '../common/interfaces';
 import { AdminService } from './admin.service';
 import { AdminActionDto } from './dto/admin-action.dto';
 import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
+import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 
 // Area: Auth & Accounts
 // Requirements: ACC-07a, ACC-13, ACC-14, ACC-15, ACC-16, ACC-17
@@ -40,6 +41,7 @@ import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  // ACC-14: Paginated list of all accounts with search and filters
   @Get('accounts')
   getAccounts(@Query() query: ListAccountsQueryDto) {
     return this.adminService.listAccounts(query);
@@ -103,5 +105,11 @@ export class AdminController {
     @Body() dto?: AdminActionDto,
   ) {
     return this.adminService.reactivateHotel(admin, id, dto);
+  }
+
+  // ACC-17: View a read-only list of all flight and hotel bookings
+  @Get('bookings')
+  getBookings(@Query() query: ListBookingsQueryDto) {
+    return this.adminService.listBookings(query);
   }
 }
