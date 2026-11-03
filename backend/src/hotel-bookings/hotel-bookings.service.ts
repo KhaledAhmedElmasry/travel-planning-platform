@@ -18,6 +18,7 @@ import {
 import { BookingStatus, BookingType } from '../common/enums';
 import { allowedFrom } from '../payments/booking-lifecycle';
 import { HotelsService } from '../hotels/hotels.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   newReference,
   REFERENCE_ATTEMPTS,
@@ -34,6 +35,7 @@ import {
   CreateHotelBookingDto,
   RoomGuestsDto,
 } from './dto/create-hotel-booking.dto';
+import { hotelConfirmedText } from './booking-notifications';
 import { RoomInventoryService } from './room-inventory.service';
 import {
   BookedRoom,
@@ -54,7 +56,7 @@ import { dateOnly, formatDate, stayNights, todayUtc } from './stay-dates';
 // hotels/schemas/hotel.schema.ts and room.schema.ts.
 // WAITING FOR: HotelsService.getBookingPolicies() (Area 7, HTL-09, HTL-10); until then
 // GET /api/bookings/hotel/:id/policies answers 501 (accepting them and paying work).
-// TODO(GEN-01, Area 3): notify the user on confirmation (see tryConfirm).
+// GEN-01: the user is notified on confirmation (see tryConfirm).
 // TODO(HTL-20; Area 6): the list and the details go here too. The details must include
 // RefundsService.findRefundForBooking() and the refund preview (HTL-21):
 // HotelBookingLifecycleService.previewCancellation(booking), the same function the cancellation
@@ -148,6 +150,7 @@ export class HotelBookingsService implements BookingPaymentHandler {
     private readonly inventory: RoomInventoryService,
     private readonly hotelsService: HotelsService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // POST /api/hotel-bookings (HTL-16, HTL-18): check the request, then in ONE transaction read the
@@ -349,9 +352,10 @@ export class HotelBookingsService implements BookingPaymentHandler {
     bookingId: string,
     paymentId: string,
   ): Promise<ConfirmPaidBookingResult> {
-    const outcome: { result: ConfirmPaidBookingResult } = {
-      result: 'not_confirmable',
-    };
+    const outcome: {
+      result: ConfirmPaidBookingResult;
+      booking: HotelBookingDocument | null;
+    } = { result: 'not_confirmable', booking: null };
     await this.connection.transaction(async (session) => {
       const now = new Date();
       const booking = await this.bookingModel.findOneAndUpdate(
@@ -396,11 +400,15 @@ export class HotelBookingsService implements BookingPaymentHandler {
         );
       }
       outcome.result = 'confirmed';
+      outcome.booking = booking;
     });
 
-    if (outcome.result === 'confirmed') {
+    if (outcome.result === 'confirmed' && outcome.booking) {
       this.logger.log(`Hotel reservation ${bookingId} confirmed.`);
-      // TODO(GEN-01, Area 3): send the in-app notification with the reservation details (HTL-17).
+      // HTL-17, GEN-01: after the commit, so the user is never told about a confirmation that was
+      // rolled back. Only the request that confirmed the reservation gets here, so it is sent once.
+      const { title, message } = hotelConfirmedText(outcome.booking);
+      await this.notifications.notify(outcome.booking.userId, title, message);
     }
     return outcome.result;
   }

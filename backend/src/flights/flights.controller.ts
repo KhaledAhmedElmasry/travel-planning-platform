@@ -1,10 +1,14 @@
-import { Controller } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { CurrentUser } from '../common/decorators';
+import { JwtAuthGuard } from '../common/guards/auth.guard';
+import type { AuthUser } from '../common/interfaces';
+import { CreateFlightDto } from './dto/create-flight.dto';
 import { FlightsService } from './flights.service';
 
 // Area: Airlines & Flight Inventory
 // Requirements: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06, NEW-02
 // Endpoints to implement (PDF section 8):
-//   POST  /api/flights                          FLT-03
+//   POST  /api/flights                          FLT-03   (done)
 //   GET   /api/flights/:id                      FLT-17
 //   PATCH /api/flights/:id                      FLT-05
 //   POST  /api/flights/:id/cancel               FLT-06
@@ -22,5 +26,11 @@ import { FlightsService } from './flights.service';
 export class FlightsController {
   constructor(private readonly flightsService: FlightsService) {}
 
-  // TODO: add the endpoints listed above.
+  // FLT-03: an airline moderator creates a flight for their own airline. The role check
+  // (403 "Not an airline moderator.") is in the service.
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  create(@CurrentUser() user: AuthUser, @Body() dto: CreateFlightDto) {
+    return this.flightsService.create(user, dto);
+  }
 }
