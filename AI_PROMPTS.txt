@@ -324,20 +324,22 @@ protections against extra fields are removed), and in Swagger.
 Date: 2026-11-03
 Student: Hussien Shata
 Tool: Claude
-Related Requirement: ACC-15
+Related Requirement: ACC-15, ACC-16
 
 Prompt:
-Help me plan how to implement ACC-15 (admin suspension and reactivation of accounts).
-Provide guidance on designing PATCH /api/admin/accounts/:id/suspend and
-PATCH /api/admin/accounts/:id/reactivate endpoints, including session revocation
-(NEW-07), in-app notifications (GEN-01), audit logging (GEN-07), preventing admin
-accounts from being suspended, conflict checks for already suspended or active
-accounts, and extra provider deactivation/reactivation endpoints.
+Help me plan how to implement ACC-15 and ACC-16 (admin suspension and reactivation
+of moderator and registered user accounts). Provide guidance on designing
+PATCH /api/admin/accounts/:id/suspend and PATCH /api/admin/accounts/:id/reactivate
+endpoints, including session revocation (NEW-07), in-app notifications (GEN-01),
+audit logging (GEN-07), preventing admin accounts from being suspended, conflict
+checks for already suspended or active accounts, and extra provider
+deactivation/reactivation endpoints.
 
 How the output was used:
 Used AI guidance to understand the implementation approach and structure the
 endpoints. Implemented PATCH /api/admin/accounts/:id/suspend and
-PATCH /api/admin/accounts/:id/reactivate myself, along with session revocation,
-in-app notifications, audit logging, prevention of admin suspension, conflict
-checks, and the extra provider deactivation/reactivation endpoints. AI also
-assisted with reviewing the implementation and identifying potential issues.
+PATCH /api/admin/accounts/:id/reactivate myself for moderator and registered user
+accounts, along with session revocation, in-app notifications, audit logging,
+prevention of admin suspension, conflict checks, and the extra provider
+deactivation/reactivation endpoints. AI also assisted with reviewing the
+implementation and identifying potential issues.
