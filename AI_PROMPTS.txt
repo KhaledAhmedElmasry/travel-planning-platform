@@ -367,3 +367,25 @@ day gets the next position and its date is the start date plus its position, the
 the seeded cities (400 otherwise), a day that is not in this itinerary or an itinerary of another
 user gives 404, and the position numbers always stay consecutive. Verified with npm run lint,
 npm run build, local tests and by testing every valid and invalid case in Swagger.
+================================================
+Date: 2026-11-03
+Student: [Abdallah Mahmoud]
+Tool: Opus 5.5
+Related Requirement: ITN-09
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #60 (ITN-09). Implement ITN-09 on branch
+feature/ITN-09-city-groups: every itinerary day has a city, and consecutive days in the same city
+are returned as one city group in GET /api/itineraries/:id (no new endpoint). Follow the issue,
+docs/api/openapi.yaml for the group shape, docs/CONVENTIONS.md and the existing code patterns. Reuse
+the renumber and date helper from ITN-05 so the groups are recomputed after every day change. For
+example days 1-2 Cairo, day 3 Luxor and days 4-5 Cairo give three groups, not two. Keep the day and
+group structure stable because Area 6 depends on it. Add a local unit test for the grouping logic
+with that example. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the city group computation, its hook into the day helper and the groups in the
+itinerary response. I checked it against the issue and openapi.yaml: only consecutive days with the
+same city are grouped, the group shows its city and its day numbers, and the groups are correct
+after adding a day and after editing a city. Verified with npm run lint, npm run build, a local unit
+test of the grouping example and in Swagger.
