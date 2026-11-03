@@ -6,7 +6,6 @@ import {
   Param,
   Post,
   UseGuards,
-  ValidationPipe,
 } from '@nestjs/common';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
@@ -28,7 +27,7 @@ import { AuthService, ResetPasswordResponse } from './auth.service';
 //
 // WAITING FOR (GEN-07): AuditService. When it is implemented, record a "reset_password" entry
 //   with the admin id and the account id in AuthService.resetPasswordByAdmin.
-// WAITING FOR (Area 3, GEN-02 / GEN-13): the global ValidationPipe; then remove the local one.
+// DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.Admin)
@@ -41,8 +40,7 @@ export class AdminUsersController {
   @HttpCode(HttpStatus.OK)
   resetPassword(
     @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto: AdminResetPasswordDto,
+    @Body() dto: AdminResetPasswordDto,
   ): Promise<ResetPasswordResponse> {
     return this.authService.resetPasswordByAdmin(id, dto.temporaryPassword);
   }
