@@ -1,6 +1,7 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AirlinesModule } from '../airlines/airlines.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { FlightBookingQuoteService } from './booking-quote.service';
 import { FlightBookingLifecycleService } from './flight-booking-lifecycle.service';
@@ -25,6 +26,7 @@ import { SeatInventoryService } from './seat-inventory.service';
     ]),
     AirlinesModule,
     forwardRef(() => PaymentsModule),
+    NotificationsModule,
   ],
   controllers: [FlightBookingsController],
   providers: [
