@@ -7,7 +7,6 @@ import {
   Post,
   Res,
   UseGuards,
-  ValidationPipe,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { CurrentUser } from '../common/decorators';
@@ -41,9 +40,7 @@ import { RegisterDto } from './dto/register.dto';
 //   POST /api/auth/forgot-password   ACC-07 (Optional)
 //   POST /api/auth/reset-password    ACC-07 (Optional)
 //
-// WAITING FOR (Area 3, GEN-02 / GEN-13): the global ValidationPipe and error filter in main.ts.
-//   Then remove the local `new ValidationPipe(...)` from the @Body() parameters below. Until the
-//   filter exists, a 400 lists the messages in "message" instead of "fieldErrors".
+// DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe and error filter are registered in main.ts.
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -51,10 +48,7 @@ export class AuthController {
   // ACC-01, ACC-03: public, guests register without logging in. A role in the body is stripped.
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  register(
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto: RegisterDto,
-  ): Promise<RegisterResponse> {
+  register(@Body() dto: RegisterDto): Promise<RegisterResponse> {
     return this.authService.register(dto);
   }
 
@@ -63,8 +57,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto: LoginDto,
+    @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AccountResponse> {
     const { account, tokens } = await this.authService.login(dto);

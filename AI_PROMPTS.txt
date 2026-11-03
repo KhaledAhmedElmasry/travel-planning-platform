@@ -175,6 +175,51 @@ removed), and in Swagger by logging out, calling /api/auth/me and checking revok
 ================================================
 
 ================================================
+Date: 2026-11-01
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: GEN-02, GEN-13
+
+Prompt:
+Explain how to implement a global validation pipe and exception filter in NestJS (GEN-02, GEN-13).
+Provide guidance on configuring field-level validation messages, maintaining the consistent error
+response format defined in docs/api/openapi.yaml, and replacing local ValidationPipe instances
+with global validation.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and configure the global validation
+pipe and HTTP exception filter. Implemented the validation options, field-level error formatting,
+and standardized HTTP error responses. Registered both components globally in main.ts and removed
+redundant local ValidationPipe instances from flight-bookings, hotel-bookings, and payments
+controllers. AI also assisted with reviewing the implementation, identifying potential issues,
+and suggesting Swagger test cases to verify validation behavior.
+================================================
+
+================================================
+Date: 2026-11-02
+Student: Husien Shata
+Tool: Claude
+Related Requirement: GEN-13
+
+Prompt:
+Help me review GEN-13 (backend rule, validation, and authorization enforcement, and
+salted password hashing): I want to ensure all request payloads are strictly validated
+at the backend entry point via the global ValidationPipe, and I need to find any
+remaining local ValidationPipe instances in auth.controller.ts. Also help me check
+whether business rules, authorization guards, and bcrypt password hashing (cost 12)
+are properly enforced server-side.
+
+How the output was used:
+Used the AI’s suggestions as a starting point and a checklist for reviewing the
+codebase. I then applied the changes myself: set up global validation and error
+filtering in main.ts, removed the local ValidationPipes from the register and login
+routes in auth.controller.ts, and checked that bcrypt hashing uses cost 12 with
+select: false on the user schema. I also reviewed how JwtAuthGuard and
+RegisteredUserGuard enforce authorization on the server side. Confirmed everything
+with npm run lint and npm run build (0 errors).
+
+================================================
+
 ================================================
 Date: 2026-11-02
 Student: Hussein Shata
