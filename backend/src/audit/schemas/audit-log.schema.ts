@@ -8,7 +8,7 @@ import { AuditAction } from '../../common/enums';
 
 export type AuditLogDocument = HydratedDocument<AuditLog>;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: 'audit_logs' })
 export class AuditLog {
   @Prop({ type: MongooseSchema.Types.ObjectId, required: true, index: true })
   adminId: Types.ObjectId;

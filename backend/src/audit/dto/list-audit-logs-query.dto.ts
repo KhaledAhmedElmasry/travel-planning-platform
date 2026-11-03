@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsOptional } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, Matches } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { AuditAction } from '../../common/enums';
 
@@ -14,16 +14,19 @@ export class ListAuditLogsQueryDto extends PaginationQueryDto {
   action?: AuditAction;
 
   @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'from must be a date (YYYY-MM-DD)',
+  })
   @IsDateString(
     { strict: true },
-    { message: 'from must be a valid ISO date string (YYYY-MM-DD)' },
+    { message: 'from must be a date (YYYY-MM-DD)' },
   )
   from?: string;
 
   @IsOptional()
-  @IsDateString(
-    { strict: true },
-    { message: 'to must be a valid ISO date string (YYYY-MM-DD)' },
-  )
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'to must be a date (YYYY-MM-DD)',
+  })
+  @IsDateString({ strict: true }, { message: 'to must be a date (YYYY-MM-DD)' })
   to?: string;
 }

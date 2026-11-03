@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
 import {
@@ -47,6 +47,8 @@ export type LeanAuditLog = AuditLog & { _id: Types.ObjectId };
 // Business logic and database access for: GEN-07
 @Injectable()
 export class AuditService {
+  private readonly logger = new Logger(AuditService.name);
+
   constructor(
     @InjectModel(AuditLog.name)
     private readonly auditLogModel: Model<AuditLogDocument>,
@@ -55,39 +57,44 @@ export class AuditService {
   ) {}
 
   // GEN-07: Record an admin action in the audit log
-  async record(input: RecordAuditLogInput): Promise<AuditLogDocument> {
-    const adminObjectId =
-      typeof input.adminId === 'string'
-        ? new Types.ObjectId(input.adminId)
-        : input.adminId;
+  async record(input: RecordAuditLogInput): Promise<AuditLogDocument | null> {
+    try {
+      const adminObjectId =
+        typeof input.adminId === 'string'
+          ? new Types.ObjectId(input.adminId)
+          : input.adminId;
 
-    let adminName = input.adminName;
-    let adminEmail = input.adminEmail;
+      let adminName = input.adminName;
+      let adminEmail = input.adminEmail;
 
-    if (!adminName || !adminEmail) {
-      const adminUser = await this.userModel
-        .findById(adminObjectId)
-        .select('name email')
-        .lean()
-        .exec();
-      if (adminUser) {
-        adminName = adminName ?? adminUser.name;
-        adminEmail = adminEmail ?? adminUser.email;
+      if (!adminName || !adminEmail) {
+        const adminUser = await this.userModel
+          .findById(adminObjectId)
+          .select('name email')
+          .lean()
+          .exec();
+        if (adminUser) {
+          adminName = adminName ?? adminUser.name;
+          adminEmail = adminEmail ?? adminUser.email;
+        }
       }
+
+      const auditEntry = new this.auditLogModel({
+        adminId: adminObjectId,
+        adminName: adminName ?? 'Admin',
+        adminEmail: adminEmail ?? '',
+        action: input.action,
+        targetType: input.targetType,
+        targetId: input.targetId,
+        reason: input.reason ?? null,
+        details: input.details ?? {},
+      });
+
+      return await auditEntry.save();
+    } catch (error) {
+      this.logger.error('Failed to write audit log entry', error);
+      return null;
     }
-
-    const auditEntry = new this.auditLogModel({
-      adminId: adminObjectId,
-      adminName: adminName ?? 'Admin',
-      adminEmail: adminEmail ?? '',
-      action: input.action,
-      targetType: input.targetType,
-      targetId: input.targetId,
-      reason: input.reason ?? null,
-      details: input.details ?? {},
-    });
-
-    return auditEntry.save();
   }
 
   // GEN-07: List audit logs with pagination and filters
