@@ -1223,7 +1223,7 @@ paths:
     get:
       operationId: getAirports
       tags: ['Airlines, Flights, and Flight Inventory']
-      summary: 'List airports (FLT-03, FLT-11)'
+      summary: 'List airports (FLT-02, FLT-03, FLT-11)'
       description: |
         **Access:** everyone, including guests.
 
@@ -1253,10 +1253,19 @@ paths:
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: Each item - iataCode, name, cityId, city name, countryCode, timeZone (e.g. Africa/Cairo).
-          content: *paginated
+          description: Each item - iataCode, name, cityId, cityName, countryCode, timeZone (e.g. Africa/Cairo). Sorted by IATA code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"iataCode": "CAI", "name": "Cairo International Airport", "cityId": "cairo", "cityName": "Cairo", "countryCode": "EG", "timeZone": "Africa/Cairo"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid query, or the city or country is not in the reference data (NEW-05).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Unknown cityId \"atlantis\".", "path": "/api/airports", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/flights:
     post:

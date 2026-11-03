@@ -1,5 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
+import { ListAirportsQueryDto } from './dto/list-airports-query.dto';
 import { ListAttractionsQueryDto } from './dto/list-attractions-query.dto';
 import { ListCitiesQueryDto } from './dto/list-cities-query.dto';
 import { ListCountriesQueryDto } from './dto/list-countries-query.dto';
@@ -17,10 +18,17 @@ import { ReferenceDataService } from './reference-data.service';
 // Notes:
 //   The airports endpoint returns the predefined, read-only airport list (FLT-02).
 //   All public and read-only. Use the official ids from the datasets (EG, cairo, CAI, att-1).
-//   The lookups other modules use are in ReferenceDataService (NEW-05, FLT-02).
+//   The lookups other modules use (unknown country, city, airport → 400) are in
+//   ReferenceDataService (NEW-05, FLT-02).
 @Controller()
 export class ReferenceDataController {
   constructor(private readonly referenceDataService: ReferenceDataService) {}
+
+  // FLT-02: the predefined, read-only airport list (FLT-03, FLT-11). Public.
+  @Get('airports')
+  listAirports(@Query() query: ListAirportsQueryDto) {
+    return this.referenceDataService.listAirports(query);
+  }
 
   // GEN-12: the supported currency list. Public, read-only.
   @Get('currencies')

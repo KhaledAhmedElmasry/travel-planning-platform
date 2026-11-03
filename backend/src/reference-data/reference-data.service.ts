@@ -8,10 +8,13 @@ import {
   PaginatedList,
   PaginationQueryDto,
 } from '../common/dto/pagination.dto';
+import { ListAirportsQueryDto } from './dto/list-airports-query.dto';
 import { ListAttractionsQueryDto } from './dto/list-attractions-query.dto';
 import { ListCitiesQueryDto } from './dto/list-cities-query.dto';
 import { ListCountriesQueryDto } from './dto/list-countries-query.dto';
 import {
+  Airport,
+  AirportDocument,
   Attraction,
   AttractionDocument,
   City,
@@ -49,6 +52,16 @@ export interface AttractionItem {
   cityId: string;
 }
 
+// One item of GET /api/airports.
+export interface AirportItem {
+  iataCode: string;
+  name: string;
+  cityId: string;
+  cityName: string;
+  countryCode: string;
+  timeZone: string;
+}
+
 // Makes user text safe to use inside a regular expression (search filters).
 function escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -65,6 +78,8 @@ function escapeRegex(text: string): string {
 //   assertCountry(code) / assertCountries(codes)  NEW-05, e.g. itinerary countries (ITN-01)
 //   assertCity(cityId)                          NEW-05, e.g. itinerary day city (ITN-05)
 //   assertCityInCountry(cityId, countryCode)    NEW-05, e.g. hotel city and country (HTL-01)
+//   assertAirport(iataCode)                     FLT-02, e.g. flight airports (FLT-03, FLT-11)
+//   findAirport(iataCode)                       FLT-02, the airport with its IANA time zone (GEN-06)
 // Each one throws 400 (BadRequestException) with a clear message for an unknown value.
 @Injectable()
 export class ReferenceDataService {
@@ -73,6 +88,8 @@ export class ReferenceDataService {
     private readonly countryModel: Model<CountryDocument>,
     @InjectModel(City.name)
     private readonly cityModel: Model<CityDocument>,
+    @InjectModel(Airport.name)
+    private readonly airportModel: Model<AirportDocument>,
     @InjectModel(Attraction.name)
     private readonly attractionModel: Model<AttractionDocument>,
     @InjectModel(Currency.name)
@@ -171,6 +188,67 @@ export class ReferenceDataService {
       cityId: c.cityId,
       name: c.name,
       countryCode: c.countryCode,
+    }));
+    return paginate(items, total, page, DEFAULT_PAGE_SIZE);
+  }
+
+  // FLT-02: the predefined, read-only airport list, sorted by IATA code, 10 per page (GEN-05).
+  // search matches part of the IATA code, airport name or city name (case-insensitive).
+  // An unknown city or country filter is rejected with 400.
+  async listAirports(
+    query: ListAirportsQueryDto,
+  ): Promise<PaginatedList<AirportItem>> {
+    const filter: FilterQuery<AirportDocument> = {};
+    if (query.city) {
+      await this.assertCity(query.city);
+      filter.cityId = query.city;
+    }
+    if (query.country) {
+      await this.assertCountry(query.country);
+      filter.countryCode = query.country;
+    }
+    if (query.search) {
+      const pattern = new RegExp(escapeRegex(query.search), 'i');
+      const matchingCities = await this.cityModel
+        .find({ name: pattern })
+        .select('_id')
+        .lean()
+        .exec();
+      filter.$or = [
+        { iataCode: pattern },
+        { name: pattern },
+        { cityId: { $in: matchingCities.map((c) => c._id) } },
+      ];
+    }
+
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+
+    const [airports, total] = await Promise.all([
+      this.airportModel
+        .find(filter)
+        .sort({ _id: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.airportModel.countDocuments(filter).exec(),
+    ]);
+
+    // The city name of each airport on this page, read in one query.
+    const cities = await this.cityModel
+      .find({ _id: { $in: [...new Set(airports.map((a) => a.cityId))] } })
+      .lean()
+      .exec();
+    const cityNames = new Map(cities.map((c) => [c._id, c.name]));
+
+    const items = airports.map((a) => ({
+      iataCode: a.iataCode,
+      name: a.name,
+      cityId: a.cityId,
+      cityName: cityNames.get(a.cityId) ?? a.cityId,
+      countryCode: a.countryCode,
+      timeZone: a.timeZone,
     }));
     return paginate(items, total, page, DEFAULT_PAGE_SIZE);
   }
@@ -282,6 +360,27 @@ export class ReferenceDataService {
       throw new BadRequestException(`Unknown cityId "${cityId}".`);
     }
     return city;
+  }
+
+  // FLT-02: the airport with this IATA code (e.g. CAI), with its IANA time zone, or null.
+  async findAirport(iataCode: string): Promise<Airport | null> {
+    if (typeof iataCode !== 'string' || iataCode.trim() === '') return null;
+    return this.airportModel
+      .findById(iataCode.trim().toUpperCase())
+      .lean<Airport>()
+      .exec();
+  }
+
+  // FLT-02: throws 400 when the airport is not in the airport list. Flight creation and flight
+  // search accept only these airports (FLT-03, FLT-11).
+  async assertAirport(iataCode: string): Promise<Airport> {
+    const airport = await this.findAirport(iataCode);
+    if (!airport) {
+      throw new BadRequestException(
+        `Airport "${iataCode}" is not in the airport list.`,
+      );
+    }
+    return airport;
   }
 
   // NEW-05: throws 400 when the country or city is unknown, or the city is not in the country.

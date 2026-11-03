@@ -452,3 +452,26 @@ hotels.service.ts so Area 7 can switch to them), and the routes GET /api/countri
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-02
+
+Prompt:
+Continuing my Area 5 work on top of my NEW-05 branch, I asked the assistant to implement FLT-02:
+GET /api/airports returning the predefined, read-only airport list (IATA code, name, city,
+country, IANA time zone) exactly as documented in docs/api/openapi.yaml, with the search, city and
+country filters and pagination, and an exported airport lookup so flight creation and flight
+search accept only airports from this list.
+
+How the output was used:
+Used the generated ListAirportsQueryDto with class-validator rules, ReferenceDataService
+listAirports() (search by IATA code, airport name or city name; unknown city or country filter
+rejected with 400; city name added to each item) and the lookups findAirport() and assertAirport()
+for Area 5 flights and Area 6 flight search, and the GET /api/airports route. Updated the
+/api/airports entry in docs/api/openapi.yaml (response example and the 400 case).
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
