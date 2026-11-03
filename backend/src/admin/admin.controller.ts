@@ -1,10 +1,21 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { Roles } from '../common/decorators';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { CurrentUser, Roles } from '../common/decorators';
 import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import type { AuthUser } from '../common/interfaces';
 import { AdminService } from './admin.service';
+import { AdminActionDto } from './dto/admin-action.dto';
 import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
+import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 
 // Area: Auth & Accounts
 // Requirements: ACC-07a, ACC-13, ACC-14, ACC-15, ACC-16, ACC-17
@@ -15,7 +26,7 @@ import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 //   PATCH /api/admin/accounts/:id/reactivate    ACC-15, ACC-16
 //   POST  /api/admin/users/:id/reset-password   ACC-07a
 //   GET   /api/admin/bookings                   ACC-17
-// Extra endpoints may be needed (not in the PDF tables) for:
+// Extra endpoints:
 //   deactivating / reactivating a hotel or airline (ACC-15). Notify affected parties (GEN-01) and
 //   write an audit entry (GEN-07).
 // Notes:
@@ -30,8 +41,75 @@ import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  // ACC-14: Paginated list of all accounts with search and filters
   @Get('accounts')
   getAccounts(@Query() query: ListAccountsQueryDto) {
     return this.adminService.listAccounts(query);
+  }
+
+  // ACC-15, ACC-16: Suspend a user or moderator account
+  @Patch('accounts/:id/suspend')
+  suspendAccount(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto?: AdminActionDto,
+  ) {
+    return this.adminService.suspendAccount(admin, id, dto);
+  }
+
+  // ACC-15, ACC-16: Reactivate a suspended user or moderator account
+  @Patch('accounts/:id/reactivate')
+  reactivateAccount(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto?: AdminActionDto,
+  ) {
+    return this.adminService.reactivateAccount(admin, id, dto);
+  }
+
+  // ACC-15: Deactivate an airline
+  @Patch('airlines/:id/deactivate')
+  deactivateAirline(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto?: AdminActionDto,
+  ) {
+    return this.adminService.deactivateAirline(admin, id, dto);
+  }
+
+  // ACC-15: Reactivate an airline
+  @Patch('airlines/:id/reactivate')
+  reactivateAirline(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto?: AdminActionDto,
+  ) {
+    return this.adminService.reactivateAirline(admin, id, dto);
+  }
+
+  // ACC-15: Deactivate a hotel
+  @Patch('hotels/:id/deactivate')
+  deactivateHotel(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto?: AdminActionDto,
+  ) {
+    return this.adminService.deactivateHotel(admin, id, dto);
+  }
+
+  // ACC-15: Reactivate a hotel
+  @Patch('hotels/:id/reactivate')
+  reactivateHotel(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto?: AdminActionDto,
+  ) {
+    return this.adminService.reactivateHotel(admin, id, dto);
+  }
+
+  // ACC-17: View a read-only list of all flight and hotel bookings
+  @Get('bookings')
+  getBookings(@Query() query: ListBookingsQueryDto) {
+    return this.adminService.listBookings(query);
   }
 }

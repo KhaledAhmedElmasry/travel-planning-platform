@@ -10,22 +10,22 @@ export type AuditLogDocument = HydratedDocument<AuditLog>;
 
 @Schema({ timestamps: true, collection: 'audit_logs' })
 export class AuditLog {
-  @Prop({ type: MongooseSchema.Types.ObjectId, required: true, index: true })
-  adminId: Types.ObjectId;
+  @Prop({ type: MongooseSchema.Types.Mixed, required: true, index: true })
+  adminId: Types.ObjectId | string;
 
-  @Prop({ required: true, trim: true })
+  @Prop({ required: false, trim: true, default: 'Admin' })
   adminName: string;
 
-  @Prop({ required: true, trim: true, lowercase: true })
+  @Prop({ required: false, trim: true, lowercase: true, default: '' })
   adminEmail: string;
 
   @Prop({ type: String, required: true, index: true })
   action: AuditAction | string;
 
-  @Prop({ required: true, trim: true })
+  @Prop({ required: false, trim: true, default: 'account' })
   targetType: string;
 
-  @Prop({ required: true, trim: true })
+  @Prop({ required: false, trim: true, default: '' })
   targetId: string;
 
   @Prop({ trim: true, default: null })

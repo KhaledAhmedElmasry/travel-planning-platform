@@ -17,11 +17,13 @@ export interface RecordAuditLogInput {
   adminName?: string;
   adminEmail?: string;
   action: AuditAction | string;
-  targetType: string;
-  targetId: string;
+  targetType?: string;
+  targetId?: string;
   reason?: string;
   details?: Record<string, unknown>;
 }
+
+export type RecordAuditParams = RecordAuditLogInput;
 
 export interface AuditLogAdmin {
   id: string;
@@ -60,16 +62,16 @@ export class AuditService {
   async record(input: RecordAuditLogInput): Promise<AuditLogDocument | null> {
     try {
       const adminObjectId =
-        typeof input.adminId === 'string'
+        typeof input.adminId === 'string' && Types.ObjectId.isValid(input.adminId)
           ? new Types.ObjectId(input.adminId)
           : input.adminId;
 
       let adminName = input.adminName;
       let adminEmail = input.adminEmail;
 
-      if (!adminName || !adminEmail) {
+      if ((!adminName || !adminEmail) && Types.ObjectId.isValid(input.adminId)) {
         const adminUser = await this.userModel
-          .findById(adminObjectId)
+          .findById(input.adminId)
           .select('name email')
           .lean()
           .exec();
@@ -84,9 +86,9 @@ export class AuditService {
         adminName: adminName ?? 'Admin',
         adminEmail: adminEmail ?? '',
         action: input.action,
-        targetType: input.targetType,
-        targetId: input.targetId,
-        reason: input.reason ?? null,
+        targetType: input.targetType ?? 'account',
+        targetId: input.targetId ?? '',
+        reason: input.reason ?? (input.details?.reason as string) ?? null,
         details: input.details ?? {},
       });
 
@@ -139,14 +141,14 @@ export class AuditService {
     const items: AuditLogItem[] = logs.map((log) => ({
       id: log._id.toString(),
       admin: {
-        id: log.adminId.toString(),
-        name: log.adminName,
-        email: log.adminEmail,
+        id: log.adminId ? log.adminId.toString() : '',
+        name: log.adminName ?? 'Admin',
+        email: log.adminEmail ?? '',
       },
       action: log.action,
-      targetType: log.targetType,
-      targetId: log.targetId,
-      reason: log.reason ?? undefined,
+      targetType: log.targetType ?? '',
+      targetId: log.targetId ?? '',
+      reason: log.reason ?? (log.details?.reason as string) ?? undefined,
       details: log.details,
       createdAt: log.createdAt ?? new Date(),
       date: log.createdAt ?? new Date(),
