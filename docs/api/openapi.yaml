@@ -1174,7 +1174,10 @@ paths:
               $ref: '#/components/schemas/AirlineForm'
       responses:
         '201':
-          description: Airline created. Returns id, name, code, logo URL and status.
+          description: Airline created. Returns id, name, code, logo URL (logoUrl, null without a logo) and status (active).
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields, or a logo that is not JPG/PNG or is larger than 5 MB.
           content:
@@ -1212,6 +1215,9 @@ paths:
       responses:
         '200':
           description: Name, code, logo URL, extra-baggage policy (FLT-08) and cancellation tiers (FLT-09).
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Airline not found, or deactivated (ACC-15).
           content:
@@ -1240,6 +1246,9 @@ paths:
       responses:
         '200':
           description: The updated airline.
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields, or a logo that is not JPG/PNG or is larger than 5 MB.
           content:
@@ -1250,7 +1259,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not the moderator of this airline.
+          description: Not the moderator of this airline, or the airline is deactivated (ACC-15).
           content:
             application/json:
               schema:
@@ -1275,7 +1284,7 @@ paths:
     get:
       operationId: getAirports
       tags: ['Airlines, Flights, and Flight Inventory']
-      summary: 'List airports (FLT-03, FLT-11)'
+      summary: 'List airports (FLT-02, FLT-03, FLT-11)'
       description: |
         **Access:** everyone, including guests.
 
@@ -1305,10 +1314,19 @@ paths:
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: Each item - iataCode, name, cityId, city name, countryCode, timeZone (e.g. Africa/Cairo).
-          content: *paginated
+          description: Each item - iataCode, name, cityId, cityName, countryCode, timeZone (e.g. Africa/Cairo). Sorted by IATA code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"iataCode": "CAI", "name": "Cairo International Airport", "cityId": "cairo", "cityName": "Cairo", "countryCode": "EG", "timeZone": "Africa/Cairo"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid query, or the city or country is not in the reference data (NEW-05).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Unknown cityId \"atlantis\".", "path": "/api/airports", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/flights:
     post:
@@ -1335,6 +1353,9 @@ paths:
       responses:
         '201':
           description: Flight created. Returns the flight with local and UTC times.
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields or one of the rules above is broken.
           content:
@@ -1345,7 +1366,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not an airline moderator.
+          description: Not an airline moderator, or the airline is deactivated (ACC-15).
           content:
             application/json:
               schema:
@@ -5268,6 +5289,117 @@ paths:
               example: {"items": [{"code": "AED", "name": "UAE Dirham"}, {"code": "EGP", "name": "Egyptian Pound"}, {"code": "USD", "name": "US Dollar"}], "page": 1, "pageSize": 10, "total": 3, "totalPages": 1}
         '400':
           $ref: '#/components/responses/ValidationError'
+
+  /api/countries:
+    get:
+      operationId: getCountries
+      tags: [Reference Data]
+      summary: 'List the countries (NEW-05)'
+      description: |
+        **Access:** everyone, including guests.
+
+        The predefined, read-only country list loaded at setup from the official dataset (GEN-12),
+        sorted by name. Countries are keyed by their official `code` (e.g. `EG`); hotels and
+        itineraries accept only codes from this list (NEW-05). Extra endpoint, not in PDF section 8.
+      security: []
+      parameters:
+        - name: search
+          in: query
+          description: Part of the country code or name (case-insensitive).
+          schema:
+            type: string
+            maxLength: 100
+            example: egy
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - code, name, currency.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"code": "EG", "name": "Egypt", "currency": "EGP"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/cities:
+    get:
+      operationId: getCities
+      tags: [Reference Data]
+      summary: 'List the cities (NEW-05)'
+      description: |
+        **Access:** everyone, including guests.
+
+        The predefined, read-only city list loaded at setup from the official dataset (GEN-12),
+        sorted by name. Cities are keyed by their official `cityId` (e.g. `cairo`) and belong to one
+        country (NEW-05). Extra endpoint, not in PDF section 8.
+      security: []
+      parameters:
+        - name: country
+          in: query
+          description: Only the cities of this country (code from the countries list, any letter case).
+          schema:
+            type: string
+            example: EG
+        - name: search
+          in: query
+          description: Part of the city id or name (case-insensitive).
+          schema:
+            type: string
+            maxLength: 100
+            example: cai
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - cityId, name, countryCode.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"cityId": "cairo", "name": "Cairo", "countryCode": "EG"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+        '400':
+          description: Invalid query, or the country is not in the countries list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Unknown countryCode \"XX\".", "path": "/api/cities", "timestamp": "2026-11-01T10:00:00.000Z"}
+
+  /api/attractions:
+    get:
+      operationId: getAttractions
+      tags: [Reference Data]
+      summary: 'List the attractions (NEW-05)'
+      description: |
+        **Access:** everyone, including guests.
+
+        The predefined, read-only attraction list loaded at setup from the official dataset (GEN-12),
+        sorted by name. Attractions are keyed by their official `attractionId` (e.g. `att-1`) and
+        belong to one city. Extra endpoint, not in PDF section 8.
+      security: []
+      parameters:
+        - name: city
+          in: query
+          description: Only the attractions of this city (cityId from the cities list).
+          schema:
+            type: string
+            example: cairo
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - attractionId, name, cityId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"attractionId": "att-1", "name": "Giza Pyramids and Sphinx", "cityId": "cairo"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+        '400':
+          description: Invalid query, or the city is not in the cities list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Unknown cityId \"atlantis\".", "path": "/api/attractions", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   # ---------------------------------------------------------------------------
   # Health (not a requirement)

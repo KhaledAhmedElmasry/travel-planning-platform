@@ -471,6 +471,104 @@ with the GET /api/currencies route. Added the endpoint to docs/api/openapi.yaml 
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: NEW-05
+
+Prompt:
+Continuing my Area 5 work, I asked the assistant to implement NEW-05 on top of my GEN-12 branch:
+public read endpoints for the official countries, cities (filtered by country) and attractions
+(filtered by city), following docs/requirements/ASSUMED_REQUIREMENTS.md, and exported lookups in
+ReferenceDataService so other modules (hotels, itineraries) can reject an unknown country or city,
+or a city that is not in the given country, with a 400 error.
+
+How the output was used:
+Used the generated query DTOs (list-countries, list-cities, list-attractions) with class-validator
+rules, the list methods and the lookups assertCountry(), assertCountries(), assertCity() and
+assertCityInCountry() in ReferenceDataService (same error messages as the temporary check in
+hotels.service.ts so Area 7 can switch to them), and the routes GET /api/countries, /api/cities and
+/api/attractions. Added the three endpoints to docs/api/openapi.yaml as extra endpoints.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-02
+
+Prompt:
+Continuing my Area 5 work on top of my NEW-05 branch, I asked the assistant to implement FLT-02:
+GET /api/airports returning the predefined, read-only airport list (IATA code, name, city,
+country, IANA time zone) exactly as documented in docs/api/openapi.yaml, with the search, city and
+country filters and pagination, and an exported airport lookup so flight creation and flight
+search accept only airports from this list.
+
+How the output was used:
+Used the generated ListAirportsQueryDto with class-validator rules, ReferenceDataService
+listAirports() (search by IATA code, airport name or city name; unknown city or country filter
+rejected with 400; city name added to each item) and the lookups findAirport() and assertAirport()
+for Area 5 flights and Area 6 flight search, and the GET /api/airports route. Updated the
+/api/airports entry in docs/api/openapi.yaml (response example and the 400 case).
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-01
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-02 branch, I asked the assistant to implement FLT-01
+exactly as documented in docs/api/openapi.yaml: the airline schema (name, unique code, one logo,
+active flag used by the admin deactivate/reactivate code from ACC-15), POST /api/airlines for
+admins, the public GET /api/airlines/:id, and PATCH /api/airlines/:id for the airline's own
+moderator only, with the logo sent as multipart/form-data (JPG or PNG, at most 5 MB, GEN-08).
+
+How the output was used:
+Used the generated Airline schema, CreateAirlineDto and UpdateAirlineDto, AirlinesService
+create(), findPublic(), update() and findManagedAirline() (404 unknown airline, 403 not its
+moderator or deactivated airline, 409 duplicate code), the controller routes with JwtAuthGuard,
+RolesGuard and FileInterceptor, and airline-logo.ts, which checks the logo type from the file
+bytes and its size and stores it under uploads/airlines (the shared GEN-08 upload code is not
+merged yet). Kept the existing getBookingPolicies()/getRefundTier() stubs for FLT-08 and FLT-09.
+Added response examples to the airline endpoints in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-03 (with GEN-06 and the flight status field of FLT-30)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-01 branch, I asked the assistant to implement FLT-03
+exactly as documented in docs/api/openapi.yaml: the Flight schema with the field names already
+agreed with Area 1 in the schema file (status, departureAt, cabins with total/booked/held seat
+counters), and POST /api/flights for airline moderators, with departure and arrival entered in
+each airport's local time and stored in UTC using luxon (GEN-06), and every rejection rule listed
+in the endpoint description.
+
+How the output was used:
+Used the generated Flight and Cabin schemas (FlightStatus scheduled/cancelled/departed, unique
+index on airline + flight number + local departure date), CreateFlightDto, flight-time.ts
+(localToUtc/utcToLocal helpers with luxon, also for Area 6), FlightsService.create() with the
+rules (moderator of an active airline, airports from the FLT-02 airport list, different airports,
+future departure, arrival after departure in UTC, invalid local times such as a skipped daylight
+saving hour rejected, duplicate flight number on the same date -> 409) and the POST /api/flights
+route. Added a response example to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
 ================================================
 Date: 2026-11-03
 Student: Salaheldin Mahmoud
