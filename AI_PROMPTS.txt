@@ -386,3 +386,27 @@ endpoint. Implemented ListBookingsQueryDto, AdminController.getBookings, and
 AdminService.listBookings myself, with Mongoose queries across the FlightBooking and
 HotelBooking collections.
 ================================================
+
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-09
+
+Prompt:
+Help me implement GEN-09 (report a post, comment, review or itinerary with a reason,
+at most once per item). Provide guidance on designing the Report schema with compound
+uniqueness ({ reporterId: 1, contentType: 1, contentId: 1 }), defining CreateReportDto
+and ListReportsQueryDto, verifying target content existence and extracting previews,
+preventing duplicate reports with 409 Conflict, handling double-click races,
+protecting user reporting with JwtAuthGuard and admin list view with RolesGuard, and
+updating openapi.yaml with POST /api/reports.
+
+How the output was used:
+Used AI guidance to understand the architecture, database indexing, and edge-case
+handling. Implemented the Report schema, CreateReportDto, ListReportsQueryDto,
+ReportsService, and ReportsController myself, adding the ContentType and ReportStatus
+enums, POST /api/reports and POST /api/content/:type/:id/report routes, and
+GET /api/admin/reports admin overview. Documented the new endpoint and schemas in
+docs/api/openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
