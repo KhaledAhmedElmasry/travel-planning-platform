@@ -72,6 +72,8 @@ tags:
     description: PDF section 8.9
   - name: Content Reports
     description: Content reporting by registered users (GEN-09)
+  - name: Reference Data
+    description: Extra read-only endpoints, not in the PDF tables (GEN-12, NEW-05)
   - name: Health
     description: Not a requirement. Checks that the server and the database connection work.
 
@@ -5237,6 +5239,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Post or itinerary not found, or the itinerary belongs to another user.", "path": "/api/posts/665f1c2a9b1e8a00123400a1/itinerary", "timestamp": "2026-11-01T10:00:00.000Z"}
+
+  # ---------------------------------------------------------------------------
+  # Reference data (extra endpoints, not in the PDF tables)
+  # ---------------------------------------------------------------------------
+
+  /api/currencies:
+    get:
+      operationId: getCurrencies
+      tags: [Reference Data]
+      summary: 'List the supported currencies (GEN-12)'
+      description: |
+        **Access:** everyone, including guests.
+
+        The supported currency list loaded at setup by the seed script (GEN-12), sorted by code. A
+        user's preferred currency (ACC-09) and itinerary budget currencies (ITN-18) must come from
+        this list. Extra endpoint, not in PDF section 8 (see docs/api/README.md).
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Each item - code (e.g. USD) and name (e.g. US Dollar).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"code": "AED", "name": "UAE Dirham"}, {"code": "EGP", "name": "Egyptian Pound"}, {"code": "USD", "name": "US Dollar"}], "page": 1, "pageSize": 10, "total": 3, "totalPages": 1}
+        '400':
+          $ref: '#/components/responses/ValidationError'
 
   # ---------------------------------------------------------------------------
   # Health (not a requirement)
