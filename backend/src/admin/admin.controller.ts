@@ -1,4 +1,12 @@
-import { Body, Controller, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser, Roles } from '../common/decorators';
 import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
@@ -6,6 +14,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { AdminService } from './admin.service';
 import { AdminActionDto } from './dto/admin-action.dto';
+import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 
 // Area: Auth & Accounts
 // Requirements: ACC-07a, ACC-13, ACC-14, ACC-15, ACC-16, ACC-17
@@ -30,6 +39,11 @@ import { AdminActionDto } from './dto/admin-action.dto';
 @Roles(Role.Admin)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
+
+  @Get('accounts')
+  getAccounts(@Query() query: ListAccountsQueryDto) {
+    return this.adminService.listAccounts(query);
+  }
 
   // ACC-15, ACC-16: Suspend a user or moderator account
   @Patch('accounts/:id/suspend')
