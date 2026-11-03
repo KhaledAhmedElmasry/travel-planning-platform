@@ -1301,6 +1301,9 @@ paths:
       responses:
         '201':
           description: Flight created. Returns the flight with local and UTC times.
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields or one of the rules above is broken.
           content:
@@ -1311,7 +1314,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not an airline moderator.
+          description: Not an airline moderator, or the airline is deactivated (ACC-15).
           content:
             application/json:
               schema:

@@ -1,10 +1,18 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
+import { CabinClass } from '../../common/enums';
+
 // Area: Airlines & Flight Inventory
+// Flight and Cabin Inventory (PDF section 5 "Flights"): airline, airports, times, status,
+// cabins with seats and prices. See FLT-03, FLT-04, FLT-30, GEN-06.
 //
-// TODO: define the Mongoose schema for:
-//   Flight and Cabin Inventory (PDF section 5 "Flights"): airline, airports, times,
-//   status, cabins with seats and prices. See FLT-03, FLT-04, FLT-30.
-//   Seat counters per cabin must allow atomic holds: total, booked, held (FLT-22).
-//   Flight number is unique per airline per departure date (FLT-03).
+// - Times are stored in UTC (departureAt, arrivalAt). The request sends local times at each
+//   airport; flights/flight-time.ts converts them with the airport's IANA time zone (GEN-06).
+// - departureDate is the local departure date (YYYY-MM-DD) at the departure airport. The unique
+//   index { airlineId, flightNumber, departureDate } makes the flight number unique per airline
+//   per departure date (FLT-03).
+// - departureTimeZone / arrivalTimeZone are copied from the airport list (FLT-02) when the flight
+//   is created, so local times can be shown without reading the airports again.
 //
 // AGREED WITH AREA 1 (already used by flight-bookings/seat-inventory.service.ts, FLT-22/23/26):
 // the seat hold updates the "flights" collection directly, so the model must be named "Flight"
@@ -38,4 +46,108 @@
 //     result.cancelledBookingIds.length is "the number of bookings that were cancelled" of the
 //     response.
 
-export {};
+// FLT-30: the status of a flight.
+export enum FlightStatus {
+  Scheduled = 'scheduled',
+  Cancelled = 'cancelled',
+  Departed = 'departed',
+}
+
+// One cabin of a flight (FLT-04). Embedded in the flight; its _id is the cabinId of the API.
+@Schema({ _id: true })
+export class Cabin {
+  _id: Types.ObjectId;
+
+  @Prop({ type: String, enum: CabinClass, required: true })
+  cabinClass: CabinClass;
+
+  // Seat counters (FLT-04, FLT-22): free seats = total - booked - held.
+  @Prop({ required: true, min: 1 })
+  total: number;
+
+  @Prop({ required: true, min: 0, default: 0 })
+  booked: number;
+
+  @Prop({ required: true, min: 0, default: 0 })
+  held: number;
+
+  // Fare per seat in integer cents of the platform currency (PAY-04).
+  @Prop({ required: true, min: 1 })
+  price: number;
+
+  // Free baggage allowance per passenger (number of bags).
+  @Prop({ required: true, min: 0 })
+  freeBags: number;
+
+  // Maximum weight per bag in kg, also for extra bags (FLT-08).
+  @Prop({ required: true, min: 0 })
+  maxBagWeightKg: number;
+}
+
+export const CabinSchema = SchemaFactory.createForClass(Cabin);
+
+export type FlightDocument = HydratedDocument<Flight>;
+
+@Schema({ timestamps: true, collection: 'flights' })
+export class Flight {
+  // The airline this flight belongs to (the moderator's own airline, FLT-03).
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Airline',
+    required: true,
+    index: true,
+  })
+  airlineId: Types.ObjectId;
+
+  // e.g. MS911, stored in upper case.
+  @Prop({ required: true, trim: true, uppercase: true })
+  flightNumber: string;
+
+  // IATA codes from the airport list (FLT-02), e.g. CAI.
+  @Prop({ required: true, uppercase: true, index: true })
+  departureAirport: string;
+
+  @Prop({ required: true, uppercase: true, index: true })
+  arrivalAirport: string;
+
+  // IANA time zones of the two airports (GEN-06).
+  @Prop({ required: true })
+  departureTimeZone: string;
+
+  @Prop({ required: true })
+  arrivalTimeZone: string;
+
+  // UTC times (GEN-06).
+  @Prop({ required: true, index: true })
+  departureAt: Date;
+
+  @Prop({ required: true })
+  arrivalAt: Date;
+
+  // Local departure date at the departure airport, YYYY-MM-DD (flight number uniqueness).
+  @Prop({ required: true })
+  departureDate: string;
+
+  @Prop({
+    type: String,
+    enum: FlightStatus,
+    required: true,
+    default: FlightStatus.Scheduled,
+    index: true,
+  })
+  status: FlightStatus;
+
+  @Prop({ type: [CabinSchema], default: [] })
+  cabins: Types.DocumentArray<Cabin>;
+
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export const FlightSchema = SchemaFactory.createForClass(Flight);
+
+// FLT-03: a flight number is unique for the airline on the same departure date.
+FlightSchema.index(
+  { airlineId: 1, flightNumber: 1, departureDate: 1 },
+  { unique: true },
+);
