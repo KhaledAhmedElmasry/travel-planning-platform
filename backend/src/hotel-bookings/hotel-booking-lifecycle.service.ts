@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { Connection, Model } from 'mongoose';
 import { BookingStatus, BookingType } from '../common/enums';
 import { HotelsService } from '../hotels/hotels.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { allowedFrom, canTransition } from '../payments/booking-lifecycle';
 import {
   CancellationPreview,
@@ -17,6 +18,7 @@ import {
   HotelBookingResponse,
   HotelBookingsService,
 } from './hotel-bookings.service';
+import { hotelCancelledText } from './booking-notifications';
 import { RoomInventoryService } from './room-inventory.service';
 import {
   HotelBooking,
@@ -36,7 +38,8 @@ import { daysBeforeCheckIn, todayUtc } from './stay-dates';
 //
 // WAITING FOR: HotelsService.getRefundTier() (Area 7, HTL-10); until then cancel and the preview
 // of a confirmed reservation answer 501 before changing anything.
-// TODO(GEN-01, Area 3): notify the user on cancellation and refund.
+// GEN-01: the user is notified of the cancellation (with the refund); RefundsService notifies
+// when the refund is refunded or failed.
 // GEN-11: every status change below uses allowedFrom() / canTransition() from
 // payments/booking-lifecycle.ts, so only the allowed transitions can happen.
 
@@ -61,6 +64,7 @@ export class HotelBookingLifecycleService {
     private readonly hotels: HotelsService,
     private readonly payments: PaymentsService,
     private readonly refunds: RefundsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // HTL-21: what the user would get back by cancelling now, from the hotel's tier for the days
@@ -148,7 +152,9 @@ export class HotelBookingLifecycleService {
 
     // PAY-03: refund the tier percentage of the amount paid (nothing for 0%).
     const refund = await this.issuePendingRefund(state.cancelled);
-    // TODO(GEN-01, Area 3): notify the user that the reservation was cancelled (and the refund).
+    // GEN-01: only the request that cancelled the reservation gets here, so it is sent once.
+    const { title, message } = hotelCancelledText(state.cancelled, refund);
+    await this.notifications.notify(state.cancelled.userId, title, message);
 
     return { ...this.bookings.toResponse(state.cancelled), refund };
   }
