@@ -1,6 +1,7 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { HotelsModule } from '../hotels/hotels.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { HotelBookingLifecycleService } from './hotel-booking-lifecycle.service';
 import { HotelBookingsController } from './hotel-bookings.controller';
@@ -24,6 +25,7 @@ import { RoomNight, RoomNightSchema } from './schemas/room-night.schema';
     ]),
     HotelsModule,
     forwardRef(() => PaymentsModule),
+    NotificationsModule,
   ],
   controllers: [HotelBookingsController],
   providers: [

@@ -9,6 +9,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, Model } from 'mongoose';
 import Stripe from 'stripe';
 import { BookingType } from '../common/enums';
+import { NotificationsService } from '../notifications/notifications.service';
+import { claimNotification } from './claim-notification';
+import { formatMoney } from './format-money';
 import { isDuplicateKeyError } from './is-duplicate-key-error';
 import { Payment, PaymentStatus } from './schemas/payment.schema';
 import {
@@ -33,7 +36,8 @@ import { STRIPE_CLIENT } from './stripe.provider';
 //     Area 5 when the airline cancels a flight): 100% for each Confirmed booking.
 //   Those modules need forwardRef to PaymentsModule (see payments.module.ts).
 // Booking details (FLT-25, HTL-20) show the refund with findRefundForBooking().
-// WAITING FOR (Area 3, GEN-01): notify the user when a refund is created or changes status.
+// GEN-01: the user is notified once when the refund is refunded or failed, and when a late
+// payment is refunded; the cancellation notification itself already gives the refund amount.
 
 export interface RefundBookingInput {
   bookingType: BookingType;
@@ -70,6 +74,7 @@ export class RefundsService {
     @InjectModel(Refund.name) private readonly refundModel: Model<Refund>,
     @InjectModel(Payment.name) private readonly paymentModel: Model<Payment>,
     @Inject(STRIPE_CLIENT) private readonly stripe: Stripe,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // Refunds a percentage of what was paid for a booking. Returns null when the amount is 0
@@ -126,7 +131,15 @@ export class RefundsService {
       return this.toResponse(winner);
     }
 
-    // TODO(GEN-01): notify the user that a refund was created.
+    // A cancellation notifies the user itself (with the refund amount). A payment that arrived after
+    // the hold ended has no other message, so it is explained here (only the insert winner gets here).
+    if (refund.reason === RefundReason.HoldExpired) {
+      await this.notifications.notify(
+        refund.userId,
+        'Late payment refunded',
+        `Your payment arrived after the 10-minute hold of your ${refund.bookingType} booking had ended, so the booking was not confirmed. ${formatMoney(refund.amount, refund.currency)} is being refunded in full.`,
+      );
+    }
     return this.toResponse(await this.sendToStripe(refund));
   }
 
@@ -169,7 +182,7 @@ export class RefundsService {
     refund.stripeRefundId = current.id;
     this.applyStripeStatus(refund, current);
     await refund.save();
-    // TODO(GEN-01): notify the user when the status changes to refunded or failed.
+    await this.notifyFinalStatus(refund);
   }
 
   // --- Helpers ---
@@ -208,7 +221,30 @@ export class RefundsService {
       refund.failureReason = err.message;
     }
     await refund.save();
+    await this.notifyFinalStatus(refund);
     return refund;
+  }
+
+  // GEN-01, PAY-03: one notification when the refund reaches refunded or failed, whichever of the
+  // Stripe reply and the webhook saw it first.
+  private async notifyFinalStatus(refund: RefundDocument): Promise<void> {
+    if (
+      refund.status !== RefundStatus.Refunded &&
+      refund.status !== RefundStatus.Failed
+    )
+      return;
+    if (!(await claimNotification(this.refundModel, refund._id, refund.status)))
+      return;
+    const amount = formatMoney(refund.amount, refund.currency);
+    await this.notifications.notify(
+      refund.userId,
+      refund.status === RefundStatus.Refunded
+        ? 'Refund completed'
+        : 'Refund failed',
+      refund.status === RefundStatus.Refunded
+        ? `${amount} for your ${refund.bookingType} booking has been refunded to your card.`
+        : `The refund of ${amount} for your ${refund.bookingType} booking failed. Please contact support.`,
+    );
   }
 
   // Stripe statuses: pending, requires_action, succeeded, failed, canceled.
