@@ -455,3 +455,17 @@ with the GET /api/currencies route. Added the endpoint to docs/api/openapi.yaml 
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+================================================
+Date: 2026-11-03
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01, HTL-03
+Prompt:
+Asked for the HTL-01 create/edit hotel routes and HTL-03 add-room feature: Room schema following the
+Area 1 contract, CreateRoomDto, service methods with ownership checks, controller routes with
+JwtAuthGuard/RolesGuard, a temporary hotel photo helper, and a fix for Swagger sending array fields
+as one comma-separated value.
+How the output was used:
+Reviewed and adapted the code, fixed build errors, and tested every route and error case in Swagger
+(screenshots attached to the PR).
+================================================
