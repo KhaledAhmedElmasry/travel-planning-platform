@@ -240,6 +240,7 @@ common/dto/index.ts and common/utils/index.ts to ensure consistent pagination re
 friendly empty states across modules. AI also assisted with reviewing the implementation and
 suggesting validation steps. Verified the changes using npm run lint (0 errors) and npm run build.
 ================================================
+=
 
 ================================================
 Date: 2026-11-02
@@ -320,7 +321,6 @@ npm run build, local tests (including checks that fail when the currency check o
 protections against extra fields are removed), and in Swagger.
 ================================================
 
-
 ================================================
 Date: 2026-11-03
 Student: Hussien Shata
@@ -338,7 +338,7 @@ Used AI guidance to understand the implementation approach and structure the end
 Implemented GET /api/admin/accounts myself, including paginated accounts listing,
 search by name/email, filtering by role and status, sorting newest first, and friendly
 empty states. AI also assisted with reviewing the implementation and identifying
-potential issues
+potential issues.
 ================================================
 
 ================================================
@@ -387,6 +387,26 @@ AdminService.listBookings myself, with Mongoose queries across the FlightBooking
 HotelBooking collections.
 ================================================
 
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-07
+
+Prompt:
+Help me plan how to implement GEN-07 (audit log of admin actions). Provide guidance
+on designing the AuditLog schema, structuring an AuditService with record() and list()
+methods, exposing GET /api/admin/audit-logs with filtering by action and date range
+(from, to), GEN-05 pagination (page size 10) and GEN-04 empty state, and connecting
+the reset-password admin action to the audit log.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the module.
+Created the AuditLog schema, ListAuditLogsQueryDto, AuditService, and AuditController
+myself, added the AuditAction enum, and linked password reset audit recording in
+AdminUsersController. AI also assisted with reviewing the implementation and
+identifying potential issues.
+================================================
 
 ================================================
 Date: 2026-11-03
@@ -398,15 +418,18 @@ Prompt:
 Help me implement GEN-09 (report a post, comment, review or itinerary with a reason,
 at most once per item). Provide guidance on designing the Report schema with compound
 uniqueness ({ reporterId: 1, contentType: 1, contentId: 1 }), defining CreateReportDto
-and ListReportsQueryDto, verifying target content existence and extracting previews,
-preventing duplicate reports with 409 Conflict, handling double-click races,
-protecting user reporting with JwtAuthGuard and admin list view with RolesGuard, and
-updating openapi.yaml with POST /api/reports.
+and ListReportsQueryDto, verifying target content existence and visibility, preventing
+duplicate reports with 409 Conflict, handling double-click races, protecting user
+reporting with JwtAuthGuard and RolesGuard (Role.User only), admin list view with
+RolesGuard (Role.Admin), and updating openapi.yaml with POST /api/reports.
 
 How the output was used:
-Used AI guidance to understand the architecture, database indexing, and edge-case
-handling. Implemented the Report schema, CreateReportDto, ListReportsQueryDto,
-ReportsService, and ReportsController myself, adding the ContentType and ReportStatus
-enums, POST /api/reports and POST /api/content/:type/:id/report routes, and
-GET /api/admin/reports admin overview. Documented the new endpoint and schemas in
-docs/api/openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
+Used AI guidance to understand the architecture, database indexing, visibility checks
+(treating private itineraries, draft posts, and hidden content as 404 for unauthorized users),
+and edge-case handling (trimming whitespace before @IsNotEmpty). Implemented the Report schema,
+CreateReportDto, ListReportsQueryDto, ReportsService, and ReportsController myself, adding the
+ContentType and ReportStatus enums, POST /api/reports route, and GET /api/admin/reports admin
+overview. Documented the new endpoint and schemas in docs/api/openapi.yaml. Verified with
+npm run lint (0 errors) and npm run build.
+================================================
+

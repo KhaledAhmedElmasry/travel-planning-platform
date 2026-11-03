@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsEnum,
   IsMongoId,
@@ -22,13 +23,9 @@ export class CreateReportDto {
   })
   contentId: string;
 
-  @IsString({ message: 'reason must be a string' })
-  @IsNotEmpty({ message: 'reason is required' })
-  @MaxLength(500, { message: 'reason must not exceed 500 characters' })
-  reason: string;
-}
-
-export class CreateContentReportDto {
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString({ message: 'reason must be a string' })
   @IsNotEmpty({ message: 'reason is required' })
   @MaxLength(500, { message: 'reason must not exceed 500 characters' })

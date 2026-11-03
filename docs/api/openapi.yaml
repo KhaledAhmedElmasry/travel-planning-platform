@@ -70,6 +70,8 @@ tags:
     description: PDF section 8.8
   - name: Blog
     description: PDF section 8.9
+  - name: Content Reports
+    description: Content reporting by registered users (GEN-09)
   - name: Health
     description: Not a requirement. Checks that the server and the database connection work.
 
@@ -928,7 +930,7 @@ paths:
   /api/reports:
     post:
       operationId: postReports
-      tags: [Administration]
+      tags: [Content Reports]
       summary: 'Report content (GEN-09)'
       description: |
         **Access:** registered user.
@@ -953,6 +955,13 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/reports", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Content not found.
           content:
@@ -6161,6 +6170,10 @@ components:
         - dismiss_report
         - hide_content
         - delete_content
+        - deactivate_airline
+        - reactivate_airline
+        - deactivate_hotel
+        - reactivate_hotel
 
     # --- Authentication and Accounts ---
 

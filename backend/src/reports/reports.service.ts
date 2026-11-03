@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -71,22 +72,86 @@ export class ReportsService {
     }
   }
 
+  // Check if content is visible to the reporting user; content the user cannot see is treated as 404
+  private isContentVisibleToUser(
+    doc: Record<string, unknown>,
+    contentType: ContentType,
+    userId: string,
+  ): boolean {
+    // Deleted content is never visible
+    if (
+      doc.deleted === true ||
+      doc.isDeleted === true ||
+      doc.deletedAt != null
+    ) {
+      return false;
+    }
+
+    const authorId =
+      (doc.userId as Types.ObjectId | string | undefined)?.toString?.() ??
+      (doc.user as Types.ObjectId | string | undefined)?.toString?.() ??
+      (doc.authorId as Types.ObjectId | string | undefined)?.toString?.() ??
+      (doc.author as Types.ObjectId | string | undefined)?.toString?.() ??
+      (typeof doc.author === 'object' && doc.author !== null
+        ? ((doc.author as Record<string, unknown>).id?.toString?.() ??
+          (doc.author as Record<string, unknown>)._id?.toString?.())
+        : undefined);
+
+    const isAuthor = authorId === userId;
+
+    // GEN-10: Hidden content is visible only to its author (and admins)
+    if ((doc.hidden === true || doc.isHidden === true) && !isAuthor) {
+      return false;
+    }
+
+    // Itineraries: private itineraries are visible only to their author
+    if (contentType === ContentType.Itinerary) {
+      const isPrivate =
+        doc.visibility === 'private' ||
+        (doc.visibility !== undefined && doc.visibility !== 'public');
+      if (isPrivate && !isAuthor) {
+        return false;
+      }
+    }
+
+    // Posts: drafts are visible only to their author
+    if (contentType === ContentType.Post) {
+      const isDraft =
+        doc.status === 'draft' ||
+        doc.isDraft === true ||
+        doc.draft === true ||
+        doc.published === false ||
+        doc.state === 'draft';
+      if (isDraft && !isAuthor) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   // GEN-09: A registered user reports a post, comment, review or itinerary
   async createReport(
     user: AuthUser,
     dto: CreateReportDto,
   ): Promise<ReportItem> {
+    const trimmedReason =
+      typeof dto.reason === 'string' ? dto.reason.trim() : '';
+    if (!trimmedReason) {
+      throw new BadRequestException('reason is required');
+    }
+
     const contentObjectId = new Types.ObjectId(dto.contentId);
     const collectionName = this.getCollectionName(dto.contentType);
 
-    // Verify target content exists in MongoDB
+    // Verify target content exists in MongoDB and is visible to the reporting user
     const contentDoc = await this.connection.db
       ?.collection(collectionName)
       .findOne({ _id: contentObjectId });
 
     if (
       !contentDoc ||
-      (contentDoc as Record<string, unknown>).deleted === true
+      !this.isContentVisibleToUser(contentDoc, dto.contentType, user.id)
     ) {
       throw new NotFoundException(`${dto.contentType} not found`);
     }
@@ -142,7 +207,7 @@ export class ReportsService {
       contentType: dto.contentType,
       contentId: contentObjectId,
       contentPreview,
-      reason: dto.reason.trim(),
+      reason: trimmedReason,
       status: ReportStatus.Open,
     });
 
