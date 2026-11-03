@@ -47,3 +47,18 @@ export enum BookingStatus {
   Expired = 'expired',
   Cancelled = 'cancelled',
 }
+
+// Admin actions recorded in the audit log (GEN-07), openapi.yaml "AuditAction".
+export enum AuditAction {
+  CreateModerator = 'create_moderator',
+  SuspendAccount = 'suspend_account',
+  ReactivateAccount = 'reactivate_account',
+  ResetPassword = 'reset_password',
+  DismissReport = 'dismiss_report',
+  HideContent = 'hide_content',
+  DeleteContent = 'delete_content',
+  DeactivateAirline = 'deactivate_airline',
+  ReactivateAirline = 'reactivate_airline',
+  DeactivateHotel = 'deactivate_hotel',
+  ReactivateHotel = 'reactivate_hotel',
+}
