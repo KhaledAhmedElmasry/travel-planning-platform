@@ -1,10 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, isValidObjectId, Model, Types } from 'mongoose';
+import mongoose, { Connection, isValidObjectId, Model, Types } from 'mongoose';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
 import { Itinerary, ItineraryDocument } from './schemas/itinerary.schema';
@@ -47,7 +48,16 @@ export class ItinerariesService {
     if (dto.startDate !== undefined)
       itinerary.startDate = toStartDate(dto.startDate);
 
-    await itinerary.save();
+    try {
+      await itinerary.save();
+    } catch (error) {
+      if (error instanceof mongoose.Error.VersionError) {
+        throw new ConflictException(
+          'The itinerary was changed by another request. Please retry.',
+        );
+      }
+      throw error;
+    }
     return this.toResponse(itinerary);
   }
 

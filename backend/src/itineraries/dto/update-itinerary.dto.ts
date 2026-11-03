@@ -46,6 +46,9 @@ export class UpdateItineraryDto {
   countryCodes?: string[];
 
   @IsOptional()
-  @IsDateString({}, { message: 'startDate must be a valid date' })
+  @IsDateString({ strict: true }, { message: 'startDate must be a valid date' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'startDate must be a date (YYYY-MM-DD)',
+  })
   startDate?: string;
 }
