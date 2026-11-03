@@ -583,3 +583,29 @@ How the output was used:
 Reviewed and adapted the code, fixed build errors, and tested every route and error case in Swagger
 (screenshots attached to the PR).
 ================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-10
+
+Prompt:
+Help me implement GEN-10 (view open reports, resolve by dismissing, hiding content, or deleting content, and directly hide or delete content). Provide guidance on designing PATCH /api/admin/reports/:id with conflict checks for already resolved reports (409), cascade resolution of other open reports for the same item, updating MongoDB collections (posts, comments, reviews, itineraries) with hidden/deleted flags, direct content deletion (DELETE /api/admin/content/:type/:id) with 204, direct hiding (PATCH /api/admin/content/:type/:id/hide), writing moderation actions to AuditService (GEN-07), and sending in-app notifications (GEN-01).
+
+How the output was used:
+Used AI guidance to understand cascade report resolution, direct moderation workflows, and integration with audit logging and in-app notifications. Implemented ResolveReportDto, ReportsService.resolveReport, deleteContentDirect, and hideContentDirect myself, exposed PATCH /api/admin/reports/:id, DELETE /api/admin/content/:type/:id, and PATCH /api/admin/content/:type/:id/hide in ReportsController with admin guards, and updated openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-01
+
+Prompt:
+Help me implement GEN-01 (in-app notifications: unread count, notification list, mark as read, mark all read). Provide guidance on designing the Notification schema in notifications collection, creating ListNotificationsQueryDto, structuring NotificationsService with notify, list, getUnreadCount, markAsRead, and markAllAsRead, exposing GET /api/notifications, GET /api/notifications/unread-count, PATCH /api/notifications/:id/read, and PATCH /api/notifications/read-all, and documenting endpoints in openapi.yaml.
+
+How the output was used:
+Used AI guidance to design the notification schema, query pagination (GEN-05, page size 10), and ownership verification. Implemented the Notification schema, ListNotificationsQueryDto, NotificationsService, and NotificationsController myself, protecting routes with JwtAuthGuard, and updated openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
+================================================

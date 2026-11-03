@@ -2,21 +2,28 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, FilterQuery, Model, Types } from 'mongoose';
+import { AuditService } from '../audit/audit.service';
 import {
   DEFAULT_PAGE_SIZE,
   getPaginationOffset,
   paginate,
   PaginatedList,
 } from '../common/dto/pagination.dto';
-import { ContentType, ReportStatus } from '../common/enums';
+import { AuditAction, ContentType, ReportStatus } from '../common/enums';
 import type { AuthUser } from '../common/interfaces';
+import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { CreateReportDto } from './dto/create-report.dto';
 import { ListReportsQueryDto } from './dto/list-reports-query.dto';
+import {
+  ReportResolutionAction,
+  ResolveReportDto,
+} from './dto/resolve-report.dto';
 import { Report, ReportDocument } from './schemas/report.schema';
 
 export interface ReportReporter {
@@ -48,6 +55,8 @@ export type LeanReport = Report & { _id: Types.ObjectId };
 // Business logic and database access for: GEN-09, GEN-10
 @Injectable()
 export class ReportsService {
+  private readonly logger = new Logger(ReportsService.name);
+
   constructor(
     @InjectModel(Report.name)
     private readonly reportModel: Model<ReportDocument>,
@@ -55,6 +64,8 @@ export class ReportsService {
     private readonly userModel: Model<UserDocument>,
     @InjectConnection()
     private readonly connection: Connection,
+    private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private getCollectionName(contentType: ContentType): string {
@@ -87,16 +98,7 @@ export class ReportsService {
       return false;
     }
 
-    const authorId =
-      (doc.userId as Types.ObjectId | string | undefined)?.toString?.() ??
-      (doc.user as Types.ObjectId | string | undefined)?.toString?.() ??
-      (doc.authorId as Types.ObjectId | string | undefined)?.toString?.() ??
-      (doc.author as Types.ObjectId | string | undefined)?.toString?.() ??
-      (typeof doc.author === 'object' && doc.author !== null
-        ? ((doc.author as Record<string, unknown>).id?.toString?.() ??
-          (doc.author as Record<string, unknown>)._id?.toString?.())
-        : undefined);
-
+    const authorId = this.extractAuthorId(doc);
     const isAuthor = authorId === userId;
 
     // GEN-10: Hidden content is visible only to its author (and admins)
@@ -128,6 +130,21 @@ export class ReportsService {
     }
 
     return true;
+  }
+
+  private extractAuthorId(doc: unknown): string | undefined {
+    if (!doc || typeof doc !== 'object') return undefined;
+    const d = doc as Record<string, unknown>;
+    const id =
+      (d.userId as Types.ObjectId | string | undefined)?.toString?.() ??
+      (d.user as Types.ObjectId | string | undefined)?.toString?.() ??
+      (d.authorId as Types.ObjectId | string | undefined)?.toString?.() ??
+      (d.author as Types.ObjectId | string | undefined)?.toString?.() ??
+      (typeof d.author === 'object' && d.author !== null
+        ? ((d.author as Record<string, unknown>).id?.toString?.() ??
+          (d.author as Record<string, unknown>)._id?.toString?.())
+        : undefined);
+    return id ? String(id) : undefined;
   }
 
   // GEN-09: A registered user reports a post, comment, review or itinerary
@@ -252,6 +269,347 @@ export class ReportsService {
 
     const items = reports.map((r) => this.mapReportItem(r));
     return paginate(items, total, page, DEFAULT_PAGE_SIZE);
+  }
+
+  // GEN-10: Admin resolves a report (dismiss, hide, or delete)
+  async resolveReport(
+    admin: AuthUser,
+    id: Types.ObjectId | string,
+    dto: ResolveReportDto,
+  ): Promise<ReportItem> {
+    const reportObjectId = typeof id === 'string' ? new Types.ObjectId(id) : id;
+
+    let targetStatus: ReportStatus;
+    if (dto.action === ReportResolutionAction.Dismiss) {
+      targetStatus = ReportStatus.Dismissed;
+    } else if (dto.action === ReportResolutionAction.Hide) {
+      targetStatus = ReportStatus.ContentHidden;
+    } else {
+      targetStatus = ReportStatus.ContentDeleted;
+    }
+
+    const adminObjectId = new Types.ObjectId(admin.id);
+    const resolutionNote = dto.note?.trim() ?? undefined;
+
+    // Atomic conditional update: only the request that updates an open report succeeds
+    const updatedReport = await this.reportModel
+      .findOneAndUpdate(
+        { _id: reportObjectId, status: ReportStatus.Open },
+        {
+          $set: {
+            status: targetStatus,
+            resolvedBy: adminObjectId,
+            resolvedAt: new Date(),
+            resolutionNote,
+          },
+        },
+        { new: true },
+      )
+      .exec();
+
+    if (!updatedReport) {
+      const existing = await this.reportModel.findById(reportObjectId).exec();
+      if (!existing) {
+        throw new NotFoundException('Report not found.');
+      }
+      throw new ConflictException('The report is already resolved.');
+    }
+
+    const collectionName = this.getCollectionName(updatedReport.contentType);
+    const contentId = updatedReport.contentId;
+    const reportIdStr = updatedReport._id.toString();
+
+    // Look up target content to extract authorId for notification
+    const contentDoc = await this.connection.db
+      ?.collection(collectionName)
+      .findOne({ _id: contentId });
+    const authorId = this.extractAuthorId(contentDoc);
+
+    if (dto.action === ReportResolutionAction.Dismiss) {
+      // Write to audit log (GEN-07)
+      await this.auditService.record({
+        adminId: admin.id,
+        action: AuditAction.DismissReport,
+        targetType: updatedReport.contentType,
+        targetId: contentId.toString(),
+        details: {
+          reportId: reportIdStr,
+          note: resolutionNote,
+        },
+      });
+
+      return this.mapReportItem(updatedReport);
+    }
+
+    if (dto.action === ReportResolutionAction.Hide) {
+      // Hide content in its collection
+      await this.connection.db?.collection(collectionName).updateOne(
+        { _id: contentId },
+        {
+          $set: {
+            hidden: true,
+            hiddenAt: new Date(),
+            hiddenBy: adminObjectId,
+          },
+        },
+      );
+
+      // Cascade resolution: resolve any other open reports about this content item
+      await this.reportModel.updateMany(
+        {
+          contentType: updatedReport.contentType,
+          contentId,
+          status: ReportStatus.Open,
+          _id: { $ne: updatedReport._id },
+        },
+        {
+          $set: {
+            status: ReportStatus.ContentHidden,
+            resolvedBy: adminObjectId,
+            resolvedAt: new Date(),
+            resolutionNote: resolutionNote
+              ? `Resolved with report ${reportIdStr}: ${resolutionNote}`
+              : `Resolved with report ${reportIdStr}`,
+          },
+        },
+      );
+
+      // Write to audit log (GEN-07)
+      await this.auditService.record({
+        adminId: admin.id,
+        action: AuditAction.HideContent,
+        targetType: updatedReport.contentType,
+        targetId: contentId.toString(),
+        details: {
+          reportId: reportIdStr,
+          note: resolutionNote,
+        },
+      });
+
+      // Send in-app notification to the content author (GEN-01)
+      if (authorId) {
+        await this.notificationsService.notify(
+          authorId,
+          'Content Hidden',
+          `Your ${updatedReport.contentType} has been hidden by an administrator${
+            resolutionNote
+              ? `: ${resolutionNote}`
+              : ' for violating community guidelines.'
+          }`,
+          'moderation',
+        );
+      }
+
+      return this.mapReportItem(updatedReport);
+    }
+
+    if (dto.action === ReportResolutionAction.Delete) {
+      // Delete content from its collection
+      await this.connection.db
+        ?.collection(collectionName)
+        .deleteOne({ _id: contentId });
+
+      // Cascade resolution: resolve any other open reports about this content item
+      await this.reportModel.updateMany(
+        {
+          contentType: updatedReport.contentType,
+          contentId,
+          status: ReportStatus.Open,
+          _id: { $ne: updatedReport._id },
+        },
+        {
+          $set: {
+            status: ReportStatus.ContentDeleted,
+            resolvedBy: adminObjectId,
+            resolvedAt: new Date(),
+            resolutionNote: resolutionNote
+              ? `Resolved with report ${reportIdStr}: ${resolutionNote}`
+              : `Resolved with report ${reportIdStr}`,
+          },
+        },
+      );
+
+      // Write to audit log (GEN-07)
+      await this.auditService.record({
+        adminId: admin.id,
+        action: AuditAction.DeleteContent,
+        targetType: updatedReport.contentType,
+        targetId: contentId.toString(),
+        details: {
+          reportId: reportIdStr,
+          note: resolutionNote,
+        },
+      });
+
+      // Send in-app notification to the content author (GEN-01)
+      if (authorId) {
+        await this.notificationsService.notify(
+          authorId,
+          'Content Deleted',
+          `Your ${updatedReport.contentType} has been deleted by an administrator${
+            resolutionNote
+              ? `: ${resolutionNote}`
+              : ' for violating community guidelines.'
+          }`,
+          'moderation',
+        );
+      }
+
+      return this.mapReportItem(updatedReport);
+    }
+
+    return this.mapReportItem(updatedReport);
+  }
+
+  // GEN-10: Admin deletes a post, comment, review or itinerary directly
+  async deleteContentDirect(
+    admin: AuthUser,
+    type: ContentType,
+    id: Types.ObjectId | string,
+  ): Promise<void> {
+    const contentObjectId =
+      typeof id === 'string' ? new Types.ObjectId(id) : id;
+    const collectionName = this.getCollectionName(type);
+
+    const doc = await this.connection.db
+      ?.collection(collectionName)
+      .findOne({ _id: contentObjectId });
+
+    if (!doc || (doc as Record<string, unknown>).deleted === true) {
+      throw new NotFoundException('Content not found.');
+    }
+
+    // Delete or mark deleted in MongoDB
+    await this.connection.db
+      ?.collection(collectionName)
+      .deleteOne({ _id: contentObjectId });
+
+    const adminObjectId = new Types.ObjectId(admin.id);
+
+    // Resolve any open reports as content_deleted
+    await this.reportModel.updateMany(
+      {
+        contentType: type,
+        contentId: contentObjectId,
+        status: ReportStatus.Open,
+      },
+      {
+        $set: {
+          status: ReportStatus.ContentDeleted,
+          resolvedBy: adminObjectId,
+          resolvedAt: new Date(),
+          resolutionNote: 'Content deleted directly by administrator',
+        },
+      },
+    );
+
+    // Write to audit log (GEN-07)
+    await this.auditService.record({
+      adminId: admin.id,
+      action: AuditAction.DeleteContent,
+      targetType: type,
+      targetId: contentObjectId.toString(),
+    });
+
+    // Send in-app notification to author (GEN-01)
+    const authorId = this.extractAuthorId(doc);
+    if (authorId) {
+      await this.notificationsService.notify(
+        authorId,
+        'Content Deleted',
+        `Your ${type} has been deleted by an administrator.`,
+        'moderation',
+      );
+    }
+  }
+
+  // GEN-10: Admin hides or unhides content directly
+  async hideContentDirect(
+    admin: AuthUser,
+    type: ContentType,
+    id: Types.ObjectId | string,
+    hidden = true,
+    reason?: string,
+  ): Promise<{
+    id: string;
+    type: ContentType;
+    hidden: boolean;
+    message: string;
+  }> {
+    const contentObjectId =
+      typeof id === 'string' ? new Types.ObjectId(id) : id;
+    const collectionName = this.getCollectionName(type);
+
+    const doc = await this.connection.db
+      ?.collection(collectionName)
+      .findOne({ _id: contentObjectId });
+
+    if (!doc || (doc as Record<string, unknown>).deleted === true) {
+      throw new NotFoundException('Content not found.');
+    }
+
+    const adminObjectId = new Types.ObjectId(admin.id);
+
+    await this.connection.db?.collection(collectionName).updateOne(
+      { _id: contentObjectId },
+      {
+        $set: {
+          hidden,
+          hiddenAt: hidden ? new Date() : null,
+          hiddenBy: hidden ? adminObjectId : null,
+        },
+      },
+    );
+
+    if (hidden) {
+      // Resolve open reports as content_hidden
+      await this.reportModel.updateMany(
+        {
+          contentType: type,
+          contentId: contentObjectId,
+          status: ReportStatus.Open,
+        },
+        {
+          $set: {
+            status: ReportStatus.ContentHidden,
+            resolvedBy: adminObjectId,
+            resolvedAt: new Date(),
+            resolutionNote: reason
+              ? `Content hidden directly by administrator: ${reason}`
+              : 'Content hidden directly by administrator',
+          },
+        },
+      );
+
+      // Write to audit log (GEN-07)
+      await this.auditService.record({
+        adminId: admin.id,
+        action: AuditAction.HideContent,
+        targetType: type,
+        targetId: contentObjectId.toString(),
+        details: reason ? { reason } : undefined,
+      });
+
+      // Send in-app notification to author (GEN-01)
+      const authorId = this.extractAuthorId(doc);
+      if (authorId) {
+        await this.notificationsService.notify(
+          authorId,
+          'Content Hidden',
+          `Your ${type} has been hidden by an administrator${reason ? `: ${reason}` : '.'}`,
+          'moderation',
+        );
+      }
+    }
+
+    return {
+      id: contentObjectId.toString(),
+      type,
+      hidden,
+      message: hidden
+        ? `${type} hidden successfully.`
+        : `${type} unhidden successfully.`,
+    };
   }
 
   private mapReportItem(
