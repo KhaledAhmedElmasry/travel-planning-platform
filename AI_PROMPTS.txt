@@ -475,3 +475,28 @@ for Area 5 flights and Area 6 flight search, and the GET /api/airports route. Up
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-01
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-02 branch, I asked the assistant to implement FLT-01
+exactly as documented in docs/api/openapi.yaml: the airline schema (name, unique code, one logo,
+active flag used by the admin deactivate/reactivate code from ACC-15), POST /api/airlines for
+admins, the public GET /api/airlines/:id, and PATCH /api/airlines/:id for the airline's own
+moderator only, with the logo sent as multipart/form-data (JPG or PNG, at most 5 MB, GEN-08).
+
+How the output was used:
+Used the generated Airline schema, CreateAirlineDto and UpdateAirlineDto, AirlinesService
+create(), findPublic(), update() and findManagedAirline() (404 unknown airline, 403 not its
+moderator or deactivated airline, 409 duplicate code), the controller routes with JwtAuthGuard,
+RolesGuard and FileInterceptor, and airline-logo.ts, which checks the logo type from the file
+bytes and its size and stores it under uploads/airlines (the shared GEN-08 upload code is not
+merged yet). Kept the existing getBookingPolicies()/getRefundTier() stubs for FLT-08 and FLT-09.
+Added response examples to the airline endpoints in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
