@@ -70,6 +70,8 @@ tags:
     description: PDF section 8.8
   - name: Blog
     description: PDF section 8.9
+  - name: Content Reports
+    description: Content reporting by registered users (GEN-09)
   - name: Reference Data
     description: Extra read-only endpoints, not in the PDF tables (GEN-12, NEW-05)
   - name: Health
@@ -926,6 +928,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/bookings", "timestamp": "2026-11-01T10:00:00.000Z"}
+
+  /api/reports:
+    post:
+      operationId: postReports
+      tags: [Content Reports]
+      summary: 'Report content (GEN-09)'
+      description: |
+        **Access:** registered user.
+
+        A registered user reports a post, comment, review or itinerary with a reason. Each item can be reported
+        at most once per user.
+      security: *auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+      responses:
+        '201':
+          description: Report created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportItem'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/reports", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '404':
+          description: Content not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "post not found.", "path": "/api/reports", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '409':
+          description: The user has already reported this item.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "You have already reported this item.", "path": "/api/reports", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/admin/reports:
     get:
@@ -6437,6 +6489,58 @@ components:
           type: string
           maxLength: 500
           example: Repeated abusive comments
+
+    CreateReportRequest:
+      type: object
+      required: [contentType, contentId, reason]
+      properties:
+        contentType:
+          $ref: '#/components/schemas/ContentType'
+        contentId:
+          type: string
+          example: '665f1c2a9b1e8a00123400a1'
+        reason:
+          type: string
+          maxLength: 500
+          example: Inappropriate or abusive content
+
+    ReportItem:
+      type: object
+      properties:
+        id:
+          type: string
+          example: '665f1c2a9b1e8a00123400b2'
+        contentType:
+          $ref: '#/components/schemas/ContentType'
+        contentId:
+          type: string
+          example: '665f1c2a9b1e8a00123400a1'
+        contentPreview:
+          type: string
+          example: A short preview of the reported content
+        reporter:
+          type: object
+          properties:
+            id:
+              type: string
+              example: '665f1c2a9b1e8a0012340099'
+            name:
+              type: string
+              example: Mona Adel
+            email:
+              type: string
+              example: mona@example.com
+        reason:
+          type: string
+          example: Inappropriate or abusive content
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        createdAt:
+          type: string
+          format: date-time
+        date:
+          type: string
+          format: date-time
 
     ResolveReportRequest:
       type: object

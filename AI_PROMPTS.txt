@@ -6,6 +6,22 @@ in chronological order, using the format below (project description, section 11)
 Add your entry in the same pull request as the work it relates to.
 
 ================================================
+Date: 2026-11-03
+Student: [Abdallah Mahmoud]
+Tool: Codex
+Related Requirement: ITN-01
+
+Prompt:
+Implement requirement ITN-01 (issue #55) on branch feature/ITN-01-create-itinerary: the itinerary
+schema and create, edit and delete of the user's own itineraries (title required, max 100
+characters), following the ITN-01 comments in the code and docs/api/openapi.yaml, with no other
+requirement implemented.
+
+How the output was used:
+Used as the implementation of ITN-01: itinerary schema, DTOs, service and the create, edit and
+delete routes with ownership checks and Swagger decorators. Verified by building, linting and
+testing the happy path and every error case in Swagger.
+================================================
 Date: YYYY-MM-DD
 Student: <Full name>
 Tool: <ChatGPT / Claude / Copilot / Gemini / ...>
@@ -240,6 +256,7 @@ common/dto/index.ts and common/utils/index.ts to ensure consistent pagination re
 friendly empty states across modules. AI also assisted with reviewing the implementation and
 suggesting validation steps. Verified the changes using npm run lint (0 errors) and npm run build.
 ================================================
+=
 
 ================================================
 Date: 2026-11-02
@@ -409,6 +426,31 @@ identifying potential issues.
 
 ================================================
 Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-09
+
+Prompt:
+Help me implement GEN-09 (report a post, comment, review or itinerary with a reason,
+at most once per item). Provide guidance on designing the Report schema with compound
+uniqueness ({ reporterId: 1, contentType: 1, contentId: 1 }), defining CreateReportDto
+and ListReportsQueryDto, verifying target content existence and visibility, preventing
+duplicate reports with 409 Conflict, handling double-click races, protecting user
+reporting with JwtAuthGuard and RolesGuard (Role.User only), admin list view with
+RolesGuard (Role.Admin), and updating openapi.yaml with POST /api/reports.
+
+How the output was used:
+Used AI guidance to understand the architecture, database indexing, visibility checks
+(treating private itineraries, draft posts, and hidden content as 404 for unauthorized users),
+and edge-case handling (trimming whitespace before @IsNotEmpty). Implemented the Report schema,
+CreateReportDto, ListReportsQueryDto, ReportsService, and ReportsController myself, adding the
+ContentType and ReportStatus enums, POST /api/reports route, and GET /api/admin/reports admin
+overview. Documented the new endpoint and schemas in docs/api/openapi.yaml. Verified with
+npm run lint (0 errors) and npm run build.
+================================================
+
+================================================
+Date: 2026-11-03
 Student: Mostafa Elsallamy
 Tool: Claude (Claude Opus 5.5)
 Related Requirement: GEN-12
@@ -525,4 +567,19 @@ saving hour rejected, duplicate flight number on the same date -> 409) and the P
 route. Added a response example to docs/api/openapi.yaml.
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01, HTL-03
+Prompt:
+Asked for the HTL-01 create/edit hotel routes and HTL-03 add-room feature: Room schema following the
+Area 1 contract, CreateRoomDto, service methods with ownership checks, controller routes with
+JwtAuthGuard/RolesGuard, a temporary hotel photo helper, and a fix for Swagger sending array fields
+as one comma-separated value.
+How the output was used:
+Reviewed and adapted the code, fixed build errors, and tested every route and error case in Swagger
+(screenshots attached to the PR).
 ================================================
