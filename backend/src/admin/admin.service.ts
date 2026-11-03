@@ -261,6 +261,11 @@ export class AdminService {
         ? new Date(lastSeg.arrivalAt ?? lastSeg.departureAt).toISOString()
         : '';
 
+    const airlineName =
+      firstSeg && lastSeg && firstSeg.airlineName !== lastSeg.airlineName
+        ? `${firstSeg.airlineName} / ${lastSeg.airlineName}`
+        : (firstSeg?.airlineName ?? 'Unknown Airline');
+
     return {
       id: b._id.toString(),
       type: BookingType.Flight,
@@ -268,7 +273,7 @@ export class AdminService {
       user,
       provider: {
         id: firstSeg?.airlineId ? firstSeg.airlineId.toString() : '',
-        name: firstSeg?.airlineName ?? 'Unknown Airline',
+        name: airlineName,
         type: 'airline',
       },
       dates: {
@@ -278,7 +283,7 @@ export class AdminService {
         endDate: toDate ? toDate.slice(0, 10) : undefined,
       },
       amount: b.totalAmount ?? 0,
-      currency: b.currency ?? 'USD',
+      currency: b.currency,
       status: b.status,
       createdAt: b.createdAt ?? new Date(),
     };
@@ -319,7 +324,7 @@ export class AdminService {
         endDate: toDate,
       },
       amount: b.totalAmount ?? 0,
-      currency: b.currency ?? 'USD',
+      currency: b.currency,
       status: b.status,
       createdAt: b.createdAt ?? new Date(),
     };

@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsOptional } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, Matches } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { BookingStatus, BookingType } from '../../common/enums';
 
@@ -20,16 +20,22 @@ export class ListBookingsQueryDto extends PaginationQueryDto {
   status?: BookingStatus;
 
   @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'from must be a date (YYYY-MM-DD)',
+  })
   @IsDateString(
     { strict: true },
-    { message: 'from must be a valid ISO date string (YYYY-MM-DD)' },
+    { message: 'from must be a date (YYYY-MM-DD)' },
   )
   from?: string;
 
   @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'to must be a date (YYYY-MM-DD)',
+  })
   @IsDateString(
     { strict: true },
-    { message: 'to must be a valid ISO date string (YYYY-MM-DD)' },
+    { message: 'to must be a date (YYYY-MM-DD)' },
   )
   to?: string;
 }
