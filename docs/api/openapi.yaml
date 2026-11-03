@@ -1835,6 +1835,9 @@ paths:
       responses:
         '201':
           description: The flight with its cabins (each cabin has an id).
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [{"id": "665f1c2a9b1e8a00123400c3", "cabinClass": "economy", "seats": 150, "bookedSeats": 0, "heldSeats": 0, "availableSeats": 150, "price": 25000, "freeBags": 1, "maxBagWeightKg": 23}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:05:00.000Z"}
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1885,6 +1888,9 @@ paths:
       responses:
         '200':
           description: The flight with its updated cabins.
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [{"id": "665f1c2a9b1e8a00123400c3", "cabinClass": "economy", "seats": 150, "bookedSeats": 0, "heldSeats": 0, "availableSeats": 150, "price": 25000, "freeBags": 1, "maxBagWeightKg": 23}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:05:00.000Z"}
         '400':
           description: Invalid fields, or a seat count below the seats already booked or held.
           content:
