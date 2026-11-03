@@ -319,3 +319,24 @@ here (stripped by the ValidationPipe and ignored by the service). Verified with 
 npm run build, local tests (including checks that fail when the currency check or both
 protections against extra fields are removed), and in Swagger.
 ================================================
+
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: ACC-17
+
+Prompt:
+Help me plan how to implement ACC-17 (admin read-only view of all flight and hotel
+bookings). Provide guidance on designing a GET /api/admin/bookings endpoint with
+filtering by type (flight, hotel), status, and date range (from, to), paginated
+results matching GEN-05 (page size 10) and GEN-04 friendly empty state, mapping
+reference, user, provider, dates, amount, and status, and protecting it with admin
+guards.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the
+endpoint. Implemented ListBookingsQueryDto, AdminController.getBookings, and
+AdminService.listBookings myself, with Mongoose queries across the FlightBooking and
+HotelBooking collections.
