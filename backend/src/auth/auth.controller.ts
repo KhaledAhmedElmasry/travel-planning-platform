@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { CurrentUser } from '../common/decorators';
+import { AllowPendingPasswordChange, CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
 import { clearAuthCookies, setAuthCookies } from './auth-cookies';
@@ -67,9 +67,11 @@ export class AuthController {
 
   // ACC-06: revokes the session on the server and clears both cookies. Its tokens stop working
   // at once, even if they have not expired yet. Other sessions of the account stay logged in.
+  // Allowed with a temporary password (ACC-07a), so the account can still log out.
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
+  @AllowPendingPasswordChange()
   async logout(
     @CurrentUser() user: AuthUser,
     @Res({ passthrough: true }) res: Response,
@@ -79,8 +81,10 @@ export class AuthController {
   }
 
   // ACC-04, ACC-19: the frontend reads the logged-in account here instead of storing it.
+  // Allowed with a temporary password (ACC-07a), so the frontend can see mustChangePassword.
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @AllowPendingPasswordChange()
   me(@CurrentUser() user: AuthUser): Promise<MeResponse> {
     return this.authService.me(user.id);
   }
