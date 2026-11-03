@@ -54,6 +54,16 @@ export interface AdminBookingItem {
 export type LeanFlightBooking = FlightBooking & { _id: Types.ObjectId };
 export type LeanHotelBooking = HotelBooking & { _id: Types.ObjectId };
 
+export interface TaggedFlightBooking extends LeanFlightBooking {
+  _type: BookingType.Flight;
+}
+
+export interface TaggedHotelBooking extends LeanHotelBooking {
+  _type: BookingType.Hotel;
+}
+
+export type TaggedBooking = TaggedFlightBooking | TaggedHotelBooking;
+
 // Area: Auth & Accounts
 // Business logic and database access for: ACC-07a, ACC-13, ACC-14, ACC-15, ACC-16, ACC-17
 @Injectable()
@@ -167,18 +177,22 @@ export class AdminService {
         .exec(),
     ]);
 
-    type TaggedBooking =
-      | ({ _type: BookingType.Flight } & LeanFlightBooking)
-      | ({ _type: BookingType.Hotel } & LeanHotelBooking);
+    const taggedFlights: TaggedFlightBooking[] = flights.map((f) => ({
+      ...f,
+      _type: BookingType.Flight,
+    }));
+    const taggedHotels: TaggedHotelBooking[] = hotels.map((h) => ({
+      ...h,
+      _type: BookingType.Hotel,
+    }));
 
-    const combined: TaggedBooking[] = [
-      ...flights.map((f) => ({ ...f, _type: BookingType.Flight })),
-      ...hotels.map((h) => ({ ...h, _type: BookingType.Hotel })),
-    ].sort((a, b) => {
-      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return timeB - timeA;
-    });
+    const combined: TaggedBooking[] = [...taggedFlights, ...taggedHotels].sort(
+      (a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      },
+    );
 
     const pagedSlice = combined.slice(skip, skip + limit);
     const userMap = await this.getUserMap(pagedSlice.map((b) => b.userId));
