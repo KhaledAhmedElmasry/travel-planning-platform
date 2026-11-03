@@ -1,5 +1,19 @@
-import { Controller } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post as HttpPost,
+  UseGuards,
+} from '@nestjs/common';
+import { CurrentUser, Roles } from '../common/decorators';
+import { Role } from '../common/enums';
+import { JwtAuthGuard } from '../common/guards/auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import type { AuthUser } from '../common/interfaces';
 import { BlogService } from './blog.service';
+import { CreatePostDto } from './dto/create-post.dto';
+import type { CreatedPostResponse } from './blog.service';
 
 // Area: Community & Cross-cutting
 // Requirements: BLG-01..BLG-12
@@ -29,5 +43,14 @@ import { BlogService } from './blog.service';
 export class BlogController {
   constructor(private readonly blogService: BlogService) {}
 
-  // TODO: add the endpoints listed above.
+  @HttpPost('posts')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  createPost(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreatePostDto,
+  ): Promise<CreatedPostResponse> {
+    return this.blogService.createPost(user.id, dto);
+  }
 }
