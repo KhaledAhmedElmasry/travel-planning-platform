@@ -406,3 +406,26 @@ myself, added the AuditAction enum, and linked password reset audit recording in
 AdminUsersController. AI also assisted with reviewing the implementation and
 identifying potential issues.
 ================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: GEN-12
+
+Prompt:
+I gave the assistant the repository (develop branch), the project description and my Area 5 task
+sheet, and asked it to guide me issue by issue. For GEN-12 I asked it to check what was already
+done (the seed script was already merged by the team leader) and to implement what was missing:
+Mongoose schemas for the seeded reference data collections (countries, cities, airports,
+attractions, supported currencies) using the official ids as _id, a public read endpoint for the
+supported currency list, and an exported lookup so other modules can reject unsupported currencies.
+
+How the output was used:
+Used the generated schemas in reference-data/schemas/reference-data.schema.ts (matching the
+collections and fields written by database/seed.ts), registered them in ReferenceDataModule, and
+added ReferenceDataService.listCurrencies(), isSupportedCurrency() and assertSupportedCurrency()
+with the GET /api/currencies route. Added the endpoint to docs/api/openapi.yaml as an extra endpoint.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
