@@ -95,7 +95,7 @@ export class ItinerariesService {
 
   private toResponse(itinerary: ItineraryDocument): ItineraryResponse {
     return {
-      id: itinerary.id,
+      id: itinerary._id.toString(),
       title: itinerary.title,
       countryCodes: itinerary.countryCodes,
       startDate: itinerary.startDate.toISOString().slice(0, 10),
