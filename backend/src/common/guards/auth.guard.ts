@@ -34,7 +34,11 @@ export class JwtAuthGuard implements CanActivate {
       .switchToHttp()
       .getRequest<Request & { user?: AuthUser }>();
     const cookies = request.cookies as Record<string, string> | undefined;
-    const token = cookies?.[ACCESS_COOKIE];
+    const authHeader = request.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7).trim()
+      : undefined;
+    const token = cookies?.[ACCESS_COOKIE] || bearerToken;
     if (!token) throw new UnauthorizedException('You must be logged in');
 
     const user = await this.sessions.authenticate(token);
