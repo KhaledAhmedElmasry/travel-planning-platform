@@ -37,8 +37,8 @@ import { STRIPE_CLIENT } from './stripe.provider';
 //   - PAY-02: policies.service.ts sets policiesAcceptedAt through the booking services; the
 //     check in loadPayableBooking() refuses payment without it.
 //   - PAY-03: refunds go through RefundsService (refunds.service.ts).
-//   - GEN-01 (Area 3): no in-app notification is sent on confirmation yet. Call
-//     NotificationsService from confirmPaidBooking() (FLT-23, HTL-17) once it exists.
+//   - GEN-01: confirmPaidBooking() of each booking service sends the in-app notification
+//     (FLT-23, HTL-17); refunds notify in refunds.service.ts.
 
 export interface PaymentResponse {
   id: string;
