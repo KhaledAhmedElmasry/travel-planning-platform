@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -20,6 +21,7 @@ import type { AuthUser } from '../common/interfaces';
 import { LOGO_UPLOAD_LIMITS } from './airline-logo';
 import type { UploadedLogo } from './airline-logo';
 import { AirlinesService } from './airlines.service';
+import { BaggagePolicyDto } from './dto/baggage-policy.dto';
 import { CreateAirlineDto } from './dto/create-airline.dto';
 import { UpdateAirlineDto } from './dto/update-airline.dto';
 
@@ -29,7 +31,7 @@ import { UpdateAirlineDto } from './dto/update-airline.dto';
 //   POST  /api/airlines                           FLT-01   (done)
 //   GET   /api/airlines/:id                       FLT-01   (done)
 //   PATCH /api/airlines/:id                       FLT-01   (done)
-//   PUT   /api/airlines/:id/baggage-policy        FLT-04, FLT-08
+//   PUT   /api/airlines/:id/baggage-policy        FLT-04, FLT-08   (done)
 //   PUT   /api/airlines/:id/cancellation-policy   FLT-09
 // Notes:
 //   The logo is sent as multipart/form-data on POST /api/airlines and PATCH /api/airlines/:id
@@ -66,5 +68,17 @@ export class AirlinesController {
     @UploadedFile() logo?: UploadedLogo,
   ) {
     return this.airlinesService.update(user, id, dto, logo);
+  }
+
+  // FLT-08: the airline's own moderator sets the extra-baggage policy. The ownership check
+  // (403 "Not the moderator of this airline.") is in the service.
+  @Put(':id/baggage-policy')
+  @UseGuards(JwtAuthGuard)
+  setBaggagePolicy(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Body() dto: BaggagePolicyDto,
+  ) {
+    return this.airlinesService.setBaggagePolicy(user, id, dto);
   }
 }

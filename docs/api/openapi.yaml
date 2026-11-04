@@ -1363,7 +1363,7 @@ paths:
           description: Airline created. Returns id, name, code, logo URL (logoUrl, null without a logo) and status (active).
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "baggagePolicy": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields, or a logo that is not JPG/PNG or is larger than 5 MB.
           content:
@@ -1403,7 +1403,7 @@ paths:
           description: Name, code, logo URL, extra-baggage policy (FLT-08) and cancellation tiers (FLT-09).
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "baggagePolicy": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Airline not found, or deactivated (ACC-15).
           content:
@@ -1434,7 +1434,7 @@ paths:
           description: The updated airline.
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "baggagePolicy": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields, or a logo that is not JPG/PNG or is larger than 5 MB.
           content:
@@ -1944,13 +1944,16 @@ paths:
               $ref: '#/components/schemas/BaggagePolicyRequest'
       responses:
         '200':
-          description: The saved baggage policy.
+          description: The saved baggage policy. Until it is set, an airline has extraBagPrice null and maxExtraBagsPerPassenger 0 (no extra bags).
+          content:
+            application/json:
+              example: {"airlineId": "665f1c2a9b1e8a00123400a1", "extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not the moderator of this airline.
+          description: Not the moderator of this airline, or the airline is deactivated (ACC-15).
           content:
             application/json:
               schema:

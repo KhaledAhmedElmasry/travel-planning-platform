@@ -700,3 +700,27 @@ fail when the booking check, the session revoke or the role restriction is remov
 the whole application module graph still resolves with the two booking modules imported (no
 circular dependency, so no forwardRef was needed), and in Swagger.
 ================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-08 (endpoint also listed for FLT-04)
+
+Prompt:
+Continuing my Area 5 work on the latest develop, I asked the assistant to implement FLT-08 exactly
+as documented in docs/api/openapi.yaml: PUT /api/airlines/:id/baggage-policy, where the airline's
+own moderator sets the price per extra bag (integer cents, greater than 0) and the maximum number
+of extra bags per passenger (0 or more) for all the airline's flights, and to show the policy on
+the airline profile.
+
+How the output was used:
+Used the generated extraBagPrice and maxExtraBagsPerPassenger fields on the Airline schema (null
+and 0 until the policy is set, so no extra bags can be bought before that), BaggagePolicyDto with
+class-validator rules, AirlinesService.setBaggagePolicy() (reusing findManagedAirline: 404 unknown
+airline, 403 not its moderator or deactivated airline), the baggagePolicy object in the airline
+response and the PUT route. Updated the airline examples and the baggage-policy response in
+docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================

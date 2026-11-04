@@ -20,6 +20,7 @@ import {
   UploadedLogo,
   validateLogo,
 } from './airline-logo';
+import { BaggagePolicyDto } from './dto/baggage-policy.dto';
 import { CreateAirlineDto } from './dto/create-airline.dto';
 import { UpdateAirlineDto } from './dto/update-airline.dto';
 import { Airline, AirlineDocument } from './schemas/airline.schema';
@@ -38,13 +39,20 @@ export interface AirlineBookingPolicies {
   maxExtraBagsPerPassenger: number;
 }
 
-// What the airline endpoints return (FLT-01).
+// The airline's extra-baggage policy (FLT-08). extraBagPrice is null until it is set.
+export interface BaggagePolicyResponse {
+  extraBagPrice: number | null;
+  maxExtraBagsPerPassenger: number;
+}
+
+// What the airline endpoints return (FLT-01, FLT-08).
 export interface AirlineResponse {
   id: string;
   name: string;
   code: string;
   logoUrl: string | null;
   active: boolean;
+  baggagePolicy: BaggagePolicyResponse;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -151,6 +159,24 @@ export class AirlinesService {
     return this.toResponse(airline);
   }
 
+  // FLT-08: the airline's moderator sets the price per extra bag (> 0) and the maximum number of
+  // extra bags per passenger (>= 0) for all its flights. New bookings use the new policy; existing
+  // bookings keep the baggage fees they already agreed to (NEW-02).
+  async setBaggagePolicy(
+    user: AuthUser,
+    id: Types.ObjectId,
+    dto: BaggagePolicyDto,
+  ): Promise<BaggagePolicyResponse & { airlineId: string }> {
+    const airline = await this.findManagedAirline(user, id);
+    airline.extraBagPrice = dto.extraBagPrice;
+    airline.maxExtraBagsPerPassenger = dto.maxExtraBagsPerPassenger;
+    await airline.save();
+    return {
+      airlineId: airline._id.toString(),
+      ...this.toBaggagePolicy(airline),
+    };
+  }
+
   // ACC-11, ACC-13: the airline that this moderator may change.
   //   404 if the airline does not exist, 403 if the user is not its moderator,
   //   403 if an admin deactivated it (ACC-15).
@@ -185,8 +211,16 @@ export class AirlinesService {
       code: airline.code,
       logoUrl: airline.logoUrl ?? null,
       active: airline.active,
+      baggagePolicy: this.toBaggagePolicy(airline),
       createdAt: airline.createdAt,
       updatedAt: airline.updatedAt,
+    };
+  }
+
+  private toBaggagePolicy(airline: AirlineDocument): BaggagePolicyResponse {
+    return {
+      extraBagPrice: airline.extraBagPrice ?? null,
+      maxExtraBagsPerPassenger: airline.maxExtraBagsPerPassenger ?? 0,
     };
   }
 
