@@ -3,14 +3,17 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
 import { Role } from '../common/enums';
 import type { AuthUser } from '../common/interfaces';
 import { ReferenceDataService } from '../reference-data/reference-data.service';
+import { CreateCabinDto } from './dto/create-cabin.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
+import { UpdateCabinDto } from './dto/update-cabin.dto';
 import { localToUtc, utcToLocal, utcToLocalDate } from './flight-time';
 import { Flight, FlightDocument, FlightStatus } from './schemas/flight.schema';
 
@@ -136,6 +139,162 @@ export class FlightsService {
       if (isDuplicateKeyError(err))
         throw new ConflictException(DUPLICATE_FLIGHT);
       throw err;
+    }
+  }
+
+  // FLT-04: the moderator adds a cabin class to a Scheduled flight of their airline. Each class
+  // from the fixed set is used at most once per flight; the seat counters start at 0.
+  async addCabin(
+    user: AuthUser,
+    flightId: Types.ObjectId,
+    dto: CreateCabinDto,
+  ): Promise<FlightResponse> {
+    const flight = await this.findManagedFlight(user, flightId);
+    this.assertScheduled(flight);
+    if (flight.cabins.some((c) => c.cabinClass === dto.cabinClass)) {
+      throw new ConflictException(
+        `The flight already has the ${dto.cabinClass} cabin class.`,
+      );
+    }
+
+    // One atomic update: two requests at the same moment cannot add the same class twice, and
+    // the flight cannot be cancelled in between.
+    const updated = await this.flightModel
+      .findOneAndUpdate(
+        {
+          _id: flight._id,
+          status: FlightStatus.Scheduled,
+          'cabins.cabinClass': { $ne: dto.cabinClass },
+        },
+        {
+          $push: {
+            cabins: {
+              cabinClass: dto.cabinClass,
+              total: dto.seats,
+              booked: 0,
+              held: 0,
+              price: dto.price,
+              freeBags: dto.freeBags,
+              maxBagWeightKg: dto.maxBagWeightKg,
+            },
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) {
+      throw new ConflictException(
+        `The flight already has the ${dto.cabinClass} cabin class, or the flight is not scheduled.`,
+      );
+    }
+    return this.toResponse(updated);
+  }
+
+  // FLT-04, FLT-05: the moderator edits a cabin's seat count, price and baggage allowance on a
+  // Scheduled flight. The seat count cannot go below the seats already booked or held. A new
+  // price only applies to new bookings; existing bookings keep their agreed price (NEW-02).
+  async updateCabin(
+    user: AuthUser,
+    flightId: Types.ObjectId,
+    cabinId: Types.ObjectId,
+    dto: UpdateCabinDto,
+  ): Promise<FlightResponse> {
+    if (
+      dto.seats === undefined &&
+      dto.price === undefined &&
+      dto.freeBags === undefined &&
+      dto.maxBagWeightKg === undefined
+    ) {
+      throw new BadRequestException(
+        'Send at least one field to change (seats, price, freeBags or maxBagWeightKg).',
+      );
+    }
+
+    let flight = await this.findManagedFlight(user, flightId);
+
+    // Seat holds (Area 1) change booked/held at any moment, so the update only applies if the
+    // counters are still the ones we checked; otherwise read again and retry.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      this.assertScheduled(flight);
+      const cabin = flight.cabins.find((c) => c._id.equals(cabinId));
+      if (!cabin) throw new NotFoundException('Flight or cabin not found.');
+
+      const used = cabin.booked + cabin.held;
+      if (dto.seats !== undefined && dto.seats < used) {
+        throw new BadRequestException(
+          `The seat count cannot be lower than the ${used} seats already booked or held.`,
+        );
+      }
+
+      const changes: Record<string, number> = {};
+      if (dto.seats !== undefined) changes['cabins.$.total'] = dto.seats;
+      if (dto.price !== undefined) changes['cabins.$.price'] = dto.price;
+      if (dto.freeBags !== undefined)
+        changes['cabins.$.freeBags'] = dto.freeBags;
+      if (dto.maxBagWeightKg !== undefined) {
+        changes['cabins.$.maxBagWeightKg'] = dto.maxBagWeightKg;
+      }
+
+      const updated = await this.flightModel
+        .findOneAndUpdate(
+          {
+            _id: flight._id,
+            status: FlightStatus.Scheduled,
+            cabins: {
+              $elemMatch: {
+                _id: cabin._id,
+                booked: cabin.booked,
+                held: cabin.held,
+              },
+            },
+          },
+          { $set: changes },
+          { new: true, runValidators: true },
+        )
+        .exec();
+      if (updated) return this.toResponse(updated);
+
+      flight = await this.findManagedFlight(user, flightId);
+    }
+    throw new ConflictException(
+      'The cabin is being booked right now. Please try again.',
+    );
+  }
+
+  // The flight that this moderator may change (FLT-04, FLT-05, FLT-06):
+  //   404 if the flight does not exist, 403 if it belongs to another airline or the user is not
+  //   an airline moderator, 403 if the airline was deactivated (ACC-15).
+  async findManagedFlight(
+    user: AuthUser,
+    flightId: Types.ObjectId | string,
+  ): Promise<FlightDocument> {
+    if (!Types.ObjectId.isValid(flightId)) {
+      throw new NotFoundException('Flight not found.');
+    }
+    const flight = await this.flightModel.findById(flightId).exec();
+    if (!flight) throw new NotFoundException('Flight not found.');
+
+    if (
+      user.role !== Role.AirlineModerator ||
+      !user.airlineId ||
+      user.airlineId !== flight.airlineId.toString()
+    ) {
+      throw new ForbiddenException(
+        "Not the moderator of this flight's airline.",
+      );
+    }
+    // 403 if the airline was deactivated (ACC-15).
+    await this.airlinesService.findManagedAirline(user, flight.airlineId);
+    return flight;
+  }
+
+  // FLT-30: only Scheduled flights that have not departed can be changed (409 otherwise).
+  private assertScheduled(flight: FlightDocument): void {
+    if (
+      flight.status !== FlightStatus.Scheduled ||
+      flight.departureAt.getTime() <= Date.now()
+    ) {
+      throw new ConflictException('The flight is not scheduled.');
     }
   }
 
