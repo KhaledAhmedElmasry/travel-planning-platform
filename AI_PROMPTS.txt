@@ -611,6 +611,30 @@ Used AI guidance to design the notification schema, query pagination (GEN-05, pa
 ================================================
 
 ================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-04 (with the cabin part of FLT-05)
+
+Prompt:
+Continuing my Area 5 work on the latest develop, I asked the assistant to implement FLT-04 exactly
+as documented in docs/api/openapi.yaml: POST /api/flights/:id/cabins to add a cabin class from the
+fixed set (economy, premium_economy, business, first, each at most once per flight) with a seat
+count, price in cents and free baggage allowance, and PATCH /api/flights/:id/cabins/:cabinId to
+edit them, never lowering the seat count below the seats already booked or held by Area 1's seat
+holds, and only by the moderator of the flight's airline on a scheduled flight.
+
+How the output was used:
+Used the generated CreateCabinDto and UpdateCabinDto with class-validator rules, FlightsService
+addCabin() (atomic $push that cannot add the same class twice), updateCabin() (only applies if
+the booked/held counters did not change since they were checked, otherwise re-reads and retries),
+findManagedFlight() (404 unknown flight, 403 another airline or deactivated airline) and the two
+routes. Added response examples to the cabin endpoints in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
 Date: 2026-11-02
 Student: Ibrahim El Shafey
 Tool: Claude
