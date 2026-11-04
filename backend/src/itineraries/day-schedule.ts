@@ -12,8 +12,21 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const MAX_ITINERARY_DAYS = 60;
 
 export interface ScheduledDay {
+  _id?: { toString(): string };
   number: number;
   date: Date;
+  cityId?: string;
+}
+
+export interface CityGroupDay {
+  cityId: string;
+  firstDay: number;
+  lastDay: number;
+  dayCount: number;
+  dayNumbers: number[];
+  dayIds: string[];
+  startDate: string;
+  endDate: string;
 }
 
 // Day N (1-based) of an itinerary starting at startDate (00:00 UTC) -> startDate + N-1 days.
@@ -33,4 +46,38 @@ export function renumberDays<T extends ScheduledDay>(
     day.date = dayDate(startDate, index + 1);
   });
   return days;
+}
+
+export function computeCityGroups(days: ScheduledDay[]): CityGroupDay[] {
+  const groups: CityGroupDay[] = [];
+
+  for (const day of days) {
+    const cityId = day.cityId ?? '';
+    const previous = groups[groups.length - 1];
+    if (previous?.cityId === cityId) {
+      previous.lastDay = day.number;
+      previous.dayCount += 1;
+      previous.dayNumbers.push(day.number);
+      if (day._id) previous.dayIds.push(day._id.toString());
+      previous.endDate = toDateString(day.date);
+      continue;
+    }
+
+    groups.push({
+      cityId,
+      firstDay: day.number,
+      lastDay: day.number,
+      dayCount: 1,
+      dayNumbers: [day.number],
+      dayIds: day._id ? [day._id.toString()] : [],
+      startDate: toDateString(day.date),
+      endDate: toDateString(day.date),
+    });
+  }
+
+  return groups;
+}
+
+function toDateString(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }

@@ -14,6 +14,7 @@ import {
   PaginatedList,
 } from '../common/dto/pagination.dto';
 import {
+  computeCityGroups,
   dayDate,
   MAX_ITINERARY_DAYS,
   renumberDays,
@@ -137,6 +138,9 @@ export class ItinerariesService {
     const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
     const day = isValidObjectId(dayId) ? itinerary.days.id(dayId) : null;
     if (!day) throw dayNotFound();
+    if (dto.cityId === undefined && dto.notes === undefined) {
+      throw new BadRequestException('At least one day field is required.');
+    }
 
     if (dto.cityId !== undefined) {
       await this.assertCityExists(dto.cityId);
@@ -237,6 +241,7 @@ export class ItinerariesService {
   }
 
   private toResponse(itinerary: ItineraryDocument): ItineraryResponse {
+    renumberDays(itinerary.days, itinerary.startDate);
     return {
       id: String(itinerary.id),
       title: itinerary.title,
@@ -244,6 +249,7 @@ export class ItinerariesService {
       startDate: itinerary.startDate.toISOString().slice(0, 10),
       visibility: itinerary.visibility,
       days: itinerary.days.map(toDayResponse),
+      cityGroups: computeCityGroups(itinerary.days),
       createdAt: itinerary.createdAt,
       updatedAt: itinerary.updatedAt,
     };
@@ -278,6 +284,7 @@ export interface ItineraryResponse {
   startDate: string;
   visibility: 'private' | 'public';
   days: DayResponse[];
+  cityGroups: ReturnType<typeof computeCityGroups>;
   createdAt?: Date;
   updatedAt?: Date;
 }
