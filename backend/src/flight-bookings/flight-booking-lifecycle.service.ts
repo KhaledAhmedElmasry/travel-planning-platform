@@ -3,8 +3,10 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ClientSession, Connection, Model, Types } from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { BookingStatus, BookingType, CabinClass } from '../common/enums';
 import { allowedFrom, canTransition } from '../payments/booking-lifecycle';
+import { claimNotification } from '../payments/claim-notification';
 import {
   CancellationPreview,
   cancellablePreview,
@@ -21,6 +23,11 @@ import {
   FlightBooking,
   FlightBookingDocument,
 } from './schemas/flight-booking.schema';
+import {
+  flightCancelledByAirlineText,
+  flightCancelledText,
+  flightHoldEndedByAirlineText,
+} from './booking-notifications';
 import { SeatInventoryService } from './seat-inventory.service';
 
 // Area: Payments, Holds & Booking Engine
@@ -37,7 +44,8 @@ import { SeatInventoryService } from './seat-inventory.service';
 //
 // WAITING FOR: AirlinesService.getRefundTier() (Area 5, FLT-09); until then cancel and the preview
 // of a confirmed booking answer 501 before changing anything.
-// TODO(GEN-01, Area 3): notify the user on cancellation and refund.
+// GEN-01: the user is notified of each cancellation (with the refund); RefundsService notifies
+// when the refund is refunded or failed.
 // GEN-11: every status change below uses allowedFrom() / canTransition() from
 // payments/booking-lifecycle.ts, so only the allowed transitions can happen.
 
@@ -79,6 +87,7 @@ export class FlightBookingLifecycleService {
     private readonly airlines: AirlinesService,
     private readonly payments: PaymentsService,
     private readonly refunds: RefundsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // FLT-26: what the user would get back by cancelling now, from the airline's tier for the days
@@ -172,7 +181,9 @@ export class FlightBookingLifecycleService {
 
     // PAY-03: refund the tier percentage of the amount paid (nothing for 0%).
     const refund = await this.issuePendingRefund(state.cancelled);
-    // TODO(GEN-01, Area 3): notify the user that the booking was cancelled (and the refund).
+    // GEN-01: only the request that cancelled the booking gets here, so it is sent once.
+    const { title, message } = flightCancelledText(state.cancelled, refund);
+    await this.notifications.notify(state.cancelled.userId, title, message);
 
     return { ...this.bookings.toResponse(state.cancelled), refund };
   }
@@ -256,6 +267,9 @@ export class FlightBookingLifecycleService {
           `Could not refund flight booking ${bookingId} (flight ${result.flightId} cancelled): ${String(err)}`,
         );
       }
+      // Sent even if the refund failed above: the booking is cancelled either way, and the
+      // owed-refunds job creates the refund later.
+      await this.notifyOnce(bookingId, flightCancelledByAirlineText);
     }
     for (const bookingId of result.expiredBookingIds) {
       try {
@@ -268,9 +282,34 @@ export class FlightBookingLifecycleService {
           `Could not cancel the payment of flight booking ${bookingId}: ${String(err)}`,
         );
       }
+      await this.notifyOnce(bookingId, flightHoldEndedByAirlineText);
     }
-    // TODO(GEN-01, Area 3): notify every affected user once (NEW-02): booking cancelled with a
-    // full refund, or hold ended, because the airline cancelled the flight.
+  }
+
+  // NEW-02: every affected user is notified once, even if finishFlightCancellation() runs again.
+  // Errors are logged, not thrown, like the rest of finishFlightCancellation().
+  private async notifyOnce(
+    bookingId: string,
+    text: (booking: FlightBooking) => { title: string; message: string },
+  ): Promise<void> {
+    try {
+      const booking = await this.bookingModel.findById(bookingId);
+      if (!booking) return;
+      if (
+        !(await claimNotification(
+          this.bookingModel,
+          booking._id,
+          'airline_cancelled_flight',
+        ))
+      )
+        return;
+      const { title, message } = text(booking);
+      await this.notifications.notify(booking.userId, title, message);
+    } catch (err) {
+      this.logger.error(
+        `Could not notify the user of flight booking ${bookingId}: ${String(err)}`,
+      );
+    }
   }
 
   // GEN-11, NEW-01: every minute, Confirmed bookings whose LAST flight has departed (the return

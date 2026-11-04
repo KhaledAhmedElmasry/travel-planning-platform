@@ -14,6 +14,7 @@ import {
   Types,
 } from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { BookingStatus, BookingType } from '../common/enums';
 import { allowedFrom } from '../payments/booking-lifecycle';
 import type {
@@ -28,6 +29,7 @@ import {
 } from '../payments/booking-reference';
 import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
 import { platformCurrency } from '../payments/platform-currency';
+import { flightConfirmedText } from './booking-notifications';
 import { FlightBookingQuoteService } from './booking-quote.service';
 import { FlightBookingRequestDto } from './dto/hold-flight-booking.dto';
 import { localTime, renderETicket } from './e-ticket';
@@ -46,7 +48,7 @@ import { SeatInventoryService } from './seat-inventory.service';
 // (FLT-23). The hold-expiry job and cancellation are in flight-booking-lifecycle.service.ts.
 // WAITING FOR: FlightBookingQuoteService.quote() (Area 6) and AirlinesService.getBookingPolicies()
 // (Area 5); until then the hold and the policies answer 501.
-// TODO(GEN-01, Area 3): notify the user on confirmation (see confirmPaidBooking).
+// GEN-01: the user is notified on confirmation (see tryConfirm).
 // TODO(FLT-19, FLT-21, FLT-25; Area 6): the summary, the list and the details go here too. The
 // details must include RefundsService.findRefundForBooking() and the refund preview (FLT-26):
 // FlightBookingLifecycleService.previewCancellation(booking), the same function the cancellation
@@ -121,6 +123,7 @@ export class FlightBookingsService implements BookingPaymentHandler {
     private readonly quotes: FlightBookingQuoteService,
     private readonly airlines: AirlinesService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // POST /api/flight-bookings/hold (FLT-22): reserve the seats on every segment and create the
@@ -309,9 +312,10 @@ export class FlightBookingsService implements BookingPaymentHandler {
     bookingId: string,
     paymentId: string,
   ): Promise<ConfirmPaidBookingResult> {
-    const outcome: { result: ConfirmPaidBookingResult } = {
-      result: 'not_confirmable',
-    };
+    const outcome: {
+      result: ConfirmPaidBookingResult;
+      booking: FlightBookingDocument | null;
+    } = { result: 'not_confirmable', booking: null };
     await this.connection.transaction(async (session) => {
       const now = new Date();
       const booking = await this.bookingModel.findOneAndUpdate(
@@ -359,11 +363,15 @@ export class FlightBookingsService implements BookingPaymentHandler {
         }
       }
       outcome.result = 'confirmed';
+      outcome.booking = booking;
     });
 
-    if (outcome.result === 'confirmed') {
+    if (outcome.result === 'confirmed' && outcome.booking) {
       this.logger.log(`Flight booking ${bookingId} confirmed.`);
-      // TODO(GEN-01, Area 3): send the in-app notification with the booking details (FLT-23).
+      // FLT-23, GEN-01: after the commit, so the user is never told about a confirmation that was
+      // rolled back. Only the request that confirmed the booking gets here, so it is sent once.
+      const { title, message } = flightConfirmedText(outcome.booking);
+      await this.notifications.notify(outcome.booking.userId, title, message);
     }
     return outcome.result;
   }

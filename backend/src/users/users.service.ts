@@ -84,9 +84,12 @@ export class UsersService {
       changes.preferredCurrency &&
       !(await this.isSupportedCurrency(changes.preferredCurrency))
     ) {
-      throw new BadRequestException([
-        `Preferred currency ${changes.preferredCurrency} is not supported`,
-      ]);
+      // GEN-02: a field error, so the form shows it under the currency field.
+      const message = `Preferred currency ${changes.preferredCurrency} is not supported`;
+      throw new BadRequestException({
+        message,
+        fieldErrors: [{ field: 'preferredCurrency', messages: [message] }],
+      });
     }
 
     const updated = await this.userModel

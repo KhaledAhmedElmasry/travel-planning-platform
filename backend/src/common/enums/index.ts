@@ -47,3 +47,34 @@ export enum BookingStatus {
   Expired = 'expired',
   Cancelled = 'cancelled',
 }
+
+// Content that can be reported, hidden or deleted (GEN-09, GEN-10), openapi.yaml "ContentType".
+export enum ContentType {
+  Post = 'post',
+  Comment = 'comment',
+  Review = 'review',
+  Itinerary = 'itinerary',
+}
+
+// Report lifecycle status (GEN-09, GEN-10), openapi.yaml "ReportStatus".
+export enum ReportStatus {
+  Open = 'open',
+  Dismissed = 'dismissed',
+  ContentHidden = 'content_hidden',
+  ContentDeleted = 'content_deleted',
+}
+
+// Admin actions recorded in the audit log (GEN-07), openapi.yaml "AuditAction".
+export enum AuditAction {
+  CreateModerator = 'create_moderator',
+  SuspendAccount = 'suspend_account',
+  ReactivateAccount = 'reactivate_account',
+  ResetPassword = 'reset_password',
+  DismissReport = 'dismiss_report',
+  HideContent = 'hide_content',
+  DeleteContent = 'delete_content',
+  DeactivateAirline = 'deactivate_airline',
+  ReactivateAirline = 'reactivate_airline',
+  DeactivateHotel = 'deactivate_hotel',
+  ReactivateHotel = 'reactivate_hotel',
+}

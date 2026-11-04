@@ -15,13 +15,31 @@ An endpoint that is not implemented yet returns `404 Cannot ...` in "Try it out"
 - **Changing or adding an endpoint?** Update `openapi.yaml` in the same pull request. Copy a similar endpoint
   as a template, and put the requirement IDs at the end of the summary.
 - Endpoints that need login have `security: *auth`; public endpoints have `security: []`.
+- Every operation has an `operationId` (method + path, e.g. `postPaymentsByIdRetry`). Give new endpoints one
+  in the same style.
+- **Error responses:** write the schema and an `example` with the real status code and message, so Swagger
+  shows the right error under each code (copy any existing error response):
+  ```yaml
+        '409':
+          description: The email is already registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "An account with this email already exists", "path": "/api/auth/register", "timestamp": "2026-11-01T10:00:00.000Z"}
+  ```
+  For a common 401 or validation 400, use `$ref: '#/components/responses/Unauthorized'` or
+  `$ref: '#/components/responses/ValidationError'`. Do not use `content: *error` alone: Swagger would show a
+  400 example under every code.
+- **Success responses of implemented endpoints:** add a schema (`components/schemas`) with the exact field names
+  the code returns, as for payments, refunds and bookings.
 - The server reads the file when it starts. After editing it, restart `npm run start:dev` to see the change.
 - Check the file before committing:
   ```bash
   npx @redocly/cli lint docs/api/openapi.yaml
   ```
-  It must report no errors. Warnings (for example about `operationId`, or the ambiguous itinerary paths that
-  come from the PDF) are fine.
+  It must report no errors. The remaining warnings are fine: the ambiguous paths that come from the PDF
+  (for example `/api/flights/search` and `/api/flights/{id}`) and `/api/health`, which has no error response.
 - Remove the `[Bonus]` endpoints you do not implement before the submission.
 
 ## Decisions Documented in the File
