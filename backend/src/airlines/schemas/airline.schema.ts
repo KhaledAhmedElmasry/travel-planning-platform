@@ -12,7 +12,22 @@ import { HydratedDocument } from 'mongoose';
 //   number of extra bags per passenger (>= 0). Until the moderator sets it, extraBagPrice is null
 //   and the maximum is 0, so no extra bags can be bought. Each extra bag has the same maximum
 //   weight as the cabin's free allowance (Cabin.maxBagWeightKg, FLT-04).
-// - The cancellation tiers (FLT-09) are added by their own requirement.
+// - Cancellation tiers (FLT-09): each with a unique daysBefore (>= 0) and a refundPercentage
+//   (0-100), stored highest daysBefore first. Empty = no refunds. The refund rule is
+//   pickRefundTier() in common/utils.
+
+// FLT-09: one cancellation tier of an airline.
+@Schema({ _id: false })
+export class AirlineCancellationTier {
+  @Prop({ required: true, min: 0 })
+  daysBefore: number;
+
+  @Prop({ required: true, min: 0, max: 100 })
+  refundPercentage: number;
+}
+export const AirlineCancellationTierSchema = SchemaFactory.createForClass(
+  AirlineCancellationTier,
+);
 
 export type AirlineDocument = HydratedDocument<Airline>;
 
@@ -36,6 +51,10 @@ export class Airline {
   // FLT-08: maximum extra bags per passenger (0 = no extra bags).
   @Prop({ type: Number, required: true, default: 0, min: 0 })
   maxExtraBagsPerPassenger: number;
+
+  // FLT-09: the cancellation tiers, highest daysBefore first.
+  @Prop({ type: [AirlineCancellationTierSchema], default: [] })
+  cancellationTiers: AirlineCancellationTier[];
 
   // ACC-15: deactivated airlines are hidden from guests and users.
   @Prop({ required: true, default: true, index: true })

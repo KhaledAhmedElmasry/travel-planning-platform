@@ -4,11 +4,15 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  NotImplementedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Role } from '../common/enums';
+import {
+  findDuplicateThreshold,
+  pickRefundTier,
+  sortTiers,
+} from '../common/utils';
 import type { AuthUser } from '../common/interfaces';
 import type {
   CancellationTier,
@@ -21,6 +25,7 @@ import {
   validateLogo,
 } from './airline-logo';
 import { BaggagePolicyDto } from './dto/baggage-policy.dto';
+import { CancellationPolicyDto } from './dto/cancellation-policy.dto';
 import { CreateAirlineDto } from './dto/create-airline.dto';
 import { UpdateAirlineDto } from './dto/update-airline.dto';
 import { Airline, AirlineDocument } from './schemas/airline.schema';
@@ -53,6 +58,8 @@ export interface AirlineResponse {
   logoUrl: string | null;
   active: boolean;
   baggagePolicy: BaggagePolicyResponse;
+  // FLT-09: highest daysBefore first.
+  cancellationTiers: CancellationTier[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -177,6 +184,36 @@ export class AirlinesService {
     };
   }
 
+  // FLT-09: the airline's moderator replaces all its cancellation tiers. Each daysBefore must be
+  // unique; an empty list means no refunds. The tiers are saved highest daysBefore first. Existing
+  // bookings use the tiers in force when they are cancelled (the refund is computed at that time).
+  async setCancellationPolicy(
+    user: AuthUser,
+    id: Types.ObjectId,
+    dto: CancellationPolicyDto,
+  ): Promise<{ airlineId: string; cancellationTiers: CancellationTier[] }> {
+    const airline = await this.findManagedAirline(user, id);
+
+    const duplicate = findDuplicateThreshold(dto.tiers);
+    if (duplicate !== null) {
+      throw new BadRequestException(
+        `The threshold daysBefore ${duplicate} is used more than once. Each tier needs a different daysBefore.`,
+      );
+    }
+
+    airline.cancellationTiers = sortTiers(
+      dto.tiers.map((t) => ({
+        daysBefore: t.daysBefore,
+        refundPercentage: t.refundPercentage,
+      })),
+    );
+    await airline.save();
+    return {
+      airlineId: airline._id.toString(),
+      cancellationTiers: this.toTiers(airline),
+    };
+  }
+
   // ACC-11, ACC-13: the airline that this moderator may change.
   //   404 if the airline does not exist, 403 if the user is not its moderator,
   //   403 if an admin deactivated it (ACC-15).
@@ -212,6 +249,7 @@ export class AirlinesService {
       logoUrl: airline.logoUrl ?? null,
       active: airline.active,
       baggagePolicy: this.toBaggagePolicy(airline),
+      cancellationTiers: this.toTiers(airline),
       createdAt: airline.createdAt,
       updatedAt: airline.updatedAt,
     };
@@ -224,32 +262,52 @@ export class AirlinesService {
     };
   }
 
-  // --- Used by flight bookings (Area 1: PAY-02, FLT-26) ---
-
-  // WAITING FOR (Area 5, FLT-08 / FLT-09): the baggage policy and cancellation tiers on the
-  // airline schema.
-  // TODO(FLT-08, FLT-09; Area 5): find the airline (null if it does not exist) and return its name,
-  // cancellationTiers sorted by daysBefore (highest first), extraBagPrice and
-  // maxExtraBagsPerPassenger.
-  getBookingPolicies(
-    _airlineId: string,
-  ): Promise<AirlineBookingPolicies | null> {
-    throw new NotImplementedException(
-      'Airline policies are not implemented yet (FLT-08, FLT-09).',
-    );
+  private toTiers(airline: AirlineDocument): CancellationTier[] {
+    return sortTiers(airline.cancellationTiers ?? []).map((t) => ({
+      daysBefore: t.daysBefore,
+      refundPercentage: t.refundPercentage,
+    }));
   }
 
-  // WAITING FOR (Area 5, FLT-09): the cancellation tiers and the shared tier rule in
-  // common/utils (also used by HTL-10).
-  // TODO(FLT-09; Area 5): apply the rule to the airline's tiers: the tier with the highest
-  // daysBefore that is not more than daysBeforeDeparture; if none applies, 0% and null.
+  // --- Used by flight bookings (Area 1: PAY-02, FLT-26) ---
+
+  // FLT-08, FLT-09 (for PAY-02): the airline's name, cancellation tiers (highest daysBefore
+  // first), extra-bag price and maximum extra bags per passenger, or null if the airline does
+  // not exist. Before the baggage policy is set, extraBagPrice is 0 and the maximum is 0.
+  async getBookingPolicies(
+    airlineId: string,
+  ): Promise<AirlineBookingPolicies | null> {
+    if (!Types.ObjectId.isValid(airlineId)) return null;
+    const airline = await this.airlineModel.findById(airlineId).exec();
+    if (!airline) return null;
+    return {
+      airlineId: airline._id.toString(),
+      name: airline.name,
+      cancellationTiers: this.toTiers(airline),
+      extraBagPrice: airline.extraBagPrice ?? 0,
+      maxExtraBagsPerPassenger: airline.maxExtraBagsPerPassenger ?? 0,
+    };
+  }
+
+  // FLT-09 (for FLT-26): the tier that applies when a booking is cancelled daysBeforeDeparture
+  // whole days before departure: the tier with the highest daysBefore that is not more than
+  // daysBeforeDeparture; if none applies (or the airline is not found), 0% and null.
   // Example: tiers 30 -> 100%, 7 -> 50%; 10 days left -> { refundPercentage: 50, tierDaysBefore: 7 }.
-  getRefundTier(
-    _airlineId: string,
-    _daysBeforeDeparture: number,
+  async getRefundTier(
+    airlineId: string,
+    daysBeforeDeparture: number,
   ): Promise<RefundTier> {
-    throw new NotImplementedException(
-      'Airline cancellation tiers are not implemented yet (FLT-09).',
+    if (!Types.ObjectId.isValid(airlineId)) {
+      return { refundPercentage: 0, tierDaysBefore: null };
+    }
+    const airline = await this.airlineModel
+      .findById(airlineId)
+      .select('cancellationTiers')
+      .lean()
+      .exec();
+    return pickRefundTier(
+      airline?.cancellationTiers ?? [],
+      daysBeforeDeparture,
     );
   }
 }

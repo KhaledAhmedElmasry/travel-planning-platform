@@ -724,3 +724,28 @@ docs/api/openapi.yaml.
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-09 (and the shared tier rule used by HTL-10)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-08 branch, I asked the assistant to implement FLT-09
+exactly as documented in docs/api/openapi.yaml: PUT /api/airlines/:id/cancellation-policy, where
+the airline's moderator replaces all cancellation tiers (unique daysBefore of 0 or more, refund
+0-100%), the shared refund rule in common/utils (the tier with the highest threshold not exceeding
+the days remaining, otherwise 0%) for airlines and hotels, and the two functions Area 1 was waiting
+for: AirlinesService.getBookingPolicies() and getRefundTier().
+
+How the output was used:
+Used the generated pickRefundTier(), findDuplicateThreshold() and sortTiers() helpers in
+common/utils, the cancellationTiers field on the Airline schema, CancellationPolicyDto with nested
+class-validator rules, AirlinesService.setCancellationPolicy() (duplicate threshold -> 400, tiers
+saved highest daysBefore first), getBookingPolicies() (name, tiers, extra-bag price and maximum, or
+null for an unknown airline) and getRefundTier() replacing the stubs, and the PUT route. Updated the
+cancellation-policy responses and the airline examples in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================

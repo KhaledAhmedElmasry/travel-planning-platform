@@ -22,6 +22,7 @@ import { LOGO_UPLOAD_LIMITS } from './airline-logo';
 import type { UploadedLogo } from './airline-logo';
 import { AirlinesService } from './airlines.service';
 import { BaggagePolicyDto } from './dto/baggage-policy.dto';
+import { CancellationPolicyDto } from './dto/cancellation-policy.dto';
 import { CreateAirlineDto } from './dto/create-airline.dto';
 import { UpdateAirlineDto } from './dto/update-airline.dto';
 
@@ -32,7 +33,7 @@ import { UpdateAirlineDto } from './dto/update-airline.dto';
 //   GET   /api/airlines/:id                       FLT-01   (done)
 //   PATCH /api/airlines/:id                       FLT-01   (done)
 //   PUT   /api/airlines/:id/baggage-policy        FLT-04, FLT-08   (done)
-//   PUT   /api/airlines/:id/cancellation-policy   FLT-09
+//   PUT   /api/airlines/:id/cancellation-policy   FLT-09   (done)
 // Notes:
 //   The logo is sent as multipart/form-data on POST /api/airlines and PATCH /api/airlines/:id
 //   (FLT-01, GEN-08: 1 logo per airline), as in openapi.yaml; there is no separate upload endpoint.
@@ -80,5 +81,17 @@ export class AirlinesController {
     @Body() dto: BaggagePolicyDto,
   ) {
     return this.airlinesService.setBaggagePolicy(user, id, dto);
+  }
+
+  // FLT-09: the airline's own moderator replaces the cancellation tiers. The ownership check
+  // (403 "Not the moderator of this airline.") is in the service.
+  @Put(':id/cancellation-policy')
+  @UseGuards(JwtAuthGuard)
+  setCancellationPolicy(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Body() dto: CancellationPolicyDto,
+  ) {
+    return this.airlinesService.setCancellationPolicy(user, id, dto);
   }
 }
