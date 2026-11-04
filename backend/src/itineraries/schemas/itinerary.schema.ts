@@ -7,6 +7,25 @@ import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type ItineraryDocument = HydratedDocument<Itinerary>;
 
+@Schema({ _id: true })
+export class ItineraryDay {
+  _id: Types.ObjectId;
+
+  @Prop({ required: true })
+  number: number;
+
+  @Prop({ required: true })
+  date: Date;
+
+  @Prop({ required: true })
+  cityId: string;
+
+  @Prop({ default: '' })
+  notes: string;
+}
+
+export const ItineraryDaySchema = SchemaFactory.createForClass(ItineraryDay);
+
 @Schema({ timestamps: true })
 export class Itinerary {
   @Prop({
@@ -31,6 +50,9 @@ export class Itinerary {
   // ITN-01: every newly-created itinerary is private. ITN-20 will add changing this value.
   @Prop({ enum: ['private', 'public'], default: 'private' })
   visibility: 'private' | 'public';
+
+  @Prop({ type: [ItineraryDaySchema], default: [] })
+  days: ItineraryDay[];
 
   createdAt?: Date;
   updatedAt?: Date;
