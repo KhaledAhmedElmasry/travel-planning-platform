@@ -1,6 +1,21 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
-import { CurrentUser } from '../common/decorators';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Response } from 'express';
+import { clearAuthCookies } from '../auth/auth-cookies';
+import { AuthService } from '../auth/auth.service';
+import { CurrentUser, Roles } from '../common/decorators';
+import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ProfileResponse, UsersService } from './users.service';
@@ -10,7 +25,7 @@ import { ProfileResponse, UsersService } from './users.service';
 // Endpoints to implement (PDF section 8):
 //   GET    /api/users/me   ACC-11   done
 //   PATCH  /api/users/me   ACC-09   done
-//   DELETE /api/users/me   ACC-12
+//   DELETE /api/users/me   ACC-12   done
 // Notes:
 //   Deactivation is blocked while the user has upcoming Confirmed bookings (ACC-12, NEW-01).
 //   Preferred currency must come from the supported currency list (ACC-09, GEN-12).
@@ -19,7 +34,11 @@ import { ProfileResponse, UsersService } from './users.service';
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    // From the global AuthModule: deactivation also revokes every session (ACC-12).
+    private readonly authService: AuthService,
+  ) {}
 
   // ACC-11: only the own profile can be read.
   @Get('me')
@@ -35,5 +54,20 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ): Promise<ProfileResponse> {
     return this.usersService.updateProfile(user.id, dto);
+  }
+
+  // ACC-12: registered users only (403 for admins and moderators). 409 while there is an upcoming
+  // Confirmed booking. On success the account is deactivated, every session is revoked and the
+  // cookies are cleared.
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(RolesGuard)
+  @Roles(Role.User)
+  async deactivateMe(
+    @CurrentUser() user: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.authService.deactivateOwnAccount(user);
+    clearAuthCookies(res);
   }
 }

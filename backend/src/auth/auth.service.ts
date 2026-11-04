@@ -83,7 +83,7 @@ const ACCOUNT_DEACTIVATED = 'This account has been deactivated';
 
 // Area: Auth & Accounts
 // Business logic and database access for: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-07a, ACC-08,
-// ACC-19, NEW-07
+// ACC-12, ACC-19, NEW-07
 @Injectable()
 export class AuthService {
   // Compared against when the email is unknown, so a wrong email takes as long as a wrong
@@ -241,6 +241,20 @@ export class AuthService {
     await this.usersService.setPassword(account._id, passwordHash);
     await this.sessionsService.revokeOthers(account._id, user.sessionId);
     return { message: 'Password changed' };
+  }
+
+  // ACC-12: a registered user deactivates their own account (the frontend asks for confirmation
+  // first, GEN-03). Blocked while they have an upcoming Confirmed booking. Afterwards they cannot
+  // log in (ACC-04) and every session is revoked at once.
+  async deactivateOwnAccount(user: AuthUser): Promise<void> {
+    const userId = new Types.ObjectId(user.id);
+    if (await this.usersService.hasUpcomingBookings(user.id)) {
+      throw new ConflictException(
+        'You have upcoming confirmed bookings. Cancel them or wait until they have started before deactivating your account',
+      );
+    }
+    await this.usersService.deactivate(userId);
+    await this.sessionsService.revokeAllForUser(userId);
   }
 
   // ACC-04, ACC-19: the account of the current session, for GET /api/auth/me.
