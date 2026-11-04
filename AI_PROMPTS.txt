@@ -870,3 +870,28 @@ request where the rest of GEN-06 was done (FLT-02, FLT-03, the time-change notif
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+Date: 2026-11-03  
+Student: Omar Ahmed Alaga  
+Tool: Copilot  
+Related Requirement: FLT-17
+
+**Prompt:**
+
+Implement FLT-17: Flight Details.
+
+Create an endpoint `GET /api/flights/:id` that retrieves flight details by flight ID.
+
+The response should include:
+- Airline information.
+- Flight number.
+- Departure and arrival airport information.
+- Departure and arrival times displayed in the respective airports' local time zones.
+
+Use the existing NestJS and Mongoose project structure. Follow the existing controller, service, validation, error-handling, and Swagger documentation conventions. Keep the implementation within the flights module and avoid unrelated changes.
+
+**How the output was used:**
+
+The AI-generated output was used as a starting point for implementing the FLT-17 flight details functionality. The generated code was reviewed and adjusted to match the existing project structure and conventions.
+
+The endpoint was tested through Swagger using a valid flight ID and an invalid or non-existing ID. The response was checked to verify the flight information and local airport times.
+================================================

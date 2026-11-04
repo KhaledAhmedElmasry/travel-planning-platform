@@ -1681,9 +1681,25 @@ paths:
             each in the same paginated format.
 
             Each flight - id, airline (name, code, logo), flight number, departure and arrival airports,
-            local departure and arrival times with time zones, duration, and each matching cabin with
-            its fare and seats available.
-          content: *paginated
+            local departure and arrival times with time zones and UTC offsets (GEN-06), UTC times,
+            duration, and each matching cabin with its fare, seats available, free baggage, the price of
+            the searched passengers (`priceBreakdown`, `totalPrice`: infants pay 10% of the fare, FLT-12)
+            and `currency`. All amounts are integer cents. `seatsRequired` = adults + children. When
+            nothing matches, `items` is empty and `message` says "No flights found." (GEN-04).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedList'
+                  - type: object
+                    properties:
+                      seatsRequired:
+                        type: integer
+                        description: Adults + children (infants need no seat, FLT-12).
+                      message:
+                        type: string
+                        description: Only when nothing matches (GEN-04).
+              example: {"items": [{"id": "665f1c2a9b1e8a00123400b2", "flightNumber": "MS911", "airline": {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": null}, "departureAirport": {"iataCode": "CAI", "name": "Cairo International Airport", "cityId": "cairo", "countryCode": "EG", "timeZone": "Africa/Cairo"}, "arrivalAirport": {"iataCode": "DXB", "name": "Dubai International Airport", "cityId": "dubai", "countryCode": "AE", "timeZone": "Asia/Dubai"}, "departureLocal": "2027-03-01T10:00", "arrivalLocal": "2027-03-01T15:35", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T08:00:00.000Z", "arrivalAt": "2027-03-01T11:35:00.000Z", "durationMinutes": 215, "cabins": [{"cabinId": "665f1c2a9b1e8a00123400c1", "cabinClass": "economy", "price": 25000, "availableSeats": 120, "freeBags": 1, "maxBagWeightKg": 23, "priceBreakdown": {"adultFare": 25000, "childFare": 25000, "infantFare": 2500, "adultsSubtotal": 25000, "childrenSubtotal": 0, "infantsSubtotal": 2500}, "totalPrice": 27500, "currency": "USD"}]}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1, "seatsRequired": 1}
         '400':
           description: Missing or invalid search fields, an airport not in the list, minPrice greater than maxPrice, more infants than adults, or round trip without returnDate.
           content:
@@ -1707,7 +1723,18 @@ paths:
           description: |
             Airline, flight number, airports, local departure and arrival times with time zones (GEN-06),
             duration, status, each cabin with its fare, seats remaining and free baggage allowance, the
-            extra-baggage policy (FLT-08) and the airline's cancellation policy (FLT-09).
+            extra-baggage policy (FLT-08) and the airline's cancellation policy (FLT-09). Cancelled and
+            departed flights are shown with `bookable: false`. All amounts are integer cents of `currency`.
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airline": {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": null}, "flightNumber": "MS911", "status": "scheduled", "departureAirport": {"iataCode": "CAI", "name": "Cairo International Airport", "cityId": "cairo", "countryCode": "EG", "timeZone": "Africa/Cairo"}, "arrivalAirport": {"iataCode": "DXB", "name": "Dubai International Airport", "cityId": "dubai", "countryCode": "AE", "timeZone": "Asia/Dubai"}, "departureLocal": "2027-03-01T10:00", "arrivalLocal": "2027-03-01T15:35", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T08:00:00.000Z", "arrivalAt": "2027-03-01T11:35:00.000Z", "durationMinutes": 215, "cabins": [{"cabinId": "665f1c2a9b1e8a00123400c1", "cabinClass": "economy", "price": 25000, "seatsRemaining": 120, "soldOut": false, "freeBags": 1, "maxBagWeightKg": 23}], "extraBaggage": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "cancellationPolicy": {"tiers": [{"daysBefore": 30, "refundPercentage": 100, "description": "Cancel 30 or more days before departure: 100% refund."}, {"daysBefore": 7, "refundPercentage": 50, "description": "Cancel 7 or more days before departure: 50% refund."}], "note": null}, "bookable": true, "bookableReason": null, "currency": "USD"}
+        '400':
+          description: The id is not a valid id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid ObjectId", "path": "/api/flights/abc", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Flight not found.
           content:

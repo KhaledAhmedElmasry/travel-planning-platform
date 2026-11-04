@@ -22,7 +22,7 @@ import { FlightsService } from './flights.service';
 // Requirements: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06, NEW-02
 // Endpoints to implement (PDF section 8):
 //   POST  /api/flights                          FLT-03   (done)
-//   GET   /api/flights/:id                      FLT-17
+//   GET   /api/flights/:id                      FLT-17   (done, in flight-details.controller.ts)
 //   PATCH /api/flights/:id                      FLT-05   (done)
 //   POST  /api/flights/:id/cancel               FLT-06   (done)
 //   POST  /api/flights/:id/cabins               FLT-04   (done)
