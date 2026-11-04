@@ -4,7 +4,6 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  NotImplementedException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
@@ -16,7 +15,9 @@ import type {
 } from '../payments/interfaces/payable-booking.interface';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { HotelPoliciesDto } from './dto/hotel-policies.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
+import { pickRefundTier } from './hotel-refund-tier';
 import { Hotel, HotelDocument, HotelPhoto } from './schemas/hotel.schema';
 import { Room, RoomDocument } from './schemas/room.schema';
 
@@ -24,6 +25,10 @@ import { Room, RoomDocument } from './schemas/room.schema';
 // Business logic and database access for: HTL-01..HTL-06, HTL-08..HTL-12, HTL-15, HTL-22
 
 export const MAX_HOTEL_PHOTOS = 5; // GEN-08
+
+// Used when a moderator has not set the times yet (HTL-09), because a reservation always shows them.
+const DEFAULT_CHECK_IN_TIME = '14:00';
+const DEFAULT_CHECK_OUT_TIME = '12:00';
 
 // A photo already stored by the upload service (GEN-08).
 export interface NewHotelPhoto {
@@ -164,7 +169,98 @@ export class HotelsService {
     }
   }
 
+  // --- HTL-09, HTL-10: check-in/out times and cancellation tiers (moderator of THIS hotel) ---
+
+  async updatePolicies(
+    hotelId: string,
+    actor: HotelActor,
+    dto: HotelPoliciesDto,
+  ) {
+    const hotel = await this.findHotelOrThrow(hotelId);
+    this.assertModeratorOf(hotel, actor);
+
+    // Each tier needs its own days-before-check-in threshold.
+    const seen = new Set<number>();
+    const duplicates = new Set<number>();
+    for (const tier of dto.cancellationTiers) {
+      if (seen.has(tier.daysBefore)) duplicates.add(tier.daysBefore);
+      seen.add(tier.daysBefore);
+    }
+    if (duplicates.size > 0) {
+      throw new BadRequestException(
+        `Each cancellation tier needs a unique daysBefore. Used more than once: ${[...duplicates].join(', ')}.`,
+      );
+    }
+
+    // Stored with the highest threshold first.
+    const tiers = dto.cancellationTiers
+      .map((t) => ({
+        daysBefore: t.daysBefore,
+        refundPercentage: t.refundPercentage,
+      }))
+      .sort((a, b) => b.daysBefore - a.daysBefore);
+
+    // ONE atomic update that replaces everything: the last write wins. (hotel.set + hotel.save
+    // would check the document version, so requests at the same moment would fail with a
+    // VersionError.)
+    const updated = await this.hotelModel.findByIdAndUpdate(
+      hotel._id,
+      {
+        $set: {
+          checkInTime: dto.checkInTime,
+          checkOutTime: dto.checkOutTime,
+          cancellationTiers: tiers,
+        },
+      },
+      { new: true, runValidators: true },
+    );
+    if (!updated) throw new NotFoundException('Hotel not found.');
+
+    return {
+      hotelId: updated.id as string,
+      checkInTime: updated.checkInTime,
+      checkOutTime: updated.checkOutTime,
+      cancellationTiers: this.sortedTiers(updated),
+    };
+  }
+
+  // --- Used by hotel bookings (Area 1: PAY-02, HTL-21) ---
+
+  // The hotel's name, times and tiers (highest daysBefore first), or null if it does not exist.
+  async getBookingPolicies(
+    hotelId: string,
+  ): Promise<HotelBookingPoliciesData | null> {
+    if (!isValidObjectId(hotelId)) return null;
+    const hotel = await this.hotelModel.findById(hotelId);
+    if (!hotel) return null;
+    return {
+      hotelId: hotel.id as string,
+      name: hotel.name,
+      checkInTime: hotel.checkInTime ?? DEFAULT_CHECK_IN_TIME,
+      checkOutTime: hotel.checkOutTime ?? DEFAULT_CHECK_OUT_TIME,
+      cancellationTiers: this.sortedTiers(hotel),
+    };
+  }
+
+  // HTL-10: the tier that applies when the guest cancels this many days before check-in.
+  async getRefundTier(
+    hotelId: string,
+    daysBeforeCheckIn: number,
+  ): Promise<RefundTier> {
+    const hotel = await this.findHotelOrThrow(hotelId);
+    return pickRefundTier(this.sortedTiers(hotel), daysBeforeCheckIn);
+  }
+
   // --- helpers ---
+
+  private sortedTiers(hotel: HotelDocument): CancellationTier[] {
+    return hotel.cancellationTiers
+      .map((t) => ({
+        daysBefore: t.daysBefore,
+        refundPercentage: t.refundPercentage,
+      }))
+      .sort((a, b) => b.daysBefore - a.daysBefore);
+  }
 
   private async findHotelOrThrow(hotelId: string): Promise<HotelDocument> {
     if (!isValidObjectId(hotelId))
@@ -257,33 +353,5 @@ export class HotelsService {
       createdAt: room.get('createdAt') as Date | undefined,
       updatedAt: room.get('updatedAt') as Date | undefined,
     };
-  }
-
-  // --- Used by hotel bookings (Area 1: PAY-02, HTL-21) ---
-
-  // WAITING FOR (Area 7, HTL-01 / HTL-09 / HTL-10): the hotel schema with its check-in and
-  // check-out times and cancellation tiers.
-  // TODO(HTL-09, HTL-10; Area 7): find the hotel (null if it does not exist) and return its name,
-  // checkInTime, checkOutTime and cancellationTiers sorted by daysBefore (highest first).
-  getBookingPolicies(
-    _hotelId: string,
-  ): Promise<HotelBookingPoliciesData | null> {
-    throw new NotImplementedException(
-      'Hotel policies are not implemented yet (HTL-09, HTL-10).',
-    );
-  }
-
-  // WAITING FOR (Area 7, HTL-10): the cancellation tiers and the shared tier rule in common/utils
-  // (FLT-09, also used by AirlinesService.getRefundTier()).
-  // TODO(HTL-10; Area 7): apply the rule to the hotel's tiers: the tier with the highest
-  // daysBefore that is not more than daysBeforeCheckIn; if none applies, 0% and null.
-  // Example: tiers 14 -> 100%, 3 -> 50%; 5 days left -> { refundPercentage: 50, tierDaysBefore: 3 }.
-  getRefundTier(
-    _hotelId: string,
-    _daysBeforeCheckIn: number,
-  ): Promise<RefundTier> {
-    throw new NotImplementedException(
-      'Hotel cancellation tiers are not implemented yet (HTL-10).',
-    );
   }
 }

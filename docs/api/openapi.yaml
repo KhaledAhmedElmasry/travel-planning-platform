@@ -72,6 +72,8 @@ tags:
     description: PDF section 8.9
   - name: Content Reports
     description: Content reporting by registered users (GEN-09)
+  - name: Notifications
+    description: In-app notifications for users (GEN-01)
   - name: Reference Data
     description: Extra read-only endpoints, not in the PDF tables (GEN-12, NEW-05)
   - name: Health
@@ -979,6 +981,109 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 409, "error": "CONFLICT", "message": "You have already reported this item.", "path": "/api/reports", "timestamp": "2026-11-01T10:00:00.000Z"}
 
+  /api/notifications:
+    get:
+      operationId: getNotifications
+      tags: [Notifications]
+      summary: 'List user notifications (GEN-01, GEN-05)'
+      description: |
+        **Access:** logged-in user.
+
+        Retrieves the authenticated user's in-app notifications, newest first, paginated (10 per page).
+        Supports filtering unread only with `unreadOnly=true`.
+      security: *auth
+      parameters:
+        - name: unreadOnly
+          in: query
+          description: Filter only unread notifications.
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Paginated notifications.
+          content: *paginated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/unread-count:
+    get:
+      operationId: getNotificationsUnreadCount
+      tags: [Notifications]
+      summary: 'Get unread notification count (GEN-01)'
+      description: |
+        **Access:** logged-in user.
+
+        Returns the number of unread in-app notifications for the authenticated user.
+      security: *auth
+      responses:
+        '200':
+          description: Unread notification count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCountResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/read-all:
+    patch:
+      operationId: patchNotificationsReadAll
+      tags: [Notifications]
+      summary: 'Mark all notifications as read (GEN-01)'
+      description: |
+        **Access:** logged-in user.
+
+        Marks all unread notifications of the authenticated user as read.
+      security: *auth
+      responses:
+        '200':
+          description: All notifications marked as read.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: All notifications marked as read
+                  count:
+                    type: integer
+                    example: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/{id}/read:
+    patch:
+      operationId: patchNotificationsByIdRead
+      tags: [Notifications]
+      summary: 'Mark a notification as read (GEN-01)'
+      description: |
+        **Access:** logged-in user (must own the notification).
+
+        Marks a single notification as read.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The updated notification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationItem'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Notification not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Notification not found.", "path": "/api/notifications/665f1c2a9b1e8a00123400a1/read", "timestamp": "2026-11-01T10:00:00.000Z"}
+
   /api/admin/reports:
     get:
       operationId: getAdminReports
@@ -1103,6 +1208,87 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Content not found.", "path": "/api/admin/content/flight/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
 
+  /api/admin/content/{type}/{id}/hide:
+    patch:
+      operationId: patchAdminContentByTypeByIdHide
+      tags: [Administration]
+      summary: 'Hide a post, comment, review or itinerary (GEN-10)'
+      description: |
+        **Access:** admin.
+
+        Hides inappropriate content directly. Hidden content is visible only to its author and admins.
+        Open reports about it are closed as `content_hidden`. The action is written to the audit log (GEN-07).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/ContentTypePath'
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 500
+                  example: Inappropriate content
+      responses:
+        '200':
+          description: Content hidden successfully.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/content/post/665f1c2a9b1e8a00123400a1/hide", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '404':
+          description: Content not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Content not found.", "path": "/api/admin/content/post/665f1c2a9b1e8a00123400a1/hide", "timestamp": "2026-11-01T10:00:00.000Z"}
+
+  /api/admin/content/{type}/{id}/unhide:
+    patch:
+      operationId: patchAdminContentByTypeByIdUnhide
+      tags: [Administration]
+      summary: 'Unhide a post, comment, review or itinerary (GEN-10)'
+      description: |
+        **Access:** admin.
+
+        Restores previously hidden content directly so it becomes visible again.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/ContentTypePath'
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Content restored successfully.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/content/post/665f1c2a9b1e8a00123400a1/unhide", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '404':
+          description: Content not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Content not found.", "path": "/api/admin/content/post/665f1c2a9b1e8a00123400a1/unhide", "timestamp": "2026-11-01T10:00:00.000Z"}
+
   /api/admin/audit-logs:
     get:
       operationId: getAdminAuditLogs
@@ -1177,7 +1363,7 @@ paths:
           description: Airline created. Returns id, name, code, logo URL (logoUrl, null without a logo) and status (active).
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "baggagePolicy": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "cancellationTiers": [{"daysBefore": 30, "refundPercentage": 100}, {"daysBefore": 7, "refundPercentage": 50}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields, or a logo that is not JPG/PNG or is larger than 5 MB.
           content:
@@ -1217,7 +1403,7 @@ paths:
           description: Name, code, logo URL, extra-baggage policy (FLT-08) and cancellation tiers (FLT-09).
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "baggagePolicy": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "cancellationTiers": [{"daysBefore": 30, "refundPercentage": 100}, {"daysBefore": 7, "refundPercentage": 50}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Airline not found, or deactivated (ACC-15).
           content:
@@ -1248,7 +1434,7 @@ paths:
           description: The updated airline.
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "baggagePolicy": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "cancellationTiers": [{"daysBefore": 30, "refundPercentage": 100}, {"daysBefore": 7, "refundPercentage": 50}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields, or a logo that is not JPG/PNG or is larger than 5 MB.
           content:
@@ -1336,7 +1522,9 @@ paths:
       description: |
         **Access:** airline moderators. The flight belongs to the moderator's own airline.
 
-        Departure and arrival are entered in each airport's local time and stored in UTC (GEN-06). The
+        Departure and arrival are entered in each airport's local time and stored in UTC (GEN-06). Every
+        flight response shows, for each airport, its time zone, the local time, the UTC offset at that
+        time (e.g. `+02:00`, daylight saving included) and the UTC time. The
         new flight has status `scheduled` (FLT-30) and no cabins yet; add them with
         `POST /api/flights/{id}/cabins`.
 
@@ -1355,7 +1543,7 @@ paths:
           description: Flight created. Returns the flight with local and UTC times.
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields or one of the rules above is broken.
           content:
@@ -1493,9 +1681,25 @@ paths:
             each in the same paginated format.
 
             Each flight - id, airline (name, code, logo), flight number, departure and arrival airports,
-            local departure and arrival times with time zones, duration, and each matching cabin with
-            its fare and seats available.
-          content: *paginated
+            local departure and arrival times with time zones and UTC offsets (GEN-06), UTC times,
+            duration, and each matching cabin with its fare, seats available, free baggage, the price of
+            the searched passengers (`priceBreakdown`, `totalPrice`: infants pay 10% of the fare, FLT-12)
+            and `currency`. All amounts are integer cents. `seatsRequired` = adults + children. When
+            nothing matches, `items` is empty and `message` says "No flights found." (GEN-04).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedList'
+                  - type: object
+                    properties:
+                      seatsRequired:
+                        type: integer
+                        description: Adults + children (infants need no seat, FLT-12).
+                      message:
+                        type: string
+                        description: Only when nothing matches (GEN-04).
+              example: {"items": [{"id": "665f1c2a9b1e8a00123400b2", "flightNumber": "MS911", "airline": {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": null}, "departureAirport": {"iataCode": "CAI", "name": "Cairo International Airport", "cityId": "cairo", "countryCode": "EG", "timeZone": "Africa/Cairo"}, "arrivalAirport": {"iataCode": "DXB", "name": "Dubai International Airport", "cityId": "dubai", "countryCode": "AE", "timeZone": "Asia/Dubai"}, "departureLocal": "2027-03-01T10:00", "arrivalLocal": "2027-03-01T15:35", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T08:00:00.000Z", "arrivalAt": "2027-03-01T11:35:00.000Z", "durationMinutes": 215, "cabins": [{"cabinId": "665f1c2a9b1e8a00123400c1", "cabinClass": "economy", "price": 25000, "availableSeats": 120, "freeBags": 1, "maxBagWeightKg": 23, "priceBreakdown": {"adultFare": 25000, "childFare": 25000, "infantFare": 2500, "adultsSubtotal": 25000, "childrenSubtotal": 0, "infantsSubtotal": 2500}, "totalPrice": 27500, "currency": "USD"}]}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1, "seatsRequired": 1}
         '400':
           description: Missing or invalid search fields, an airport not in the list, minPrice greater than maxPrice, more infants than adults, or round trip without returnDate.
           content:
@@ -1519,7 +1723,18 @@ paths:
           description: |
             Airline, flight number, airports, local departure and arrival times with time zones (GEN-06),
             duration, status, each cabin with its fare, seats remaining and free baggage allowance, the
-            extra-baggage policy (FLT-08) and the airline's cancellation policy (FLT-09).
+            extra-baggage policy (FLT-08) and the airline's cancellation policy (FLT-09). Cancelled and
+            departed flights are shown with `bookable: false`. All amounts are integer cents of `currency`.
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airline": {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": null}, "flightNumber": "MS911", "status": "scheduled", "departureAirport": {"iataCode": "CAI", "name": "Cairo International Airport", "cityId": "cairo", "countryCode": "EG", "timeZone": "Africa/Cairo"}, "arrivalAirport": {"iataCode": "DXB", "name": "Dubai International Airport", "cityId": "dubai", "countryCode": "AE", "timeZone": "Asia/Dubai"}, "departureLocal": "2027-03-01T10:00", "arrivalLocal": "2027-03-01T15:35", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T08:00:00.000Z", "arrivalAt": "2027-03-01T11:35:00.000Z", "durationMinutes": 215, "cabins": [{"cabinId": "665f1c2a9b1e8a00123400c1", "cabinClass": "economy", "price": 25000, "seatsRemaining": 120, "soldOut": false, "freeBags": 1, "maxBagWeightKg": 23}], "extraBaggage": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "cancellationPolicy": {"tiers": [{"daysBefore": 30, "refundPercentage": 100, "description": "Cancel 30 or more days before departure: 100% refund."}, {"daysBefore": 7, "refundPercentage": 50, "description": "Cancel 7 or more days before departure: 50% refund."}], "note": null}, "bookable": true, "bookableReason": null, "currency": "USD"}
+        '400':
+          description: The id is not a valid id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid ObjectId", "path": "/api/flights/abc", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Flight not found.
           content:
@@ -1537,8 +1752,9 @@ paths:
         Only `scheduled` flights can be edited. Send only the fields to change; the FLT-03 rules still
         apply. Airports cannot be changed once the flight has any booking.
 
-        Time changes apply to existing bookings, and passengers with Confirmed bookings get an in-app
-        notification (GEN-01, NEW-02). Fares and seat counts are edited per cabin with
+        Time changes apply to existing bookings in the same transaction, and every user with a Confirmed
+        booking gets exactly one in-app notification per change, listing all their bookings on the
+        flight (GEN-01, NEW-02). Existing bookings keep the price agreed at booking time. Fares and seat counts are edited per cabin with
         `PATCH /api/flights/{id}/cabins/{cabinId}`.
       security: *auth
       parameters:
@@ -1551,7 +1767,10 @@ paths:
               $ref: '#/components/schemas/UpdateFlightRequest'
       responses:
         '200':
-          description: The updated flight.
+          description: The updated flight. A local time that is not sent keeps the same local clock time at its airport.
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T15:00", "arrivalLocal": "2027-03-01T20:35", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T13:00:00.000Z", "arrivalAt": "2027-03-01T16:35:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-02T09:00:00.000Z"}
         '400':
           description: Invalid fields or an FLT-03 rule is broken.
           content:
@@ -1601,7 +1820,10 @@ paths:
         - $ref: '#/components/parameters/Id'
       responses:
         '200':
-          description: The cancelled flight and the number of bookings that were cancelled.
+          description: The cancelled flight, the number of Confirmed bookings that were cancelled with a 100% refund (cancelledBookings) and the number of unpaid seat holds that ended (expiredHolds).
+          content:
+            application/json:
+              example: {"flight": {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "cancelled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-02T09:00:00.000Z"}, "cancelledBookings": 2, "expiredHolds": 1}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1649,6 +1871,9 @@ paths:
       responses:
         '201':
           description: The flight with its cabins (each cabin has an id).
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [{"id": "665f1c2a9b1e8a00123400c3", "cabinClass": "economy", "seats": 150, "bookedSeats": 0, "heldSeats": 0, "availableSeats": 150, "price": 25000, "freeBags": 1, "maxBagWeightKg": 23}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:05:00.000Z"}
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1699,6 +1924,9 @@ paths:
       responses:
         '200':
           description: The flight with its updated cabins.
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [{"id": "665f1c2a9b1e8a00123400c3", "cabinClass": "economy", "seats": 150, "bookedSeats": 0, "heldSeats": 0, "availableSeats": 150, "price": 25000, "freeBags": 1, "maxBagWeightKg": 23}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:05:00.000Z"}
         '400':
           description: Invalid fields, or a seat count below the seats already booked or held.
           content:
@@ -1752,13 +1980,16 @@ paths:
               $ref: '#/components/schemas/BaggagePolicyRequest'
       responses:
         '200':
-          description: The saved baggage policy.
+          description: The saved baggage policy. Until it is set, an airline has extraBagPrice null and maxExtraBagsPerPassenger 0 (no extra bags).
+          content:
+            application/json:
+              example: {"airlineId": "665f1c2a9b1e8a00123400a1", "extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not the moderator of this airline.
+          description: Not the moderator of this airline, or the airline is deactivated (ACC-15).
           content:
             application/json:
               schema:
@@ -1796,18 +2027,21 @@ paths:
               $ref: '#/components/schemas/CancellationPolicyRequest'
       responses:
         '200':
-          description: The saved tiers, sorted by threshold.
+          description: The saved tiers, sorted by threshold (highest daysBefore first).
+          content:
+            application/json:
+              example: {"airlineId": "665f1c2a9b1e8a00123400a1", "cancellationTiers": [{"daysBefore": 30, "refundPercentage": 100}, {"daysBefore": 7, "refundPercentage": 50}, {"daysBefore": 1, "refundPercentage": 10}]}
         '400':
           description: Invalid tiers, or the same threshold used twice.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid tiers, or the same threshold used twice.", "path": "/api/airlines/665f1c2a9b1e8a00123400a1/cancellation-policy", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "The threshold daysBefore 7 is used more than once. Each tier needs a different daysBefore.", "path": "/api/airlines/665f1c2a9b1e8a00123400a1/cancellation-policy", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not the moderator of this airline.
+          description: Not the moderator of this airline, or the airline is deactivated (ACC-15).
           content:
             application/json:
               schema:
@@ -3788,6 +4022,8 @@ paths:
             Title, countries, start date, visibility, the days in order (id, number, date, city, notes,
             activities, budget entries), the city groups (city, first and last day, day count, budget
             subtotal), the transport costs, and the original author if it is a clone (ITN-21).
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -3958,9 +4194,22 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Id'
         - $ref: '#/components/parameters/DayId'
+        - name: confirm
+          in: query
+          required: true
+          description: Must be true to confirm deletion.
+          schema:
+            type: boolean
       responses:
         '204':
           description: Day deleted.
+        '400':
+          description: Confirmation is required, or an id is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Confirmation is required to delete an itinerary day.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/days/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -6286,6 +6535,13 @@ components:
       type: string
       description: Fixed set of cabin categories (FLT-04).
       enum: [economy, premium_economy, business, first]
+    FlightStatus:
+      type: string
+      enum: [scheduled, cancelled, departed]
+      description: |
+        FLT-30. A new flight is `scheduled`. It becomes `departed` once its departure time has passed
+        (a job checks every minute), or `cancelled` by the airline (FLT-06). Only `scheduled` flights
+        are searchable, editable or bookable.
     PassengerType:
       type: string
       description: Adult 12+, child 2-11, infant under 2 (FLT-12).
@@ -6541,6 +6797,47 @@ components:
         date:
           type: string
           format: date-time
+
+    NotificationItem:
+      type: object
+      properties:
+        id:
+          type: string
+          example: '665f1c2a9b1e8a00123400b2'
+        userId:
+          type: string
+          example: '665f1c2a9b1e8a0012340099'
+        title:
+          type: string
+          example: Booking Confirmed
+        message:
+          type: string
+          example: Your flight booking MS123 has been confirmed.
+        type:
+          type: string
+          example: booking_confirmed
+        read:
+          type: boolean
+          example: false
+        readAt:
+          type: string
+          format: date-time
+        link:
+          type: string
+          example: /bookings/flight/665f1c2a9b1e8a00123400b2
+        createdAt:
+          type: string
+          format: date-time
+
+    UnreadCountResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 3
+        unreadCount:
+          type: integer
+          example: 3
 
     ResolveReportRequest:
       type: object

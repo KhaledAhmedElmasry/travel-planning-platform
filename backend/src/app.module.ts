@@ -1,8 +1,7 @@
-import { Logger, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
-import { Connection } from 'mongoose';
 import { AdminModule } from './admin/admin.module';
 import { AirlinesModule } from './airlines/airlines.module';
 import { AppController } from './app.controller';
@@ -26,8 +25,6 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
 
-const databaseLogger = new Logger('MongoDB');
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -39,24 +36,6 @@ const databaseLogger = new Logger('MongoDB');
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         uri: config.getOrThrow<string>('MONGODB_URI'),
-        // Keep the API (including Swagger) available when Atlas is temporarily
-        // unreachable; Mongoose connects in the background and database-backed
-        // requests still require a healthy connection.
-        lazyConnection: true,
-        connectionFactory: (connection: Connection) => {
-          // Mongoose rejects this promise if the initial DNS/network connection
-          // fails. Handle it so that failure does not terminate the API process.
-          void connection.asPromise().catch((error: unknown) => {
-            const message =
-              error instanceof Error
-                ? error.message
-                : 'unknown connection error';
-            databaseLogger.warn(
-              `Database is unavailable; database-backed requests may fail: ${message}`,
-            );
-          });
-          return connection;
-        },
       }),
     }),
 
