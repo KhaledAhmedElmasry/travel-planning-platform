@@ -340,8 +340,9 @@ export class FlightsService {
     return this.toResponse(saved);
   }
 
-  // GEN-01, NEW-02: one in-app notification per Confirmed booking on this flight. Runs after the
-  // transaction; a failed notification never undoes the change.
+  // GEN-01, NEW-02: exactly one in-app notification per affected user: the users with a
+  // Confirmed booking on this flight, with all their booking references in one message. Runs
+  // after the transaction; a failed notification is logged and never undoes the change.
   private async notifyTimeChange(
     flight: FlightDocument,
     before: Parameters<typeof flightTimeChangedText>[1],
@@ -354,17 +355,26 @@ export class FlightsService {
       .select('userId reference')
       .lean()
       .exec();
+    // NEW-02: group the bookings by user, so a user with two bookings gets one notification.
+    const referencesByUser = new Map<string, (string | undefined)[]>();
     for (const booking of bookings) {
+      const userId = booking.userId.toString();
+      const refs = referencesByUser.get(userId) ?? [];
+      refs.push(booking.reference);
+      referencesByUser.set(userId, refs);
+    }
+
+    for (const [userId, references] of referencesByUser) {
       try {
         const { title, message } = flightTimeChangedText(
-          booking.reference,
+          references,
           before,
           flight,
         );
-        await this.notifications.notify(booking.userId, title, message);
+        await this.notifications.notify(userId, title, message);
       } catch (err) {
         this.logger.error(
-          `Could not notify booking ${String(booking._id)} of the time change: ${String(err)}`,
+          `Could not notify user ${userId} of the time change of flight ${flight._id.toString()}: ${String(err)}`,
         );
       }
     }

@@ -1723,8 +1723,9 @@ paths:
         Only `scheduled` flights can be edited. Send only the fields to change; the FLT-03 rules still
         apply. Airports cannot be changed once the flight has any booking.
 
-        Time changes apply to existing bookings, and passengers with Confirmed bookings get an in-app
-        notification (GEN-01, NEW-02). Fares and seat counts are edited per cabin with
+        Time changes apply to existing bookings in the same transaction, and every user with a Confirmed
+        booking gets exactly one in-app notification per change, listing all their bookings on the
+        flight (GEN-01, NEW-02). Existing bookings keep the price agreed at booking time. Fares and seat counts are edited per cabin with
         `PATCH /api/flights/{id}/cabins/{cabinId}`.
       security: *auth
       parameters:

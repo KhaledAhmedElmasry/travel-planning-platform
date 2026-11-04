@@ -824,3 +824,27 @@ Added a response example to docs/api/openapi.yaml.
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: NEW-02
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-06 branch, I asked the assistant to check NEW-02 in
+docs/requirements/ASSUMED_REQUIREMENTS.md against what FLT-05 and FLT-06 already do and to
+implement what was still missing. It found that the acceptance criterion "each affected user
+receives exactly one notification per change" was not met for time changes, because a user with
+two bookings on the same flight got two notifications.
+
+How the output was used:
+Used the generated change to FlightsService.notifyTimeChange(), which now groups the Confirmed
+bookings of the flight by user and sends one notification per user, and to
+flightTimeChangedText(), which lists all of that user's booking references. Updated the
+PATCH /api/flights/{id} description in docs/api/openapi.yaml. The other NEW-02 points (agreed
+price kept, times copied in the same transaction, 100% refunds, holds released, round trips
+cancelled as a whole) were already done in FLT-05 and FLT-06, and I listed them in the pull request.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================

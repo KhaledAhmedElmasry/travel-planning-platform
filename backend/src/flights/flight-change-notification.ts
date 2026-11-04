@@ -3,6 +3,8 @@ import { utcToLocal } from './flight-time';
 // Area: Airlines & Flight Inventory
 // GEN-01, NEW-02: the in-app notification sent to passengers with a Confirmed booking when the
 // airline changes the times of a flight (FLT-05). Times are local to each airport (GEN-06).
+// NEW-02: each affected user gets exactly ONE notification per change, listing all of their
+// bookings on the flight.
 
 export interface FlightTimes {
   flightNumber: string;
@@ -19,11 +21,17 @@ function local(date: Date, timeZone: string): string {
 }
 
 export function flightTimeChangedText(
-  bookingReference: string | undefined,
+  bookingReferences: readonly (string | undefined)[],
   before: FlightTimes,
   after: FlightTimes,
 ): { title: string; message: string } {
-  const booking = bookingReference ? ` of booking ${bookingReference}` : '';
+  const refs = bookingReferences.filter((r): r is string => !!r);
+  const booking =
+    refs.length === 0
+      ? ''
+      : refs.length === 1
+        ? ` of booking ${refs[0]}`
+        : ` of your bookings ${refs.join(', ')}`;
   return {
     title: 'Flight time changed',
     message:
