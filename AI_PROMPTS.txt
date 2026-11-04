@@ -609,3 +609,94 @@ Help me implement GEN-01 (in-app notifications: unread count, notification list,
 How the output was used:
 Used AI guidance to design the notification schema, query pagination (GEN-05, page size 10), and ownership verification. Implemented the Notification schema, ListNotificationsQueryDto, NotificationsService, and NotificationsController myself, protecting routes with JwtAuthGuard, and updated openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
 ================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-04 (with the cabin part of FLT-05)
+
+Prompt:
+Continuing my Area 5 work on the latest develop, I asked the assistant to implement FLT-04 exactly
+as documented in docs/api/openapi.yaml: POST /api/flights/:id/cabins to add a cabin class from the
+fixed set (economy, premium_economy, business, first, each at most once per flight) with a seat
+count, price in cents and free baggage allowance, and PATCH /api/flights/:id/cabins/:cabinId to
+edit them, never lowering the seat count below the seats already booked or held by Area 1's seat
+holds, and only by the moderator of the flight's airline on a scheduled flight.
+
+How the output was used:
+Used the generated CreateCabinDto and UpdateCabinDto with class-validator rules, FlightsService
+addCabin() (atomic $push that cannot add the same class twice), updateCabin() (only applies if
+the booked/held counters did not change since they were checked, otherwise re-reads and retries),
+findManagedFlight() (404 unknown flight, 403 another airline or deactivated airline) and the two
+routes. Added response examples to the cabin endpoints in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-11
+
+Prompt:
+I asked the assistant to implement GitHub issue #8 (ACC-11): bookings and private itineraries are
+accessible only to their owner, except that admins may view all bookings (ACC-17) and moderators
+the bookings of their own hotel or airline (FLT-29, HTL-22), with unauthorised requests rejected
+(403/404). JwtAuthGuard, RolesGuard and @CurrentUser() already existed, so I asked for the shared
+ownership helper from the Area 2 task sheet, following the 403/404 rules in docs/CONVENTIONS.md
+and the access notes in docs/api/openapi.yaml.
+After the pull request review (2026-11-04) I gave the assistant the reviewer's comment and the
+flight booking schema and asked it to fix the airline moderator check.
+
+How the output was used:
+Used as backend/src/common/guards/ownership.ts: assertOwner (own data, otherwise 404),
+canViewBooking / assertCanViewBooking (owner, admin, or the moderator of the booking's airline or
+hotel, otherwise 404), bookingVisibilityFilter (the MongoDB filter for booking lists per role),
+assertManagesAirline / assertManagesHotel (provider data, otherwise 403) and canViewItinerary /
+assertCanViewItinerary (public for everyone, private or hidden only for the owner, no admin
+exception). I checked every rule against the requirement and openapi.yaml and checked that the
+field names match the hotel reservation (userId, hotelId) schema. Review fix: the flight booking
+stores the airline per segment (segments.airlineId, a round trip can have two airlines), not at the
+top level, so canViewBooking now accepts segments and lets an airline moderator through if any
+segment is on their airline, and bookingVisibilityFilter filters on 'segments.airlineId'. Verified
+with npm run lint, npm run build and local unit tests for every role (including a round trip with two
+airlines and a moderator of a third airline), including checks that fail when the admin rule, the
+moderator's provider check, the segments check or the private-itinerary rule is changed.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-12
+
+Prompt:
+I asked the assistant to implement GitHub issue #121 (ACC-12): a registered user deactivates
+their own account after confirmation; it is blocked while the user has upcoming Confirmed bookings,
+and a deactivated user cannot log in. I asked it to follow DELETE /api/users/me in
+docs/api/openapi.yaml (registered users only, 204 with the cookies cleared, 401, 403 for other
+roles, 409 for upcoming confirmed bookings, all sessions revoked) and to use the real booking
+fields from the flight booking and hotel reservation schemas.
+After the pull request review (2026-11-04) I gave the assistant the reviewer's comment and asked it
+to use the agreed hasUpcomingBookings() of the two booking services instead of reading the booking
+collections.
+
+How the output was used:
+Used as the base for the DELETE route in UsersController, AuthService.deactivateOwnAccount,
+UsersService.hasUpcomingBookings and deactivate, and the deactivatedAt field. Review fix:
+UsersService now injects FlightBookingsService and HotelBookingsService (UsersModule imports both
+modules) and calls their hasUpcomingBookings(), so deactivation and My Bookings share the NEW-01
+rule; the direct collection queries are removed. I checked it
+against the issue and openapi.yaml: admins and moderators get 403; a confirmed flight with a leg
+that has not departed (including only the return flight) or a confirmed stay that has not started
+(check-in after today; a stay that starts today no longer blocks) gives 409 and changes nothing; past, cancelled, expired, pending and other users'
+bookings do not block; on success the status becomes deactivated, every session is revoked, the
+cookies are cleared and the account can no longer log in. Hiding posts and public itineraries and
+showing "Deleted user" belong to the blog, reviews and itineraries areas, which filter on the
+deactivated status. Verified with npm run lint, npm run build, local tests (including checks that
+fail when the booking check, the session revoke or the role restriction is removed), a check that
+the whole application module graph still resolves with the two booking modules imported (no
+circular dependency, so no forwardRef was needed), and in Swagger.
+================================================

@@ -1,8 +1,19 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
+import { CreateCabinDto } from './dto/create-cabin.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
+import { UpdateCabinDto } from './dto/update-cabin.dto';
 import { FlightsService } from './flights.service';
 
 // Area: Airlines & Flight Inventory
@@ -12,8 +23,8 @@ import { FlightsService } from './flights.service';
 //   GET   /api/flights/:id                      FLT-17
 //   PATCH /api/flights/:id                      FLT-05
 //   POST  /api/flights/:id/cancel               FLT-06
-//   POST  /api/flights/:id/cabins               FLT-04
-//   PATCH /api/flights/:id/cabins/:cabinId      FLT-04, FLT-05
+//   POST  /api/flights/:id/cabins               FLT-04   (done)
+//   PATCH /api/flights/:id/cabins/:cabinId      FLT-04, FLT-05   (done)
 //   GET   /api/flights/:id/bookings             FLT-29
 //   GET   /api/flights/:id/passengers/export    FLT-29
 // Notes:
@@ -32,5 +43,28 @@ export class FlightsController {
   @UseGuards(JwtAuthGuard)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateFlightDto) {
     return this.flightsService.create(user, dto);
+  }
+
+  // FLT-04: the moderator of the flight's airline adds a cabin class.
+  @Post(':id/cabins')
+  @UseGuards(JwtAuthGuard)
+  addCabin(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Body() dto: CreateCabinDto,
+  ) {
+    return this.flightsService.addCabin(user, id, dto);
+  }
+
+  // FLT-04, FLT-05: the moderator edits a cabin's seats, price and baggage allowance.
+  @Patch(':id/cabins/:cabinId')
+  @UseGuards(JwtAuthGuard)
+  updateCabin(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('cabinId', ParseObjectIdPipe) cabinId: Types.ObjectId,
+    @Body() dto: UpdateCabinDto,
+  ) {
+    return this.flightsService.updateCabin(user, id, cabinId, dto);
   }
 }
