@@ -655,17 +655,24 @@ and a deactivated user cannot log in. I asked it to follow DELETE /api/users/me 
 docs/api/openapi.yaml (registered users only, 204 with the cookies cleared, 401, 403 for other
 roles, 409 for upcoming confirmed bookings, all sessions revoked) and to use the real booking
 fields from the flight booking and hotel reservation schemas.
+After the pull request review (2026-11-04) I gave the assistant the reviewer's comment and asked it
+to use the agreed hasUpcomingBookings() of the two booking services instead of reading the booking
+collections.
 
 How the output was used:
 Used as the base for the DELETE route in UsersController, AuthService.deactivateOwnAccount,
-UsersService.hasUpcomingConfirmedBookings and deactivate, and the deactivatedAt field. I checked it
+UsersService.hasUpcomingBookings and deactivate, and the deactivatedAt field. Review fix:
+UsersService now injects FlightBookingsService and HotelBookingsService (UsersModule imports both
+modules) and calls their hasUpcomingBookings(), so deactivation and My Bookings share the NEW-01
+rule; the direct collection queries are removed. I checked it
 against the issue and openapi.yaml: admins and moderators get 403; a confirmed flight with a leg
-that has not departed (including only the return flight) or a confirmed stay with check-in today
-or later gives 409 and changes nothing; past, cancelled, expired, pending and other users'
+that has not departed (including only the return flight) or a confirmed stay that has not started
+(check-in after today; a stay that starts today no longer blocks) gives 409 and changes nothing; past, cancelled, expired, pending and other users'
 bookings do not block; on success the status becomes deactivated, every session is revoked, the
 cookies are cleared and the account can no longer log in. Hiding posts and public itineraries and
 showing "Deleted user" belong to the blog, reviews and itineraries areas, which filter on the
 deactivated status. Verified with npm run lint, npm run build, local tests (including checks that
-fail when the booking check, the session revoke or the role restriction is removed), a check of
-the real module wiring, and in Swagger.
+fail when the booking check, the session revoke or the role restriction is removed), a check that
+the whole application module graph still resolves with the two booking modules imported (no
+circular dependency, so no forwardRef was needed), and in Swagger.
 ================================================

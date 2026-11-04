@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model, Types } from 'mongoose';
 import { AccountStatus, Role } from '../common/enums';
+import { FlightBookingsService } from '../flight-bookings/flight-bookings.service';
+import { HotelBookingsService } from '../hotel-bookings/hotel-bookings.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { User, UserDocument } from './schemas/user.schema';
 
@@ -26,13 +28,6 @@ export interface ProfileResponse {
 // Read straight from the collection, so this does not depend on the reference-data module.
 const CURRENCIES_COLLECTION = 'currencies';
 
-// ACC-12: the booking collections (Mongoose's default names for the FlightBooking and
-// HotelBooking models). Read straight from the collections, so this module does not import the
-// booking modules. Status values and fields as in flight-booking.schema.ts / hotel-booking.schema.ts.
-const FLIGHT_BOOKINGS_COLLECTION = 'flightbookings';
-const HOTEL_BOOKINGS_COLLECTION = 'hotelbookings';
-const CONFIRMED = 'confirmed';
-
 // What registration (ACC-01, ACC-03) stores. Role, status and the security counters are never
 // taken from the request.
 export interface NewRegisteredUser {
@@ -51,6 +46,10 @@ export class UsersService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectConnection() private readonly connection: Connection,
     private readonly config: ConfigService,
+    // ACC-12: the agreed "upcoming booking" rules (NEW-01) live in the booking services, so
+    // deactivation and My Bookings always agree on what is upcoming.
+    private readonly flightBookings: FlightBookingsService,
+    private readonly hotelBookings: HotelBookingsService,
   ) {}
 
   // ACC-11: the own profile, for GET /api/users/me.
@@ -103,30 +102,18 @@ export class UsersService {
     return toProfile(updated);
   }
 
-  // ACC-12: whether the user still has an upcoming Confirmed booking: a flight with a leg that
-  // has not departed yet, or a stay that has not started (check-in today or later).
-  async hasUpcomingConfirmedBookings(
-    userId: Types.ObjectId,
+  // ACC-12: whether the user still has an upcoming Confirmed booking (NEW-01): a flight with a leg
+  // that has not departed yet, or a stay that has not started yet (a stay that starts today is no
+  // longer upcoming). The rules are the ones My Bookings uses, in the two booking services.
+  async hasUpcomingBookings(
+    userId: string,
     now = new Date(),
   ): Promise<boolean> {
-    const todayUtc = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-    );
     const [flight, stay] = await Promise.all([
-      this.connection
-        .collection(FLIGHT_BOOKINGS_COLLECTION)
-        .findOne(
-          { userId, status: CONFIRMED, 'segments.departureAt': { $gt: now } },
-          { projection: { _id: 1 } },
-        ),
-      this.connection
-        .collection(HOTEL_BOOKINGS_COLLECTION)
-        .findOne(
-          { userId, status: CONFIRMED, checkIn: { $gte: todayUtc } },
-          { projection: { _id: 1 } },
-        ),
+      this.flightBookings.hasUpcomingBookings(userId, now),
+      this.hotelBookings.hasUpcomingBookings(userId, now),
     ]);
-    return flight !== null || stay !== null;
+    return flight || stay;
   }
 
   // ACC-12: mark the own account as deactivated. Only an active account changes.

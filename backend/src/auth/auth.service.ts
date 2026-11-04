@@ -248,7 +248,7 @@ export class AuthService {
   // log in (ACC-04) and every session is revoked at once.
   async deactivateOwnAccount(user: AuthUser): Promise<void> {
     const userId = new Types.ObjectId(user.id);
-    if (await this.usersService.hasUpcomingConfirmedBookings(userId)) {
+    if (await this.usersService.hasUpcomingBookings(user.id)) {
       throw new ConflictException(
         'You have upcoming confirmed bookings. Cancel them or wait until they have started before deactivating your account',
       );
