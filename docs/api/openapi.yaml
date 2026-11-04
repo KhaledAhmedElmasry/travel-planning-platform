@@ -5176,6 +5176,13 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not a registered user.", "path": "/api/posts/mine", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/posts/{id}/comments:
     post:

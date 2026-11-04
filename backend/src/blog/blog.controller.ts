@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post as HttpPost,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser, Roles } from '../common/decorators';
@@ -13,7 +15,9 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
-import type { CreatedPostResponse } from './blog.service';
+import { ListMyPostsQueryDto } from './dto/list-my-posts-query.dto';
+import type { CreatedPostResponse, MyPostSummary } from './blog.service';
+import type { PaginatedList } from '../common/dto/pagination.dto';
 
 // Area: Community & Cross-cutting
 // Requirements: BLG-01..BLG-12
@@ -42,6 +46,17 @@ import type { CreatedPostResponse } from './blog.service';
 @Controller()
 export class BlogController {
   constructor(private readonly blogService: BlogService) {}
+
+  // Declare /posts/mine before a future /posts/:id route (BLG-02).
+  @Get('posts/mine')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  listMyPosts(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListMyPostsQueryDto,
+  ): Promise<PaginatedList<MyPostSummary>> {
+    return this.blogService.listMine(user.id, query.page, query.status);
+  }
 
   @HttpPost('posts')
   @HttpCode(HttpStatus.CREATED)
