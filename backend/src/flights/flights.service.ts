@@ -22,6 +22,7 @@ import { CreateFlightDto } from './dto/create-flight.dto';
 import { UpdateCabinDto } from './dto/update-cabin.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
 import { flightTimeChangedText } from './flight-change-notification';
+import { isOpenFlight } from './flight-status.job';
 import { localToUtc, utcToLocal, utcToLocalDate } from './flight-time';
 import { Flight, FlightDocument, FlightStatus } from './schemas/flight.schema';
 
@@ -72,7 +73,7 @@ const DUPLICATE_FLIGHT =
 
 // Area: Airlines & Flight Inventory
 // Business logic and database access for: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06, NEW-02
-// Scheduled job needed: mark flights Departed once departure time has passed (FLT-30).
+// FLT-30: flights are marked Departed every minute by FlightStatusJob (flight-status.job.ts).
 @Injectable()
 export class FlightsService {
   private readonly logger = new Logger(FlightsService.name);
@@ -503,10 +504,7 @@ export class FlightsService {
 
   // FLT-30: only Scheduled flights that have not departed can be changed (409 otherwise).
   private assertScheduled(flight: FlightDocument): void {
-    if (
-      flight.status !== FlightStatus.Scheduled ||
-      flight.departureAt.getTime() <= Date.now()
-    ) {
+    if (!isOpenFlight(flight)) {
       throw new ConflictException('The flight is not scheduled.');
     }
   }

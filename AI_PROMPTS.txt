@@ -775,3 +775,26 @@ update the copied times. Added a response example to docs/api/openapi.yaml.
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-30
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-05 branch, I asked the assistant to implement FLT-30:
+flights have the status Scheduled, Cancelled or Departed, a flight becomes Departed once its
+departure time has passed, and only Scheduled flights are searchable, editable or bookable. I asked
+for a scheduled job in the same style as Area 1's every-minute jobs and a shared check that other
+areas (flight search, booking) can use.
+
+How the output was used:
+Used the generated FlightStatusJob with an @Cron job that runs every minute and marks Scheduled
+flights whose departure has passed as Departed in one updateMany, the isOpenFlight() and
+openFlightFilter() helpers (Scheduled and not yet departed) for Area 6 and the edit checks, and
+registered the job in FlightsModule. FlightsService now uses isOpenFlight() for the "only scheduled
+flights can be edited" rule. Added the FlightStatus schema to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================

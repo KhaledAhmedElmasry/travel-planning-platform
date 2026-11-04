@@ -6487,6 +6487,13 @@ components:
       type: string
       description: Fixed set of cabin categories (FLT-04).
       enum: [economy, premium_economy, business, first]
+    FlightStatus:
+      type: string
+      enum: [scheduled, cancelled, departed]
+      description: |
+        FLT-30. A new flight is `scheduled`. It becomes `departed` once its departure time has passed
+        (a job checks every minute), or `cancelled` by the airline (FLT-06). Only `scheduled` flights
+        are searchable, editable or bookable.
     PassengerType:
       type: string
       description: Adult 12+, child 2-11, infant under 2 (FLT-12).

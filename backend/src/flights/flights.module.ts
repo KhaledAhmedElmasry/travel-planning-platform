@@ -7,6 +7,7 @@ import {
 } from '../flight-bookings/schemas/flight-booking.schema';
 import { ReferenceDataModule } from '../reference-data/reference-data.module';
 import { FlightSearchController } from './flight-search.controller';
+import { FlightStatusJob } from './flight-status.job';
 import { FlightsController } from './flights.controller';
 import { FlightsService } from './flights.service';
 import { Flight, FlightSchema } from './schemas/flight.schema';
@@ -25,7 +26,7 @@ import { Flight, FlightSchema } from './schemas/flight.schema';
     ReferenceDataModule, // the airport lookup (FLT-02)
   ],
   controllers: [FlightSearchController, FlightsController],
-  providers: [FlightsService],
+  providers: [FlightsService, FlightStatusJob], // FlightStatusJob: FLT-30
   exports: [FlightsService],
 })
 export class FlightsModule {}
