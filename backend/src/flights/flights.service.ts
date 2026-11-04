@@ -3,17 +3,25 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, Model, Types } from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
-import { Role } from '../common/enums';
+import { BookingStatus, Role } from '../common/enums';
+import {
+  FlightBooking,
+  FlightBookingDocument,
+} from '../flight-bookings/schemas/flight-booking.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { AuthUser } from '../common/interfaces';
 import { ReferenceDataService } from '../reference-data/reference-data.service';
 import { CreateCabinDto } from './dto/create-cabin.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { UpdateCabinDto } from './dto/update-cabin.dto';
+import { UpdateFlightDto } from './dto/update-flight.dto';
+import { flightTimeChangedText } from './flight-change-notification';
 import { localToUtc, utcToLocal, utcToLocalDate } from './flight-time';
 import { Flight, FlightDocument, FlightStatus } from './schemas/flight.schema';
 
@@ -67,9 +75,15 @@ const DUPLICATE_FLIGHT =
 // Scheduled job needed: mark flights Departed once departure time has passed (FLT-30).
 @Injectable()
 export class FlightsService {
+  private readonly logger = new Logger(FlightsService.name);
+
   constructor(
+    @InjectConnection() private readonly connection: Connection,
     @InjectModel(Flight.name)
     private readonly flightModel: Model<FlightDocument>,
+    @InjectModel(FlightBooking.name)
+    private readonly bookingModel: Model<FlightBookingDocument>,
+    private readonly notifications: NotificationsService,
     private readonly airlinesService: AirlinesService,
     private readonly referenceData: ReferenceDataService,
   ) {}
@@ -139,6 +153,205 @@ export class FlightsService {
       if (isDuplicateKeyError(err))
         throw new ConflictException(DUPLICATE_FLIGHT);
       throw err;
+    }
+  }
+
+  // FLT-05: the moderator edits the airports and local times of a Scheduled flight of their
+  // airline. Send only the fields to change; the FLT-03 rules still apply. Airports cannot
+  // change once the flight has any booking.
+  // NEW-02: a time change is copied to the bookings' segments in the same transaction, then the
+  // passengers with Confirmed bookings get an in-app notification (GEN-01). Fares and seat counts
+  // are edited per cabin (updateCabin).
+  async update(
+    user: AuthUser,
+    flightId: Types.ObjectId,
+    dto: UpdateFlightDto,
+  ): Promise<FlightResponse> {
+    if (
+      dto.departureAirport === undefined &&
+      dto.arrivalAirport === undefined &&
+      dto.departureLocal === undefined &&
+      dto.arrivalLocal === undefined
+    ) {
+      throw new BadRequestException(
+        'Send at least one field to change (departureAirport, arrivalAirport, departureLocal or arrivalLocal).',
+      );
+    }
+
+    const flight = await this.findManagedFlight(user, flightId);
+    this.assertScheduled(flight);
+
+    const departureAirport = dto.departureAirport ?? flight.departureAirport;
+    const arrivalAirport = dto.arrivalAirport ?? flight.arrivalAirport;
+    const airportsChange =
+      departureAirport !== flight.departureAirport ||
+      arrivalAirport !== flight.arrivalAirport;
+
+    // FLT-05: no airport change once the flight has any booking (any status).
+    if (airportsChange) {
+      const hasBookings = await this.bookingModel.exists({
+        'segments.flightId': flight._id,
+      });
+      if (hasBookings) {
+        throw new ConflictException(
+          'The airports cannot change because the flight has bookings.',
+        );
+      }
+    }
+
+    // FLT-03 rules again with the new values.
+    if (departureAirport === arrivalAirport) {
+      throw new BadRequestException(
+        'The departure and arrival airports must be different.',
+      );
+    }
+    const from = await this.referenceData.assertAirport(departureAirport);
+    const to = await this.referenceData.assertAirport(arrivalAirport);
+
+    // A local time that is not sent keeps the same local clock time at its (maybe new) airport.
+    const departureLocal =
+      dto.departureLocal ??
+      utcToLocal(flight.departureAt, flight.departureTimeZone);
+    const arrivalLocal =
+      dto.arrivalLocal ?? utcToLocal(flight.arrivalAt, flight.arrivalTimeZone);
+    const departureAt = localToUtc(
+      departureLocal,
+      from.timeZone,
+      'departureLocal',
+    );
+    const arrivalAt = localToUtc(arrivalLocal, to.timeZone, 'arrivalLocal');
+
+    if (departureAt.getTime() <= Date.now()) {
+      throw new BadRequestException('The departure must be in the future.');
+    }
+    if (arrivalAt.getTime() <= departureAt.getTime()) {
+      throw new BadRequestException(
+        'The arrival must be after the departure (compared in UTC).',
+      );
+    }
+
+    const departureDate = utcToLocalDate(departureAt, from.timeZone);
+    if (departureDate !== flight.departureDate) {
+      const duplicate = await this.flightModel.exists({
+        _id: { $ne: flight._id },
+        airlineId: flight.airlineId,
+        flightNumber: flight.flightNumber,
+        departureDate,
+      });
+      if (duplicate) throw new ConflictException(DUPLICATE_FLIGHT);
+    }
+
+    const timesChange =
+      departureAt.getTime() !== flight.departureAt.getTime() ||
+      arrivalAt.getTime() !== flight.arrivalAt.getTime();
+    if (!airportsChange && !timesChange) return this.toResponse(flight);
+
+    const before = {
+      flightNumber: flight.flightNumber,
+      departureAirport: flight.departureAirport,
+      arrivalAirport: flight.arrivalAirport,
+      departureTimeZone: flight.departureTimeZone,
+      arrivalTimeZone: flight.arrivalTimeZone,
+      departureAt: flight.departureAt,
+      arrivalAt: flight.arrivalAt,
+    };
+
+    let updated: FlightDocument | null = null;
+    try {
+      await this.connection.transaction(async (session) => {
+        updated = await this.flightModel
+          .findOneAndUpdate(
+            {
+              _id: flight._id,
+              status: FlightStatus.Scheduled,
+              // An airport change also needs no seat booked or held at this moment.
+              ...(airportsChange
+                ? {
+                    cabins: {
+                      $not: {
+                        $elemMatch: {
+                          $or: [{ booked: { $gt: 0 } }, { held: { $gt: 0 } }],
+                        },
+                      },
+                    },
+                  }
+                : {}),
+            },
+            {
+              $set: {
+                departureAirport: from.iataCode,
+                arrivalAirport: to.iataCode,
+                departureTimeZone: from.timeZone,
+                arrivalTimeZone: to.timeZone,
+                departureAt,
+                arrivalAt,
+                departureDate,
+              },
+            },
+            { new: true, runValidators: true, session },
+          )
+          .exec();
+        if (!updated) {
+          throw new ConflictException(
+            'The flight is not scheduled, or the airports cannot change because the flight has bookings.',
+          );
+        }
+
+        // NEW-02: the bookings keep a copy of the times (e-ticket, before-departure check,
+        // refund tier), so update it together with the flight.
+        if (timesChange) {
+          await this.bookingModel.updateMany(
+            { 'segments.flightId': flight._id },
+            {
+              $set: {
+                'segments.$[s].departureAt': departureAt,
+                'segments.$[s].arrivalAt': arrivalAt,
+              },
+            },
+            { arrayFilters: [{ 's.flightId': flight._id }], session },
+          );
+        }
+      });
+    } catch (err) {
+      if (isDuplicateKeyError(err))
+        throw new ConflictException(DUPLICATE_FLIGHT);
+      throw err;
+    }
+
+    const saved = updated as unknown as FlightDocument;
+    if (timesChange) {
+      await this.notifyTimeChange(saved, before);
+    }
+    return this.toResponse(saved);
+  }
+
+  // GEN-01, NEW-02: one in-app notification per Confirmed booking on this flight. Runs after the
+  // transaction; a failed notification never undoes the change.
+  private async notifyTimeChange(
+    flight: FlightDocument,
+    before: Parameters<typeof flightTimeChangedText>[1],
+  ): Promise<void> {
+    const bookings = await this.bookingModel
+      .find({
+        'segments.flightId': flight._id,
+        status: BookingStatus.Confirmed,
+      })
+      .select('userId reference')
+      .lean()
+      .exec();
+    for (const booking of bookings) {
+      try {
+        const { title, message } = flightTimeChangedText(
+          booking.reference,
+          before,
+          flight,
+        );
+        await this.notifications.notify(booking.userId, title, message);
+      } catch (err) {
+        this.logger.error(
+          `Could not notify booking ${String(booking._id)} of the time change: ${String(err)}`,
+        );
+      }
     }
   }
 

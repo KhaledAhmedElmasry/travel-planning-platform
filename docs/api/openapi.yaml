@@ -1737,7 +1737,10 @@ paths:
               $ref: '#/components/schemas/UpdateFlightRequest'
       responses:
         '200':
-          description: The updated flight.
+          description: The updated flight. A local time that is not sent keeps the same local clock time at its airport.
+          content:
+            application/json:
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T15:00", "arrivalLocal": "2027-03-01T20:35", "departureAt": "2027-03-01T13:00:00.000Z", "arrivalAt": "2027-03-01T16:35:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-02T09:00:00.000Z"}
         '400':
           description: Invalid fields or an FLT-03 rule is broken.
           content:

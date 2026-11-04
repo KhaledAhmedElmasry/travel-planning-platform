@@ -749,3 +749,29 @@ cancellation-policy responses and the airline examples in docs/api/openapi.yaml.
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-05 (with NEW-02 and GEN-01 for time changes)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-09 branch, I asked the assistant to implement FLT-05
+exactly as documented in docs/api/openapi.yaml and the agreement with Area 1 in the flight schema
+comments: PATCH /api/flights/:id for the moderator of the flight's airline, only on scheduled
+flights, with the FLT-03 rules applied again, no airport change once the flight has any booking,
+time changes copied to the bookings' segments in the same transaction, and an in-app notification
+to every passenger with a Confirmed booking when the times change.
+
+How the output was used:
+Used the generated UpdateFlightDto, FlightsService.update() (re-checks airports, future departure,
+arrival after departure in UTC and the unique flight number per date; 409 for airport changes when
+the flight has bookings or seats booked/held), the MongoDB transaction that updates the flight and
+segments.$[s].departureAt/arrivalAt of its bookings together, flight-change-notification.ts with
+the notification text in each airport's local time, notifyTimeChange() using NotificationsService
+after the commit, and the PATCH route. Registered Area 1's FlightBooking schema in FlightsModule to
+update the copied times. Added a response example to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
