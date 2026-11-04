@@ -8,7 +8,6 @@ import {
   Post,
   StreamableFile,
   UseGuards,
-  ValidationPipe,
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
@@ -46,7 +45,7 @@ import {
 //   Hold, e-ticket and cancel need a login (401, JwtAuthGuard) and the role `user` (403 for admins
 //   and moderators, RegisteredUserGuard); the services also check that the booking is the user's
 //   own (404 otherwise, ACC-11).
-// WAITING FOR (Area 3, GEN-02 / GEN-13): the global ValidationPipe; then remove the local one.
+// DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
 //   PATCH /api/flight-bookings/:id/change-flight   FLT-27 (Optional)
@@ -63,7 +62,7 @@ export class FlightBookingsController {
   @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   hold(
     @CurrentUser() user: AuthUser,
-    @Body(new ValidationPipe({ whitelist: true })) dto: FlightBookingRequestDto,
+    @Body() dto: FlightBookingRequestDto,
   ): Promise<FlightBookingResponse> {
     return this.flightBookingsService.hold(user.id, dto);
   }

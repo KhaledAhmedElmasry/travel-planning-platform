@@ -12,4 +12,6 @@ export interface AuthUser {
   // Set only for moderators (ACC-13): the one airline or hotel they manage.
   airlineId: string | null;
   hotelId: string | null;
+  // ACC-07a, ACC-13: true while the account still has a temporary password.
+  mustChangePassword: boolean;
 }

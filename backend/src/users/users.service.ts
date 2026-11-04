@@ -1,9 +1,32 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, Model, Types } from 'mongoose';
 import { AccountStatus, Role } from '../common/enums';
+import { FlightBookingsService } from '../flight-bookings/flight-bookings.service';
+import { HotelBookingsService } from '../hotel-bookings/hotel-bookings.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { User, UserDocument } from './schemas/user.schema';
+
+// openapi.yaml GET /api/users/me 200 and PATCH /api/users/me 200 (ACC-09, ACC-11).
+export interface ProfileResponse {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  preferredCurrency: string;
+  role: Role;
+  status: AccountStatus;
+  createdAt: Date;
+}
+
+// The supported currencies seeded by database/seed.ts (GEN-12): { _id: 'EUR', code, name }.
+// Read straight from the collection, so this does not depend on the reference-data module.
+const CURRENCIES_COLLECTION = 'currencies';
 
 // What registration (ACC-01, ACC-03) stores. Role, status and the security counters are never
 // taken from the request.
@@ -21,8 +44,101 @@ export interface NewRegisteredUser {
 export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectConnection() private readonly connection: Connection,
     private readonly config: ConfigService,
+    // ACC-12: the agreed "upcoming booking" rules (NEW-01) live in the booking services, so
+    // deactivation and My Bookings always agree on what is upcoming.
+    private readonly flightBookings: FlightBookingsService,
+    private readonly hotelBookings: HotelBookingsService,
   ) {}
+
+  // ACC-11: the own profile, for GET /api/users/me.
+  async getProfile(userId: string): Promise<ProfileResponse> {
+    const user = await this.findById(userId);
+    // The guard has just loaded this account, so this only happens if it was deleted meanwhile.
+    if (!user) throw new UnauthorizedException('You must be logged in');
+    return toProfile(user);
+  }
+
+  // ACC-09: edit name, phone number and preferred currency. Saved in one update, and only if every
+  // sent field is valid (the DTO checks the format, this checks the currency is supported).
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<ProfileResponse> {
+    const changes: Partial<Pick<User, 'name' | 'phone' | 'preferredCurrency'>> =
+      {};
+    if (dto.name !== undefined) changes.name = dto.name;
+    if (dto.phone !== undefined) changes.phone = dto.phone;
+    if (dto.preferredCurrency !== undefined) {
+      changes.preferredCurrency = dto.preferredCurrency;
+    }
+    if (Object.keys(changes).length === 0) {
+      throw new BadRequestException(
+        'Send at least one of name, phone or preferredCurrency',
+      );
+    }
+
+    if (
+      changes.preferredCurrency &&
+      !(await this.isSupportedCurrency(changes.preferredCurrency))
+    ) {
+      // GEN-02: a field error, so the form shows it under the currency field.
+      const message = `Preferred currency ${changes.preferredCurrency} is not supported`;
+      throw new BadRequestException({
+        message,
+        fieldErrors: [{ field: 'preferredCurrency', messages: [message] }],
+      });
+    }
+
+    const updated = await this.userModel
+      .findOneAndUpdate(
+        { _id: new Types.ObjectId(userId) },
+        { $set: changes },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) throw new UnauthorizedException('You must be logged in');
+    return toProfile(updated);
+  }
+
+  // ACC-12: whether the user still has an upcoming Confirmed booking (NEW-01): a flight with a leg
+  // that has not departed yet, or a stay that has not started yet (a stay that starts today is no
+  // longer upcoming). The rules are the ones My Bookings uses, in the two booking services.
+  async hasUpcomingBookings(
+    userId: string,
+    now = new Date(),
+  ): Promise<boolean> {
+    const [flight, stay] = await Promise.all([
+      this.flightBookings.hasUpcomingBookings(userId, now),
+      this.hotelBookings.hasUpcomingBookings(userId, now),
+    ]);
+    return flight || stay;
+  }
+
+  // ACC-12: mark the own account as deactivated. Only an active account changes.
+  async deactivate(userId: Types.ObjectId): Promise<boolean> {
+    const result = await this.userModel
+      .updateOne(
+        { _id: userId, status: AccountStatus.Active },
+        {
+          $set: {
+            status: AccountStatus.Deactivated,
+            deactivatedAt: new Date(),
+          },
+        },
+      )
+      .exec();
+    return result.modifiedCount === 1;
+  }
+
+  // GEN-12: whether a currency code is in the seeded supported list.
+  async isSupportedCurrency(code: string): Promise<boolean> {
+    const found = await this.connection
+      .collection<{ _id: string }>(CURRENCIES_COLLECTION)
+      .findOne({ _id: code }, { projection: { _id: 1 } });
+    return found !== null;
+  }
 
   // ACC-04: the account with its password hash, which normal queries never return.
   findByEmailWithPassword(email: string): Promise<UserDocument | null> {
@@ -70,6 +186,49 @@ export class UsersService {
       .exec();
   }
 
+  // ACC-07a: replace the password with a temporary one that must be changed at the next login.
+  // Also clears any login lockout (ACC-05), so the account can log in with it straight away.
+  // Returns false if the account does not exist.
+  async setTemporaryPassword(
+    userId: Types.ObjectId,
+    passwordHash: string,
+  ): Promise<boolean> {
+    const result = await this.userModel
+      .updateOne(
+        { _id: userId },
+        {
+          $set: {
+            passwordHash,
+            mustChangePassword: true,
+            failedLoginAttempts: 0,
+            lockUntil: null,
+          },
+        },
+      )
+      .exec();
+    return result.matchedCount === 1;
+  }
+
+  // ACC-08: the account with its password hash, to check the current password.
+  findByIdWithPassword(id: string): Promise<UserDocument | null> {
+    if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
+    return this.userModel.findById(id).select('+passwordHash').exec();
+  }
+
+  // ACC-08: store a new password chosen by the account itself. This also ends a temporary
+  // password (ACC-07a, ACC-13), so mustChangePassword is cleared.
+  async setPassword(
+    userId: Types.ObjectId,
+    passwordHash: string,
+  ): Promise<void> {
+    await this.userModel
+      .updateOne(
+        { _id: userId },
+        { $set: { passwordHash, mustChangePassword: false } },
+      )
+      .exec();
+  }
+
   findById(id: string): Promise<UserDocument | null> {
     if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
     return this.userModel.findById(id).exec();
@@ -97,4 +256,17 @@ export class UsersService {
       preferredCurrency: this.config.getOrThrow<string>('PLATFORM_CURRENCY'),
     });
   }
+}
+
+function toProfile(user: UserDocument): ProfileResponse {
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    phone: user.phone ?? null,
+    preferredCurrency: user.preferredCurrency,
+    role: user.role,
+    status: user.status,
+    createdAt: user.createdAt!,
+  };
 }

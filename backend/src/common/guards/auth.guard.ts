@@ -1,12 +1,15 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ACCESS_COOKIE } from '../../auth/auth-cookies';
 import { SessionsService } from '../../auth/sessions.service';
+import { ALLOW_PENDING_PASSWORD_CHANGE_KEY } from '../decorators';
 import type { AuthUser } from '../interfaces';
 
 // Authentication guard: reads the access token from the httpOnly cookie.
@@ -17,10 +20,14 @@ import type { AuthUser } from '../interfaces';
 // Use it on any route that needs a logged-in account, in any module (AuthModule is global):
 //   @UseGuards(JwtAuthGuard)
 // It answers 401 without a valid session and 403 for a suspended account, and sets request.user
-// (read it with @CurrentUser()).
+// (read it with @CurrentUser()). An account with a temporary password (ACC-07a, ACC-13) gets 403
+// on every route not marked with @AllowPendingPasswordChange().
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private readonly sessions: SessionsService) {}
+  constructor(
+    private readonly sessions: SessionsService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context
@@ -30,7 +37,21 @@ export class JwtAuthGuard implements CanActivate {
     const token = cookies?.[ACCESS_COOKIE];
     if (!token) throw new UnauthorizedException('You must be logged in');
 
-    request.user = await this.sessions.authenticate(token);
+    const user = await this.sessions.authenticate(token);
+
+    if (user.mustChangePassword) {
+      const allowed = this.reflector.getAllAndOverride<boolean | undefined>(
+        ALLOW_PENDING_PASSWORD_CHANGE_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (!allowed) {
+        throw new ForbiddenException(
+          'You must change your temporary password before continuing',
+        );
+      }
+    }
+
+    request.user = user;
     return true;
   }
 }

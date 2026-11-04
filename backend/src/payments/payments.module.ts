@@ -2,6 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { FlightBookingsModule } from '../flight-bookings/flight-bookings.module';
 import { HotelBookingsModule } from '../hotel-bookings/hotel-bookings.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { BookingGateway } from './booking-gateway.service';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
@@ -25,6 +26,7 @@ import { stripeProvider } from './stripe.provider';
     ]),
     forwardRef(() => FlightBookingsModule),
     forwardRef(() => HotelBookingsModule),
+    NotificationsModule,
   ],
   controllers: [PaymentsController],
   providers: [

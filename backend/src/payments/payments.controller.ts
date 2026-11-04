@@ -12,7 +12,6 @@ import {
   type RawBodyRequest,
   Req,
   UseGuards,
-  ValidationPipe,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { CurrentUser } from '../common/decorators';
@@ -51,8 +50,7 @@ import { RegisteredUserGuard } from './registered-user.guard';
 //   role `user` (403 for admins and moderators, RegisteredUserGuard): PAY-01 and PAY-02 are
 //   Registered User actions. The guards are on each route, not on the class, because Stripe calls
 //   the webhook without a login.
-// WAITING FOR (Area 3, GEN-02 / GEN-13): the global ValidationPipe in main.ts. Then remove the
-//   local `new ValidationPipe(...)` from the @Body() parameters below.
+// DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
 @Controller()
 export class PaymentsController {
   constructor(
@@ -81,7 +79,7 @@ export class PaymentsController {
     @Param('type', bookingTypePipe()) type: BookingType,
     @Param('id') id: string,
     // Validated only (accepted must be true); the value itself is not needed.
-    @Body(new ValidationPipe({ whitelist: true })) _dto: AcceptPoliciesDto,
+    @Body() _dto: AcceptPoliciesDto,
   ): Promise<AcceptPoliciesResponse> {
     return this.policiesService.acceptPolicies(user.id, type, id);
   }
@@ -91,7 +89,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   createPayment(
     @CurrentUser() user: AuthUser,
-    @Body(new ValidationPipe({ whitelist: true })) dto: CreatePaymentDto,
+    @Body() dto: CreatePaymentDto,
   ): Promise<PaymentResponse> {
     return this.paymentsService.createPayment(user.id, dto);
   }
@@ -112,7 +110,7 @@ export class PaymentsController {
   retryPayment(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
-    @Body(new ValidationPipe({ whitelist: true })) dto: RetryPaymentDto,
+    @Body() dto: RetryPaymentDto,
   ): Promise<PaymentResponse> {
     return this.paymentsService.retryPayment(user.id, id, dto ?? {});
   }
