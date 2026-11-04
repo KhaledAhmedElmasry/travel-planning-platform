@@ -22,24 +22,6 @@ Used as the implementation of ITN-01: itinerary schema, DTOs, service and the cr
 delete routes with ownership checks and Swagger decorators. Verified by building, linting and
 testing the happy path and every error case in Swagger.
 ================================================
-Date: 2026-11-03
-Student: Ibrahim Alalamy
-Tool: Codex
-Related Requirement: BLG-01
-
-Prompt:
-Implement only BLG-01 (GitHub issue #70) on feature/BLG-01-create-post-Alamy. Follow
-docs/api/openapi.yaml and the Blog scaffolding, create posts as draft or published for the
-authenticated registered user, validate title/body/tags, set hidden false, and keep image uploads
-and attachment out of scope for BLG-01. Add isolated automated tests and update the approved
-CreatedPost response contract in OpenAPI.
-
-How the output was used:
-Used AI-generated implementation changes for the Post model, create DTO, service, controller,
-module registration, OpenAPI response, and unit tests. The generated changes were reviewed and
-adjusted to the repository conventions. Automated tests and build passed; lint passed after fixes.
-No live MongoDB or manual Swagger verification has been performed.
-================================================
 
 ================================================
 Date: YYYY-MM-DD
@@ -602,4 +584,24 @@ as one comma-separated value.
 How the output was used:
 Reviewed and adapted the code, fixed build errors, and tested every route and error case in Swagger
 (screenshots attached to the PR).
+================================================
+
+Date: 2026-11-03
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-01
+
+Prompt:
+Implement only BLG-01 (GitHub issue #70) on feature/BLG-01-create-post-Alamy. Follow
+docs/api/openapi.yaml and the Blog scaffolding, create posts as draft or published for the
+authenticated registered user, validate title/body/tags, set hidden false, and keep image uploads
+and attachment out of scope for BLG-01. Add isolated automated tests and update the approved
+CreatedPost response contract in OpenAPI.
+
+How the output was used:
+Used AI-generated implementation changes for the Post model, create DTO, service, controller,
+module registration, OpenAPI response, and unit tests. The generated changes were reviewed and
+adjusted to the repository conventions. The automated test suite passed (2 suites, 23 tests), and
+the backend build passed. Targeted ESLint checks passed. After Atlas connectivity was restored,
+the student completed the manual Swagger tests. Codex did not directly observe those manual tests.
 ================================================
