@@ -6,6 +6,22 @@ in chronological order, using the format below (project description, section 11)
 Add your entry in the same pull request as the work it relates to.
 
 ================================================
+Date: 2026-11-03
+Student: [Abdallah Mahmoud]
+Tool: Codex
+Related Requirement: ITN-01
+
+Prompt:
+Implement requirement ITN-01 (issue #55) on branch feature/ITN-01-create-itinerary: the itinerary
+schema and create, edit and delete of the user's own itineraries (title required, max 100
+characters), following the ITN-01 comments in the code and docs/api/openapi.yaml, with no other
+requirement implemented.
+
+How the output was used:
+Used as the implementation of ITN-01: itinerary schema, DTOs, service and the create, edit and
+delete routes with ownership checks and Swagger decorators. Verified by building, linting and
+testing the happy path and every error case in Swagger.
+================================================
 Date: YYYY-MM-DD
 Student: <Full name>
 Tool: <ChatGPT / Claude / Copilot / Gemini / ...>
@@ -41,45 +57,6 @@ Verified by building, linting and starting the server against a local MongoDB.
 
 ================================================
 Date: 2026-10-29
-Student: Khaled Ahmed
-Tool: Claude Code (Claude Opus 5.5)
-Related Requirement: None implemented (planning and documentation for Milestone 1)
-
-Prompt:
-Make sure that all the endpoints and Excel requirement codes are written in the files and none
-are missing, delete any extra ones, cross-check, then check the GitHub issues. Make a small PDF of
-the usual workflow from the Excel code until it is done, a .md file with empty assignee tags, and
-8 PDF task sheets so every team member knows their Milestone 1 tasks and the workflow.
-
-How the output was used:
-Cross-checked the 117 PDF section 8 endpoints, the 104 mandatory + 11 bonus workbook ids and the
-7 assumed ids against the controller comments, DTO/schema headers, openapi.yaml and GitHub issues.
-Removed 5 suggested endpoints from controller notes that the documented API already covers
-(refund previews, logo/photo uploads, exchange-rate lookup). Removed the 10 endpoint paths the AI
-had guessed for features the PDF tables do not cover (session refresh, reference-data lists,
-notifications, user reports); the Excel never names endpoints, so the controllers now list only the
-117 PDF endpoints and say "extra endpoints may be needed" for those features, and the team decides.
-A final scan of all 198 text files made every endpoint line (controllers, openapi.yaml summaries,
-TASKS.md) carry exactly the PDF's requirement ids; ids the PDF omits (FLT-02, HTL-06, HTL-09,
-ACC-19, ITN-25) were moved into notes/descriptions, and guessed paths were removed from
-ASSUMED_REQUIREMENTS.md.
-Then re-split the work at the leader's request: area 1 takes the hardest, most critical
-requirements (payments, seat/room holds, confirmation, cancellations and refunds, booking
-automation; 14 requirements, 29 difficulty points), and areas 2-8 are balanced by
-difficulty at 19-21 points with 8 tasks each (more requirements where they are easier). Removed
-the deadline box from the handouts.
-Added DEPENDENCIES.pdf (who depends on whom, with requirement codes and dates), generated from
-the same dependency list as the handouts so both always agree.
-Re-checked every dependency against the Excel "Dependencies" column (added ACC-13 -> FLT-01/HTL-01,
-PAY-02 -> FLT-08/HTL-09, HTL-06/08/11/15 -> reservations, FLT-05/06 -> bookings and others) and
-removed all dates and deadlines from the PDFs and TASKS.md. Regenerated TASKS.md, the TEAM_PLAN area table and all 9 PDFs in a dark purple/green design. Created the 4 missing GitHub issues
-(ACC-04, ACC-12, BLG-09, FLT-11) and fixed the inverted ACC-19 issue title. Generated
-docs/milestone1/TASKS.md, WORKFLOW.pdf and the 8 area handouts (no names); reviewed every page
-and verified that all 105 Milestone 1 requirements and 118 endpoints appear exactly once.
-================================================
-
-================================================
-Date: 2026-10-29
 Student: Khaled Ahmed (team leader)
 Tool: Claude Code (Claude Opus 5.5)
 Related Requirement: GEN-12, FLT-02, NEW-05, ACC-18
@@ -100,8 +77,18 @@ duplicates and never resets the administrator password. Field names follow docs/
 I reviewed the script, verified it with a successful build and lint, ran it twice against the
 shared database and confirmed the stored documents and the hashed administrator password.
 ================================================
+Date: 2026-10-31
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01
+Prompt:
+Asked for step-by-step help with Area 7 (Hotels & Rooms): project setup, .env and MongoDB Atlas
+connection, and an implementation of HTL-01 (hotel schema, create/update DTOs, hotels service,
+module wiring) based on the repo scaffold and docs/api/openapi.yaml.
+How the output was used:
+Reviewed and adapted the generated schema, DTOs and service; fixed build errors; the build passes.
+Controller and tests are still to be done once the shared auth/upload code is merged.
 
-================================================
 Date: 2026-10-30
 Student: Ibrahim El Shafey
 Tool: Claude
@@ -128,9 +115,7 @@ to the seeded admin in seed.ts so login (ACC-04) can read both. I reviewed the d
 handling for two registrations at the same moment (unique index, error 11000 returns 409).
 Verified with npm run lint, npm run build, local unit tests, and by testing every valid and
 invalid case in Swagger and checking the stored document in Atlas.
-================================================
 
-================================================
 Date: 2026-10-30
 Student: Ibrahim El Shafey
 Tool: Claude
@@ -157,9 +142,7 @@ sessions and suspended accounts on every request and sets req.user.id as the oth
 expect. I added cookie-parser to main.ts and the two JWT secrets to the required environment
 variables. Verified with npm run lint, npm run build, local unit and HTTP tests, and by logging
 in as a user, the seeded admin and a suspended account in Swagger and calling /api/auth/me.
-================================================
 
-================================================
 Date: 2026-10-30
 Student: Ibrahim El Shafey
 Tool: Claude
@@ -183,9 +166,7 @@ atomic $inc so parallel guesses cannot pass the limit. Verified with npm run lin
 local tests (including checks that fail when the lock check or the reset is removed), and by
 triggering the lockout in Swagger and checking failedLoginAttempts and lockUntil in Atlas
 (demo scenario 1).
-================================================
 
-================================================
 Date: 2026-10-31
 Student: Ibrahim El Shafey
 Tool: Claude
@@ -208,6 +189,74 @@ once a minute), and an idle session gets 401 and needs a new login. Verified wit
 npm run build, local tests (including checks that fail when the revoke or the activity update is
 removed), and in Swagger by logging out, calling /api/auth/me and checking revokedAt in Atlas.
 ================================================
+
+================================================
+Date: 2026-11-01
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: GEN-02, GEN-13
+
+Prompt:
+Explain how to implement a global validation pipe and exception filter in NestJS (GEN-02, GEN-13).
+Provide guidance on configuring field-level validation messages, maintaining the consistent error
+response format defined in docs/api/openapi.yaml, and replacing local ValidationPipe instances
+with global validation.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and configure the global validation
+pipe and HTTP exception filter. Implemented the validation options, field-level error formatting,
+and standardized HTTP error responses. Registered both components globally in main.ts and removed
+redundant local ValidationPipe instances from flight-bookings, hotel-bookings, and payments
+controllers. AI also assisted with reviewing the implementation, identifying potential issues,
+and suggesting Swagger test cases to verify validation behavior.
+================================================
+
+================================================
+Date: 2026-11-02
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: GEN-13
+
+Prompt:
+Help me review GEN-13 (backend rule, validation, and authorization enforcement, and
+salted password hashing): I want to ensure all request payloads are strictly validated
+at the backend entry point via the global ValidationPipe, and I need to find any
+remaining local ValidationPipe instances in auth.controller.ts. Also help me check
+whether business rules, authorization guards, and bcrypt password hashing (cost 12)
+are properly enforced server-side.
+
+How the output was used:
+Used the AI’s suggestions as a starting point and a checklist for reviewing the
+codebase. I then applied the changes myself: set up global validation and error
+filtering in main.ts, removed the local ValidationPipes from the register and login
+routes in auth.controller.ts, and checked that bcrypt hashing uses cost 12 with
+select: false on the user schema. I also reviewed how JwtAuthGuard and
+RegisteredUserGuard enforce authorization on the server side. Confirmed everything
+with npm run lint and npm run build (0 errors).
+
+================================================
+
+================================================
+Date: 2026-11-02
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: GEN-04, GEN-05
+
+Prompt:
+Explain how to implement GEN-04 (friendly empty states when a list or search has no results)
+and the shared pagination utilities for GEN-05 in backend/src/common. Provide guidance on
+creating PaginationQueryDto, PaginatedList<T>, paginate, and emptyPaginatedList while ensuring
+the response structure matches docs/api/openapi.yaml and handles empty results correctly.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the shared pagination
+utilities. Implemented PaginationQueryDto, PaginatedList<T>, paginate, emptyPaginatedList, and
+getPaginationOffset in backend/src/common/dto/pagination.dto.ts. Organized the exports through
+common/dto/index.ts and common/utils/index.ts to ensure consistent pagination responses and
+friendly empty states across modules. AI also assisted with reviewing the implementation and
+suggesting validation steps. Verified the changes using npm run lint (0 errors) and npm run build.
+================================================
+=
 
 ================================================
 Date: 2026-11-02
@@ -289,28 +338,274 @@ protections against extra fields are removed), and in Swagger.
 ================================================
 
 ================================================
-Date: 2026-11-02
-Student: Ibrahim El Shafey
+Date: 2026-11-03
+Student: Hussien Shata
 Tool: Claude
-Related Requirement: ACC-11
+Related Requirement: ACC-14
 
 Prompt:
-I asked the assistant to implement GitHub issue #8 (ACC-11): bookings and private itineraries are
-accessible only to their owner, except that admins may view all bookings (ACC-17) and moderators
-the bookings of their own hotel or airline (FLT-29, HTL-22), with unauthorised requests rejected
-(403/404). JwtAuthGuard, RolesGuard and @CurrentUser() already existed, so I asked for the shared
-ownership helper from the Area 2 task sheet, following the 403/404 rules in docs/CONVENTIONS.md
-and the access notes in docs/api/openapi.yaml.
+Help me plan how to implement ACC-14 (admin view of paginated accounts list). Provide
+guidance on designing a GET /api/admin/accounts endpoint with pagination, search by
+name/email, filtering by role and status, sorting newest first, and friendly empty
+states.
 
 How the output was used:
-Used as backend/src/common/guards/ownership.ts: assertOwner (own data, otherwise 404),
-canViewBooking / assertCanViewBooking (owner, admin, or the moderator of the booking's airline or
-hotel, otherwise 404), bookingVisibilityFilter (the MongoDB filter for booking lists per role),
-assertManagesAirline / assertManagesHotel (provider data, otherwise 403) and canViewItinerary /
-assertCanViewItinerary (public for everyone, private or hidden only for the owner, no admin
-exception). I checked every rule against the requirement and openapi.yaml and checked that the
-field names match the flight booking (userId, airlineId) and hotel reservation (userId, hotelId)
-schemas. Verified with npm run lint, npm run build and local unit tests for every role, including
-checks that fail when the admin rule, the moderator's provider check or the private-itinerary
-rule is changed.
+Used AI guidance to understand the implementation approach and structure the endpoint.
+Implemented GET /api/admin/accounts myself, including paginated accounts listing,
+search by name/email, filtering by role and status, sorting newest first, and friendly
+empty states. AI also assisted with reviewing the implementation and identifying
+potential issues.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: ACC-15, ACC-16
+
+Prompt:
+Help me plan how to implement ACC-15 and ACC-16 (admin suspension and reactivation
+of moderator and registered user accounts). Provide guidance on designing
+PATCH /api/admin/accounts/:id/suspend and PATCH /api/admin/accounts/:id/reactivate
+endpoints, including session revocation (NEW-07), in-app notifications (GEN-01),
+audit logging (GEN-07), preventing admin accounts from being suspended, conflict
+checks for already suspended or active accounts, and extra provider
+deactivation/reactivation endpoints.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the
+endpoints. Implemented PATCH /api/admin/accounts/:id/suspend and
+PATCH /api/admin/accounts/:id/reactivate myself for moderator and registered user
+accounts, along with session revocation, in-app notifications, audit logging,
+prevention of admin suspension, conflict checks, and the extra provider
+deactivation/reactivation endpoints. AI also assisted with reviewing the
+implementation and identifying potential issues.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: ACC-17
+
+Prompt:
+Help me plan how to implement ACC-17 (admin read-only view of all flight and hotel
+bookings). Provide guidance on designing a GET /api/admin/bookings endpoint with
+filtering by type (flight, hotel), status, and date range (from, to), paginated
+results matching GEN-05 (page size 10) and GEN-04 friendly empty state, mapping
+reference, user, provider, dates, amount, and status, and protecting it with admin
+guards.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the
+endpoint. Implemented ListBookingsQueryDto, AdminController.getBookings, and
+AdminService.listBookings myself, with Mongoose queries across the FlightBooking and
+HotelBooking collections.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-07
+
+Prompt:
+Help me plan how to implement GEN-07 (audit log of admin actions). Provide guidance
+on designing the AuditLog schema, structuring an AuditService with record() and list()
+methods, exposing GET /api/admin/audit-logs with filtering by action and date range
+(from, to), GEN-05 pagination (page size 10) and GEN-04 empty state, and connecting
+the reset-password admin action to the audit log.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the module.
+Created the AuditLog schema, ListAuditLogsQueryDto, AuditService, and AuditController
+myself, added the AuditAction enum, and linked password reset audit recording in
+AdminUsersController. AI also assisted with reviewing the implementation and
+identifying potential issues.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-09
+
+Prompt:
+Help me implement GEN-09 (report a post, comment, review or itinerary with a reason,
+at most once per item). Provide guidance on designing the Report schema with compound
+uniqueness ({ reporterId: 1, contentType: 1, contentId: 1 }), defining CreateReportDto
+and ListReportsQueryDto, verifying target content existence and visibility, preventing
+duplicate reports with 409 Conflict, handling double-click races, protecting user
+reporting with JwtAuthGuard and RolesGuard (Role.User only), admin list view with
+RolesGuard (Role.Admin), and updating openapi.yaml with POST /api/reports.
+
+How the output was used:
+Used AI guidance to understand the architecture, database indexing, visibility checks
+(treating private itineraries, draft posts, and hidden content as 404 for unauthorized users),
+and edge-case handling (trimming whitespace before @IsNotEmpty). Implemented the Report schema,
+CreateReportDto, ListReportsQueryDto, ReportsService, and ReportsController myself, adding the
+ContentType and ReportStatus enums, POST /api/reports route, and GET /api/admin/reports admin
+overview. Documented the new endpoint and schemas in docs/api/openapi.yaml. Verified with
+npm run lint (0 errors) and npm run build.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: GEN-12
+
+Prompt:
+I gave the assistant the repository (develop branch), the project description and my Area 5 task
+sheet, and asked it to guide me issue by issue. For GEN-12 I asked it to check what was already
+done (the seed script was already merged by the team leader) and to implement what was missing:
+Mongoose schemas for the seeded reference data collections (countries, cities, airports,
+attractions, supported currencies) using the official ids as _id, a public read endpoint for the
+supported currency list, and an exported lookup so other modules can reject unsupported currencies.
+
+How the output was used:
+Used the generated schemas in reference-data/schemas/reference-data.schema.ts (matching the
+collections and fields written by database/seed.ts), registered them in ReferenceDataModule, and
+added ReferenceDataService.listCurrencies(), isSupportedCurrency() and assertSupportedCurrency()
+with the GET /api/currencies route. Added the endpoint to docs/api/openapi.yaml as an extra endpoint.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: NEW-05
+
+Prompt:
+Continuing my Area 5 work, I asked the assistant to implement NEW-05 on top of my GEN-12 branch:
+public read endpoints for the official countries, cities (filtered by country) and attractions
+(filtered by city), following docs/requirements/ASSUMED_REQUIREMENTS.md, and exported lookups in
+ReferenceDataService so other modules (hotels, itineraries) can reject an unknown country or city,
+or a city that is not in the given country, with a 400 error.
+
+How the output was used:
+Used the generated query DTOs (list-countries, list-cities, list-attractions) with class-validator
+rules, the list methods and the lookups assertCountry(), assertCountries(), assertCity() and
+assertCityInCountry() in ReferenceDataService (same error messages as the temporary check in
+hotels.service.ts so Area 7 can switch to them), and the routes GET /api/countries, /api/cities and
+/api/attractions. Added the three endpoints to docs/api/openapi.yaml as extra endpoints.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-02
+
+Prompt:
+Continuing my Area 5 work on top of my NEW-05 branch, I asked the assistant to implement FLT-02:
+GET /api/airports returning the predefined, read-only airport list (IATA code, name, city,
+country, IANA time zone) exactly as documented in docs/api/openapi.yaml, with the search, city and
+country filters and pagination, and an exported airport lookup so flight creation and flight
+search accept only airports from this list.
+
+How the output was used:
+Used the generated ListAirportsQueryDto with class-validator rules, ReferenceDataService
+listAirports() (search by IATA code, airport name or city name; unknown city or country filter
+rejected with 400; city name added to each item) and the lookups findAirport() and assertAirport()
+for Area 5 flights and Area 6 flight search, and the GET /api/airports route. Updated the
+/api/airports entry in docs/api/openapi.yaml (response example and the 400 case).
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-01
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-02 branch, I asked the assistant to implement FLT-01
+exactly as documented in docs/api/openapi.yaml: the airline schema (name, unique code, one logo,
+active flag used by the admin deactivate/reactivate code from ACC-15), POST /api/airlines for
+admins, the public GET /api/airlines/:id, and PATCH /api/airlines/:id for the airline's own
+moderator only, with the logo sent as multipart/form-data (JPG or PNG, at most 5 MB, GEN-08).
+
+How the output was used:
+Used the generated Airline schema, CreateAirlineDto and UpdateAirlineDto, AirlinesService
+create(), findPublic(), update() and findManagedAirline() (404 unknown airline, 403 not its
+moderator or deactivated airline, 409 duplicate code), the controller routes with JwtAuthGuard,
+RolesGuard and FileInterceptor, and airline-logo.ts, which checks the logo type from the file
+bytes and its size and stores it under uploads/airlines (the shared GEN-08 upload code is not
+merged yet). Kept the existing getBookingPolicies()/getRefundTier() stubs for FLT-08 and FLT-09.
+Added response examples to the airline endpoints in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-03 (with GEN-06 and the flight status field of FLT-30)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-01 branch, I asked the assistant to implement FLT-03
+exactly as documented in docs/api/openapi.yaml: the Flight schema with the field names already
+agreed with Area 1 in the schema file (status, departureAt, cabins with total/booked/held seat
+counters), and POST /api/flights for airline moderators, with departure and arrival entered in
+each airport's local time and stored in UTC using luxon (GEN-06), and every rejection rule listed
+in the endpoint description.
+
+How the output was used:
+Used the generated Flight and Cabin schemas (FlightStatus scheduled/cancelled/departed, unique
+index on airline + flight number + local departure date), CreateFlightDto, flight-time.ts
+(localToUtc/utcToLocal helpers with luxon, also for Area 6), FlightsService.create() with the
+rules (moderator of an active airline, airports from the FLT-02 airport list, different airports,
+future departure, arrival after departure in UTC, invalid local times such as a skipped daylight
+saving hour rejected, duplicate flight number on the same date -> 409) and the POST /api/flights
+route. Added a response example to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01, HTL-03
+Prompt:
+Asked for the HTL-01 create/edit hotel routes and HTL-03 add-room feature: Room schema following the
+Area 1 contract, CreateRoomDto, service methods with ownership checks, controller routes with
+JwtAuthGuard/RolesGuard, a temporary hotel photo helper, and a fix for Swagger sending array fields
+as one comma-separated value.
+How the output was used:
+Reviewed and adapted the code, fixed build errors, and tested every route and error case in Swagger
+(screenshots attached to the PR).
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-10
+
+Prompt:
+Help me implement GEN-10 (view open reports, resolve by dismissing, hiding content, or deleting content, and directly hide or delete content). Provide guidance on designing PATCH /api/admin/reports/:id with conflict checks for already resolved reports (409), cascade resolution of other open reports for the same item, updating MongoDB collections (posts, comments, reviews, itineraries) with hidden/deleted flags, direct content deletion (DELETE /api/admin/content/:type/:id) with 204, direct hiding (PATCH /api/admin/content/:type/:id/hide), writing moderation actions to AuditService (GEN-07), and sending in-app notifications (GEN-01).
+
+How the output was used:
+Used AI guidance to understand cascade report resolution, direct moderation workflows, and integration with audit logging and in-app notifications. Implemented ResolveReportDto, ReportsService.resolveReport, deleteContentDirect, and hideContentDirect myself, exposed PATCH /api/admin/reports/:id, DELETE /api/admin/content/:type/:id, and PATCH /api/admin/content/:type/:id/hide in ReportsController with admin guards, and updated openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-01
+
+Prompt:
+Help me implement GEN-01 (in-app notifications: unread count, notification list, mark as read, mark all read). Provide guidance on designing the Notification schema in notifications collection, creating ListNotificationsQueryDto, structuring NotificationsService with notify, list, getUnreadCount, markAsRead, and markAllAsRead, exposing GET /api/notifications, GET /api/notifications/unread-count, PATCH /api/notifications/:id/read, and PATCH /api/notifications/read-all, and documenting endpoints in openapi.yaml.
+
+How the output was used:
+Used AI guidance to design the notification schema, query pagination (GEN-05, page size 10), and ownership verification. Implemented the Notification schema, ListNotificationsQueryDto, NotificationsService, and NotificationsController myself, protecting routes with JwtAuthGuard, and updated openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
 ================================================

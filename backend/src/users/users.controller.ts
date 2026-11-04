@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Patch,
-  UseGuards,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
@@ -22,7 +15,7 @@ import { ProfileResponse, UsersService } from './users.service';
 //   Deactivation is blocked while the user has upcoming Confirmed bookings (ACC-12, NEW-01).
 //   Preferred currency must come from the supported currency list (ACC-09, GEN-12).
 //
-// WAITING FOR (Area 3, GEN-02 / GEN-13): the global ValidationPipe; then remove the local one.
+// DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
@@ -39,8 +32,7 @@ export class UsersController {
   @Patch('me')
   updateMe(
     @CurrentUser() user: AuthUser,
-    @Body(new ValidationPipe({ whitelist: true, transform: true }))
-    dto: UpdateProfileDto,
+    @Body() dto: UpdateProfileDto,
   ): Promise<ProfileResponse> {
     return this.usersService.updateProfile(user.id, dto);
   }
