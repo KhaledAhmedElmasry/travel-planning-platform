@@ -1,16 +1,7 @@
-// Requirement: FLT-15.
+// Area: Flight Search & Booking
+// Requirement: FLT-15 (price filter and sorting).
 import { BadRequestException } from '@nestjs/common';
-
-export enum FlightSortBy {
-  Price = 'price',
-  Duration = 'duration',
-  DepartureTime = 'departure_time',
-}
-
-export enum FlightSortOrder {
-  Ascending = 'asc',
-  Descending = 'desc',
-}
+import { FlightSortBy, SortOrder } from '../dto/search-flights-query.dto';
 
 export interface PriceRange {
   minPrice?: number;
@@ -18,12 +9,13 @@ export interface PriceRange {
 }
 
 export interface SortableFlightResult {
-  flightId: string;
-  departureUtc: Date;
+  id: string;
+  departureAt: Date;
   durationMinutes: number;
   cabins: { price: number }[];
 }
 
+// FLT-15: minPrice greater than maxPrice is a 400.
 export function validatePriceRange({ minPrice, maxPrice }: PriceRange): void {
   if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
     throw new BadRequestException(
@@ -32,6 +24,7 @@ export function validatePriceRange({ minPrice, maxPrice }: PriceRange): void {
   }
 }
 
+// FLT-15: inclusive range of the cabin fare.
 export function isWithinPriceRange(
   cabinFare: number,
   { minPrice, maxPrice }: PriceRange,
@@ -42,35 +35,29 @@ export function isWithinPriceRange(
   );
 }
 
-function lowestMatchingCabinPrice(flight: SortableFlightResult): number {
+// A flight's price for sorting = the lowest fare among its matching cabins.
+function lowestCabinPrice(flight: SortableFlightResult): number {
   return Math.min(...flight.cabins.map(({ price }) => price));
 }
 
+// FLT-15: sort by price, duration or departure time; ties by departure time, then id, so the
+// order (and the pages) never change between two identical requests.
 export function compareFlightSearchResults(
   first: SortableFlightResult,
   second: SortableFlightResult,
   sortBy: FlightSortBy,
-  sortOrder: FlightSortOrder,
+  sortOrder: SortOrder,
 ): number {
-  const primaryComparison =
+  const primary =
     sortBy === FlightSortBy.Price
-      ? lowestMatchingCabinPrice(first) - lowestMatchingCabinPrice(second)
+      ? lowestCabinPrice(first) - lowestCabinPrice(second)
       : sortBy === FlightSortBy.Duration
         ? first.durationMinutes - second.durationMinutes
-        : first.departureUtc.getTime() - second.departureUtc.getTime();
-  const orderedPrimary =
-    sortOrder === FlightSortOrder.Descending
-      ? -primaryComparison
-      : primaryComparison;
-  if (orderedPrimary !== 0) {
-    return orderedPrimary;
-  }
+        : first.departureAt.getTime() - second.departureAt.getTime();
+  const ordered = sortOrder === SortOrder.Desc ? -primary : primary;
+  if (ordered !== 0) return ordered;
   return (
-    first.departureUtc.getTime() - second.departureUtc.getTime() ||
-    (first.flightId < second.flightId
-      ? -1
-      : first.flightId > second.flightId
-        ? 1
-        : 0)
+    first.departureAt.getTime() - second.departureAt.getTime() ||
+    first.id.localeCompare(second.id)
   );
 }

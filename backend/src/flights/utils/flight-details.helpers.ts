@@ -1,18 +1,18 @@
-// Requirement: FLT-17.
+// Area: Flight Search & Booking
+// Requirement: FLT-17 (flight details), shared with FLT-11 search results.
 import { CabinClass } from '../../common/enums';
+import { isOpenFlight } from '../flight-status.job';
+import { FlightStatus } from '../schemas/flight.schema';
 
-export const SCHEDULED_FLIGHT_STATUS = 'scheduled';
 export const NO_CANCELLATION_REFUND_NOTE =
-  'No refund is available after booking.';
+  'This airline gives no refund when a booking is cancelled.';
 
 export interface CancellationTier {
   daysBefore: number;
   refundPercentage: number;
 }
 
-export interface DescribedCancellationTier {
-  daysBeforeDeparture: number;
-  refundPercentage: number;
+export interface DescribedCancellationTier extends CancellationTier {
   description: string;
 }
 
@@ -21,58 +21,50 @@ export interface BookableState {
   bookableReason: string | null;
 }
 
-export function sortAndDescribeCancellationTiers(
-  tiers: CancellationTier[] | null | undefined,
+export function durationMinutes(departureAt: Date, arrivalAt: Date): number {
+  return Math.round((arrivalAt.getTime() - departureAt.getTime()) / 60_000);
+}
+
+export function seatsRemaining(cabin: {
+  total: number;
+  booked: number;
+  held: number;
+}): number {
+  return Math.max(0, cabin.total - cabin.booked - cabin.held);
+}
+
+// FLT-09: tiers highest daysBefore first, each with a sentence for the page.
+export function describeCancellationTiers(
+  tiers: readonly CancellationTier[] | null | undefined,
 ): DescribedCancellationTier[] {
   return [...(tiers ?? [])]
-    .sort((first, second) => second.daysBefore - first.daysBefore)
+    .sort((a, b) => b.daysBefore - a.daysBefore)
     .map((tier) => ({
-      daysBeforeDeparture: tier.daysBefore,
+      daysBefore: tier.daysBefore,
       refundPercentage: tier.refundPercentage,
-      description: describeCancellationTier(tier),
+      description: `Cancel ${tier.daysBefore} or more days before departure: ${tier.refundPercentage}% refund.`,
     }));
 }
 
-export function describeCancellationTier(tier: CancellationTier): string {
-  return `Cancel ${tier.daysBefore} or more days before departure: ${tier.refundPercentage}% refund`;
-}
-
-export function getBookableState(
-  status: string,
-  airlineIsActive: boolean,
-  departureUtc: Date,
-  now: Date = new Date(),
+// Whether the flight can be booked now: Scheduled and not departed (FLT-30).
+export function bookableState(
+  flight: { status: FlightStatus; departureAt: Date },
+  now = new Date(),
 ): BookableState {
-  if (status !== SCHEDULED_FLIGHT_STATUS) {
-    return {
-      bookable: false,
-      bookableReason: `Flight is not scheduled (status: ${status}).`,
-    };
+  if (isOpenFlight(flight, now))
+    return { bookable: true, bookableReason: null };
+  if (flight.status === FlightStatus.Cancelled) {
+    return { bookable: false, bookableReason: 'The flight was cancelled.' };
   }
-  if (!airlineIsActive) {
-    return { bookable: false, bookableReason: 'Airline is inactive.' };
-  }
-  if (departureUtc.getTime() <= now.getTime()) {
-    return { bookable: false, bookableReason: 'Flight has already departed.' };
-  }
-  return { bookable: true, bookableReason: null };
+  return { bookable: false, bookableReason: 'The flight has departed.' };
 }
 
-export function calculateSeatsRemaining(
-  seatCount: number,
-  booked: number,
-  held: number,
-): number {
-  return Math.max(0, seatCount - booked - held);
-}
-
-export function orderCabinsByCategory<T extends { cabinClass: CabinClass }>(
-  cabins: T[],
+// Cabins in the fixed order economy, premium_economy, business, first.
+export function orderCabins<T extends { cabinClass: CabinClass }>(
+  cabins: readonly T[],
 ): T[] {
-  const cabinOrder = Object.values(CabinClass);
+  const order = Object.values(CabinClass);
   return [...cabins].sort(
-    (first, second) =>
-      cabinOrder.indexOf(first.cabinClass) -
-      cabinOrder.indexOf(second.cabinClass),
+    (a, b) => order.indexOf(a.cabinClass) - order.indexOf(b.cabinClass),
   );
 }

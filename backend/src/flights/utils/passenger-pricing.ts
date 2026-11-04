@@ -1,14 +1,16 @@
-// Requirement: FLT-12.
+// Area: Flight Search & Booking
+// Requirement: FLT-12 (passenger types and prices).
+// All amounts are integer cents of the platform currency (PAY-04); nothing is converted.
 import { BadRequestException } from '@nestjs/common';
 
-export const INFANT_FARE_RATE = 0.1;
-const CURRENCY_DECIMAL_PLACES = 2;
-const CURRENCY_ROUNDING_FACTOR = 10 ** CURRENCY_DECIMAL_PLACES;
+// FLT-12: an infant pays 10% of the cabin fare.
+export const INFANT_FARE_PERCENT = 10;
 
 export interface PassengerCounts {
   adults: number;
   children: number;
   infants: number;
+  // Adults and children need a seat; infants travel on an adult's lap.
   seatsRequired: number;
 }
 
@@ -22,63 +24,37 @@ export interface PassengerPriceBreakdown {
   totalPrice: number;
 }
 
-export function roundCurrencyAmount(amount: number): number {
-  return (
-    Math.round(amount * CURRENCY_ROUNDING_FACTOR) / CURRENCY_ROUNDING_FACTOR
-  );
-}
-
+// FLT-12: at least one adult, and no more infants than adults (one lap per adult).
 export function validatePassengerCounts(
   adults: number,
   children: number,
   infants: number,
 ): PassengerCounts {
-  const counts = { adults, children, infants };
-  for (const [type, count] of [
-    ['adults', adults],
-    ['children', children],
-    ['infants', infants],
-  ] as const) {
-    if (!Number.isInteger(count) || count < 0) {
-      throw new BadRequestException(
-        `${type} must be a non-negative whole number.`,
-      );
-    }
-  }
   if (adults < 1) {
     throw new BadRequestException('At least one adult is required.');
   }
   if (infants > adults) {
     throw new BadRequestException('Infants cannot outnumber adults.');
   }
-  // Infants travel in an adult's lap and must not reserve a cabin seat.
-  return { ...counts, seatsRequired: adults + children };
+  return { adults, children, infants, seatsRequired: adults + children };
 }
 
+// FLT-12: adults and children pay the cabin fare, infants 10% of it (rounded to whole cents).
 export function calculatePassengerPricing(
   cabinFare: number,
   passengers: PassengerCounts,
 ): PassengerPriceBreakdown {
-  // Fare currency is whatever the flight stores; this calculation does not convert currency.
-  const adultFare = roundCurrencyAmount(cabinFare);
-  const childFare = roundCurrencyAmount(cabinFare);
-  const infantFare = roundCurrencyAmount(cabinFare * INFANT_FARE_RATE);
-  const adultsSubtotal = roundCurrencyAmount(passengers.adults * cabinFare);
-  const childrenSubtotal = roundCurrencyAmount(passengers.children * cabinFare);
-  const infantsSubtotal = roundCurrencyAmount(
-    passengers.infants * cabinFare * INFANT_FARE_RATE,
-  );
-  const totalPrice = roundCurrencyAmount(
-    (passengers.adults + passengers.children) * cabinFare +
-      passengers.infants * cabinFare * INFANT_FARE_RATE,
-  );
+  const infantFare = Math.round((cabinFare * INFANT_FARE_PERCENT) / 100);
+  const adultsSubtotal = passengers.adults * cabinFare;
+  const childrenSubtotal = passengers.children * cabinFare;
+  const infantsSubtotal = passengers.infants * infantFare;
   return {
-    adultFare,
-    childFare,
+    adultFare: cabinFare,
+    childFare: cabinFare,
     infantFare,
     adultsSubtotal,
     childrenSubtotal,
     infantsSubtotal,
-    totalPrice,
+    totalPrice: adultsSubtotal + childrenSubtotal + infantsSubtotal,
   };
 }
