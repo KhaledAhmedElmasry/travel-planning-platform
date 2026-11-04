@@ -5,6 +5,10 @@ import { DateTime } from 'luxon';
 // GEN-06: flight times are entered in each airport's local time, stored in UTC and shown in the
 // airport's local time zone. Uses luxon with the airport's IANA time zone (FLT-02).
 // Also for Area 6 (flight search FLT-11 and flight details FLT-17).
+//
+// Every flight response (FlightsService.toResponse) has, for each airport: the IANA time zone,
+// the local time (departureLocal / arrivalLocal), the UTC offset at that moment
+// (departureUtcOffset / arrivalUtcOffset) and the UTC time (departureAt / arrivalAt).
 
 const LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm";
 
@@ -32,4 +36,10 @@ export function utcToLocal(date: Date, timeZone: string): string {
 // The UTC Date -> the local date "2027-03-01" in the airport's time zone.
 export function utcToLocalDate(date: Date, timeZone: string): string {
   return DateTime.fromJSDate(date, { zone: timeZone }).toFormat('yyyy-MM-dd');
+}
+
+// GEN-06: the airport's UTC offset at that moment, e.g. "+02:00" (Cairo) or "+01:00" (London in
+// summer). Daylight saving time is included, so the same airport can have two offsets in a year.
+export function utcOffset(date: Date, timeZone: string): string {
+  return DateTime.fromJSDate(date, { zone: timeZone }).toFormat('ZZ');
 }

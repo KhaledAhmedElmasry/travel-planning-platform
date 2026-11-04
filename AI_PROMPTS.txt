@@ -700,3 +700,173 @@ fail when the booking check, the session revoke or the role restriction is remov
 the whole application module graph still resolves with the two booking modules imported (no
 circular dependency, so no forwardRef was needed), and in Swagger.
 ================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-08 (endpoint also listed for FLT-04)
+
+Prompt:
+Continuing my Area 5 work on the latest develop, I asked the assistant to implement FLT-08 exactly
+as documented in docs/api/openapi.yaml: PUT /api/airlines/:id/baggage-policy, where the airline's
+own moderator sets the price per extra bag (integer cents, greater than 0) and the maximum number
+of extra bags per passenger (0 or more) for all the airline's flights, and to show the policy on
+the airline profile.
+
+How the output was used:
+Used the generated extraBagPrice and maxExtraBagsPerPassenger fields on the Airline schema (null
+and 0 until the policy is set, so no extra bags can be bought before that), BaggagePolicyDto with
+class-validator rules, AirlinesService.setBaggagePolicy() (reusing findManagedAirline: 404 unknown
+airline, 403 not its moderator or deactivated airline), the baggagePolicy object in the airline
+response and the PUT route. Updated the airline examples and the baggage-policy response in
+docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-09 (and the shared tier rule used by HTL-10)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-08 branch, I asked the assistant to implement FLT-09
+exactly as documented in docs/api/openapi.yaml: PUT /api/airlines/:id/cancellation-policy, where
+the airline's moderator replaces all cancellation tiers (unique daysBefore of 0 or more, refund
+0-100%), the shared refund rule in common/utils (the tier with the highest threshold not exceeding
+the days remaining, otherwise 0%) for airlines and hotels, and the two functions Area 1 was waiting
+for: AirlinesService.getBookingPolicies() and getRefundTier().
+
+How the output was used:
+Used the generated pickRefundTier(), findDuplicateThreshold() and sortTiers() helpers in
+common/utils, the cancellationTiers field on the Airline schema, CancellationPolicyDto with nested
+class-validator rules, AirlinesService.setCancellationPolicy() (duplicate threshold -> 400, tiers
+saved highest daysBefore first), getBookingPolicies() (name, tiers, extra-bag price and maximum, or
+null for an unknown airline) and getRefundTier() replacing the stubs, and the PUT route. Updated the
+cancellation-policy responses and the airline examples in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-05 (with NEW-02 and GEN-01 for time changes)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-09 branch, I asked the assistant to implement FLT-05
+exactly as documented in docs/api/openapi.yaml and the agreement with Area 1 in the flight schema
+comments: PATCH /api/flights/:id for the moderator of the flight's airline, only on scheduled
+flights, with the FLT-03 rules applied again, no airport change once the flight has any booking,
+time changes copied to the bookings' segments in the same transaction, and an in-app notification
+to every passenger with a Confirmed booking when the times change.
+
+How the output was used:
+Used the generated UpdateFlightDto, FlightsService.update() (re-checks airports, future departure,
+arrival after departure in UTC and the unique flight number per date; 409 for airport changes when
+the flight has bookings or seats booked/held), the MongoDB transaction that updates the flight and
+segments.$[s].departureAt/arrivalAt of its bookings together, flight-change-notification.ts with
+the notification text in each airport's local time, notifyTimeChange() using NotificationsService
+after the commit, and the PATCH route. Registered Area 1's FlightBooking schema in FlightsModule to
+update the copied times. Added a response example to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-30
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-05 branch, I asked the assistant to implement FLT-30:
+flights have the status Scheduled, Cancelled or Departed, a flight becomes Departed once its
+departure time has passed, and only Scheduled flights are searchable, editable or bookable. I asked
+for a scheduled job in the same style as Area 1's every-minute jobs and a shared check that other
+areas (flight search, booking) can use.
+
+How the output was used:
+Used the generated FlightStatusJob with an @Cron job that runs every minute and marks Scheduled
+flights whose departure has passed as Departed in one updateMany, the isOpenFlight() and
+openFlightFilter() helpers (Scheduled and not yet departed) for Area 6 and the edit checks, and
+registered the job in FlightsModule. FlightsService now uses isOpenFlight() for the "only scheduled
+flights can be edited" rule. Added the FlightStatus schema to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-06 (with NEW-02, PAY-03 and GEN-01)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-30 branch, I asked the assistant to implement FLT-06
+exactly as documented in docs/api/openapi.yaml and as agreed with Area 1 in the flight schema
+comments: POST /api/flights/:id/cancel for the moderator of the flight's airline, only for a
+scheduled flight, setting the flight to cancelled and calling Area 1's
+FlightBookingLifecycleService.cancelBookingsForFlight() in the same transaction, then
+finishFlightCancellation() after the commit for the 100% refunds and the notifications.
+
+How the output was used:
+Used the generated FlightsService.cancel() (404 unknown flight, 403 another airline or deactivated
+airline, 409 not scheduled or already departed; the flight update is conditional on status
+scheduled so two cancels at the same moment cannot both succeed), the transaction with
+cancelBookingsForFlight() and the finishFlightCancellation() call after it, the response with the
+cancelled flight and the numbers of cancelled bookings and ended seat holds, the cancelledAt field
+on the Flight schema, the POST route (200) and the FlightBookingsModule import in FlightsModule.
+Added a response example to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: NEW-02
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-06 branch, I asked the assistant to check NEW-02 in
+docs/requirements/ASSUMED_REQUIREMENTS.md against what FLT-05 and FLT-06 already do and to
+implement what was still missing. It found that the acceptance criterion "each affected user
+receives exactly one notification per change" was not met for time changes, because a user with
+two bookings on the same flight got two notifications.
+
+How the output was used:
+Used the generated change to FlightsService.notifyTimeChange(), which now groups the Confirmed
+bookings of the flight by user and sends one notification per user, and to
+flightTimeChangedText(), which lists all of that user's booking references. Updated the
+PATCH /api/flights/{id} description in docs/api/openapi.yaml. The other NEW-02 points (agreed
+price kept, times copied in the same transaction, 100% refunds, holds released, round trips
+cancelled as a whole) were already done in FLT-05 and FLT-06, and I listed them in the pull request.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: GEN-06
+
+Prompt:
+Finishing my Area 5 issues on top of my NEW-02 branch, I asked the assistant to check GEN-06 ("show
+flight times in each airport's local time zone") against what was already done in FLT-02 (IANA time
+zone per airport) and FLT-03 (local times entered, stored in UTC and returned in local time with
+luxon), and to add what was still useful for showing local times correctly.
+
+How the output was used:
+Used the generated utcOffset() helper in flights/flight-time.ts (luxon, daylight saving time
+included) and the new departureUtcOffset / arrivalUtcOffset fields in every flight response
+(FlightsService.toResponse), so the frontend can show e.g. "14:30 (UTC+02:00)". Updated the flight
+examples and the POST /api/flights description in docs/api/openapi.yaml. I listed in the pull
+request where the rest of GEN-06 was done (FLT-02, FLT-03, the time-change notification of FLT-05).
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
