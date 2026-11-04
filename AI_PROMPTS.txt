@@ -609,3 +609,35 @@ Help me implement GEN-01 (in-app notifications: unread count, notification list,
 How the output was used:
 Used AI guidance to design the notification schema, query pagination (GEN-05, page size 10), and ownership verification. Implemented the Notification schema, ListNotificationsQueryDto, NotificationsService, and NotificationsController myself, protecting routes with JwtAuthGuard, and updated openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
 ================================================
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-11
+
+Prompt:
+I asked the assistant to implement GitHub issue #8 (ACC-11): bookings and private itineraries are
+accessible only to their owner, except that admins may view all bookings (ACC-17) and moderators
+the bookings of their own hotel or airline (FLT-29, HTL-22), with unauthorised requests rejected
+(403/404). JwtAuthGuard, RolesGuard and @CurrentUser() already existed, so I asked for the shared
+ownership helper from the Area 2 task sheet, following the 403/404 rules in docs/CONVENTIONS.md
+and the access notes in docs/api/openapi.yaml.
+After the pull request review (2026-11-04) I gave the assistant the reviewer's comment and the
+flight booking schema and asked it to fix the airline moderator check.
+
+How the output was used:
+Used as backend/src/common/guards/ownership.ts: assertOwner (own data, otherwise 404),
+canViewBooking / assertCanViewBooking (owner, admin, or the moderator of the booking's airline or
+hotel, otherwise 404), bookingVisibilityFilter (the MongoDB filter for booking lists per role),
+assertManagesAirline / assertManagesHotel (provider data, otherwise 403) and canViewItinerary /
+assertCanViewItinerary (public for everyone, private or hidden only for the owner, no admin
+exception). I checked every rule against the requirement and openapi.yaml and checked that the
+field names match the hotel reservation (userId, hotelId) schema. Review fix: the flight booking
+stores the airline per segment (segments.airlineId, a round trip can have two airlines), not at the
+top level, so canViewBooking now accepts segments and lets an airline moderator through if any
+segment is on their airline, and bookingVisibilityFilter filters on 'segments.airlineId'. Verified
+with npm run lint, npm run build and local unit tests for every role (including a round trip with two
+airlines and a moderator of a third airline), including checks that fail when the admin rule, the
+moderator's provider check, the segments check or the private-itinerary rule is changed.
+================================================

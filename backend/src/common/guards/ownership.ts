@@ -64,15 +64,17 @@ export function assertManagesHotel(user: AuthUser, hotelId: IdLike): void {
   }
 }
 
-// The owner fields of a flight booking (airlineId) or a hotel reservation (hotelId).
+// The owner fields of a flight booking (airline per segment) or a hotel reservation (hotelId).
+// A flight booking has one segment for one-way and two for a round trip, and each segment
+// stores its own airlineId, so the two legs can belong to different airlines (FLT-12).
 export interface BookingOwnership {
   userId: IdLike;
-  airlineId?: IdLike;
+  segments?: { airlineId?: IdLike }[];
   hotelId?: IdLike;
 }
 
 // Who may view a booking: its owner, an admin (ACC-17), or the moderator of its airline
-// (FLT-29) or hotel (HTL-22).
+// (FLT-29: any segment of the booking is on their airline) or hotel (HTL-22).
 export function canViewBooking(
   user: AuthUser,
   booking: BookingOwnership,
@@ -81,7 +83,11 @@ export function canViewBooking(
     case Role.Admin:
       return true;
     case Role.AirlineModerator:
-      return sameId(user.airlineId, booking.airlineId);
+      return (
+        booking.segments?.some((segment) =>
+          sameId(user.airlineId, segment.airlineId),
+        ) ?? false
+      );
     case Role.HotelModerator:
       return sameId(user.hotelId, booking.hotelId);
     default:
@@ -102,7 +108,8 @@ export function assertCanViewBooking(
 
 // A MongoDB filter for booking lists: admin everything, a user their own, a moderator the
 // bookings of their airline or hotel. A moderator without an assigned provider sees nothing.
-// Use it on flight bookings (airlineId) and hotel reservations (hotelId).
+// Use it on flight bookings (the airline is stored per segment: segments.airlineId) and on
+// hotel reservations (hotelId).
 export function bookingVisibilityFilter(
   user: AuthUser,
 ): Record<string, Types.ObjectId | null> {
@@ -111,7 +118,7 @@ export function bookingVisibilityFilter(
       return {};
     case Role.AirlineModerator:
       return user.airlineId
-        ? { airlineId: new Types.ObjectId(user.airlineId) }
+        ? { 'segments.airlineId': new Types.ObjectId(user.airlineId) }
         : { _id: null };
     case Role.HotelModerator:
       return user.hotelId
