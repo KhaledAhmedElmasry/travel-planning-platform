@@ -11,6 +11,10 @@ import { Connection, Model, Types } from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
 import { BookingStatus, Role } from '../common/enums';
 import {
+  FlightBookingLifecycleService,
+  FlightCancellationResult,
+} from '../flight-bookings/flight-booking-lifecycle.service';
+import {
   FlightBooking,
   FlightBookingDocument,
 } from '../flight-bookings/schemas/flight-booking.schema';
@@ -68,6 +72,15 @@ function isDuplicateKeyError(err: unknown): boolean {
   );
 }
 
+// What POST /api/flights/:id/cancel returns (FLT-06).
+export interface CancelledFlightResponse {
+  flight: FlightResponse;
+  // Confirmed bookings that were cancelled with a 100% refund (PAY-03).
+  cancelledBookings: number;
+  // Unpaid bookings (pending payment) whose seat hold ended.
+  expiredHolds: number;
+}
+
 const DUPLICATE_FLIGHT =
   'The airline already has this flight number on that departure date.';
 
@@ -85,6 +98,7 @@ export class FlightsService {
     @InjectModel(FlightBooking.name)
     private readonly bookingModel: Model<FlightBookingDocument>,
     private readonly notifications: NotificationsService,
+    private readonly bookingLifecycle: FlightBookingLifecycleService,
     private readonly airlinesService: AirlinesService,
     private readonly referenceData: ReferenceDataService,
   ) {}
@@ -354,6 +368,60 @@ export class FlightsService {
         );
       }
     }
+  }
+
+  // FLT-06, NEW-02: the moderator cancels a Scheduled flight of their airline (the frontend asks
+  // for confirmation first, GEN-03). As agreed with Area 1 (flight.schema.ts), in ONE transaction:
+  //   - the flight becomes Cancelled (only if still Scheduled), which also stops new seat holds
+  //     and hides it from search (FLT-30, openFlightFilter);
+  //   - FlightBookingLifecycleService.cancelBookingsForFlight(): every booking with a segment on
+  //     this flight (round trips as a whole) changes: confirmed -> cancelled with a 100% refund
+  //     owed, pending_payment -> expired, and their seats are released.
+  // After the commit, finishFlightCancellation() creates the refunds through Stripe (PAY-03) and
+  // sends the in-app notifications (GEN-01).
+  async cancel(
+    user: AuthUser,
+    flightId: Types.ObjectId,
+  ): Promise<CancelledFlightResponse> {
+    const flight = await this.findManagedFlight(user, flightId);
+    if (!isOpenFlight(flight)) {
+      throw new ConflictException(
+        'The flight is not scheduled (already cancelled or departed).',
+      );
+    }
+
+    let cancelled: FlightDocument | null = null;
+    let result: FlightCancellationResult | null = null;
+    await this.connection.transaction(async (session) => {
+      cancelled = await this.flightModel
+        .findOneAndUpdate(
+          { _id: flight._id, status: FlightStatus.Scheduled },
+          {
+            $set: { status: FlightStatus.Cancelled, cancelledAt: new Date() },
+          },
+          { new: true, session },
+        )
+        .exec();
+      if (!cancelled) {
+        throw new ConflictException(
+          'The flight is not scheduled (already cancelled or departed).',
+        );
+      }
+      result = await this.bookingLifecycle.cancelBookingsForFlight(
+        flight._id.toString(),
+        session,
+      );
+    });
+
+    const done = result as unknown as FlightCancellationResult;
+    // Never throws: a refund that fails here is retried by Area 1's owed-refunds job.
+    await this.bookingLifecycle.finishFlightCancellation(done);
+
+    return {
+      flight: this.toResponse(cancelled as unknown as FlightDocument),
+      cancelledBookings: done.cancelledBookingIds.length,
+      expiredHolds: done.expiredBookingIds.length,
+    };
   }
 
   // FLT-04: the moderator adds a cabin class to a Scheduled flight of their airline. Each class

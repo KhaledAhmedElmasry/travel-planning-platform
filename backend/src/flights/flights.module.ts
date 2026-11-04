@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AirlinesModule } from '../airlines/airlines.module';
+import { FlightBookingsModule } from '../flight-bookings/flight-bookings.module';
 import {
   FlightBooking,
   FlightBookingSchema,
@@ -24,6 +25,9 @@ import { Flight, FlightSchema } from './schemas/flight.schema';
     ]),
     AirlinesModule, // the moderator's airline (FLT-03)
     ReferenceDataModule, // the airport lookup (FLT-02)
+    // FlightBookingLifecycleService (Area 1): the bookings of a cancelled flight (FLT-06, NEW-02).
+    // FlightBookingsModule does not import FlightsModule, so no forwardRef is needed.
+    FlightBookingsModule,
   ],
   controllers: [FlightSearchController, FlightsController],
   providers: [FlightsService, FlightStatusJob], // FlightStatusJob: FLT-30

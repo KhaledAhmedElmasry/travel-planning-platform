@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -23,7 +24,7 @@ import { FlightsService } from './flights.service';
 //   POST  /api/flights                          FLT-03   (done)
 //   GET   /api/flights/:id                      FLT-17
 //   PATCH /api/flights/:id                      FLT-05   (done)
-//   POST  /api/flights/:id/cancel               FLT-06
+//   POST  /api/flights/:id/cancel               FLT-06   (done)
 //   POST  /api/flights/:id/cabins               FLT-04   (done)
 //   PATCH /api/flights/:id/cabins/:cabinId      FLT-04, FLT-05   (done)
 //   GET   /api/flights/:id/bookings             FLT-29
@@ -55,6 +56,18 @@ export class FlightsController {
     @Body() dto: UpdateFlightDto,
   ) {
     return this.flightsService.update(user, id, dto);
+  }
+
+  // FLT-06: the moderator of the flight's airline cancels it: its bookings are cancelled with a
+  // 100% refund (Area 1) and the passengers are notified. 200 with the counts.
+  @Post(':id/cancel')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  cancel(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+  ) {
+    return this.flightsService.cancel(user, id);
   }
 
   // FLT-04: the moderator of the flight's airline adds a cabin class.

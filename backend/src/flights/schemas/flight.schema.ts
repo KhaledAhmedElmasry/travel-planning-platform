@@ -140,6 +140,10 @@ export class Flight {
   @Prop({ type: [CabinSchema], default: [] })
   cabins: Types.DocumentArray<Cabin>;
 
+  // FLT-06: when the airline cancelled the flight, or null.
+  @Prop({ type: Date, default: null })
+  cancelledAt: Date | null;
+
   createdAt?: Date;
   updatedAt?: Date;
 }

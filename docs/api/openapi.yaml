@@ -1790,7 +1790,10 @@ paths:
         - $ref: '#/components/parameters/Id'
       responses:
         '200':
-          description: The cancelled flight and the number of bookings that were cancelled.
+          description: The cancelled flight, the number of Confirmed bookings that were cancelled with a 100% refund (cancelledBookings) and the number of unpaid seat holds that ended (expiredHolds).
+          content:
+            application/json:
+              example: {"flight": {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "cancelled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-02T09:00:00.000Z"}, "cancelledBookings": 2, "expiredHolds": 1}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
