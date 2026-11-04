@@ -181,7 +181,7 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
     @Query() query: DeleteDayQueryDto,
   ): Promise<void> {
-    if (!query.confirm) {
+    if (query.confirm !== true) {
       throw new BadRequestException(
         'Confirmation is required to delete an itinerary day.',
       );
