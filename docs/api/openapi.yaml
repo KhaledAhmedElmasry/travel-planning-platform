@@ -1522,7 +1522,9 @@ paths:
       description: |
         **Access:** airline moderators. The flight belongs to the moderator's own airline.
 
-        Departure and arrival are entered in each airport's local time and stored in UTC (GEN-06). The
+        Departure and arrival are entered in each airport's local time and stored in UTC (GEN-06). Every
+        flight response shows, for each airport, its time zone, the local time, the UTC offset at that
+        time (e.g. `+02:00`, daylight saving included) and the UTC time. The
         new flight has status `scheduled` (FLT-30) and no cabins yet; add them with
         `POST /api/flights/{id}/cabins`.
 
@@ -1541,7 +1543,7 @@ paths:
           description: Flight created. Returns the flight with local and UTC times.
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields or one of the rules above is broken.
           content:
@@ -1741,7 +1743,7 @@ paths:
           description: The updated flight. A local time that is not sent keeps the same local clock time at its airport.
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T15:00", "arrivalLocal": "2027-03-01T20:35", "departureAt": "2027-03-01T13:00:00.000Z", "arrivalAt": "2027-03-01T16:35:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-02T09:00:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T15:00", "arrivalLocal": "2027-03-01T20:35", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T13:00:00.000Z", "arrivalAt": "2027-03-01T16:35:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-02T09:00:00.000Z"}
         '400':
           description: Invalid fields or an FLT-03 rule is broken.
           content:
@@ -1794,7 +1796,7 @@ paths:
           description: The cancelled flight, the number of Confirmed bookings that were cancelled with a 100% refund (cancelledBookings) and the number of unpaid seat holds that ended (expiredHolds).
           content:
             application/json:
-              example: {"flight": {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "cancelled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-02T09:00:00.000Z"}, "cancelledBookings": 2, "expiredHolds": 1}
+              example: {"flight": {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "cancelled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-02T09:00:00.000Z"}, "cancelledBookings": 2, "expiredHolds": 1}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1844,7 +1846,7 @@ paths:
           description: The flight with its cabins (each cabin has an id).
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [{"id": "665f1c2a9b1e8a00123400c3", "cabinClass": "economy", "seats": 150, "bookedSeats": 0, "heldSeats": 0, "availableSeats": 150, "price": 25000, "freeBags": 1, "maxBagWeightKg": 23}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:05:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [{"id": "665f1c2a9b1e8a00123400c3", "cabinClass": "economy", "seats": 150, "bookedSeats": 0, "heldSeats": 0, "availableSeats": 150, "price": 25000, "freeBags": 1, "maxBagWeightKg": 23}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:05:00.000Z"}
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1897,7 +1899,7 @@ paths:
           description: The flight with its updated cabins.
           content:
             application/json:
-              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [{"id": "665f1c2a9b1e8a00123400c3", "cabinClass": "economy", "seats": 150, "bookedSeats": 0, "heldSeats": 0, "availableSeats": 150, "price": 25000, "freeBags": 1, "maxBagWeightKg": 23}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:05:00.000Z"}
+              example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [{"id": "665f1c2a9b1e8a00123400c3", "cabinClass": "economy", "seats": 150, "bookedSeats": 0, "heldSeats": 0, "availableSeats": 150, "price": 25000, "freeBags": 1, "maxBagWeightKg": 23}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:05:00.000Z"}
         '400':
           description: Invalid fields, or a seat count below the seats already booked or held.
           content:

@@ -848,3 +848,25 @@ cancelled as a whole) were already done in FLT-05 and FLT-06, and I listed them 
 I reviewed the code; the assistant verified it with a successful lint and build. Testing in
 Swagger is left to the team leader's review of the pull request.
 ================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: GEN-06
+
+Prompt:
+Finishing my Area 5 issues on top of my NEW-02 branch, I asked the assistant to check GEN-06 ("show
+flight times in each airport's local time zone") against what was already done in FLT-02 (IANA time
+zone per airport) and FLT-03 (local times entered, stored in UTC and returned in local time with
+luxon), and to add what was still useful for showing local times correctly.
+
+How the output was used:
+Used the generated utcOffset() helper in flights/flight-time.ts (luxon, daylight saving time
+included) and the new departureUtcOffset / arrivalUtcOffset fields in every flight response
+(FlightsService.toResponse), so the frontend can show e.g. "14:30 (UTC+02:00)". Updated the flight
+examples and the POST /api/flights description in docs/api/openapi.yaml. I listed in the pull
+request where the rest of GEN-06 was done (FLT-02, FLT-03, the time-change notification of FLT-05).
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================

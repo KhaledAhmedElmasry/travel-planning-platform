@@ -27,7 +27,12 @@ import { UpdateCabinDto } from './dto/update-cabin.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
 import { flightTimeChangedText } from './flight-change-notification';
 import { isOpenFlight } from './flight-status.job';
-import { localToUtc, utcToLocal, utcToLocalDate } from './flight-time';
+import {
+  localToUtc,
+  utcOffset,
+  utcToLocal,
+  utcToLocalDate,
+} from './flight-time';
 import { Flight, FlightDocument, FlightStatus } from './schemas/flight.schema';
 
 // One cabin in a flight response (FLT-04).
@@ -54,6 +59,9 @@ export interface FlightResponse {
   arrivalTimeZone: string;
   departureLocal: string;
   arrivalLocal: string;
+  // GEN-06: the UTC offset of each airport at that time, e.g. "+02:00".
+  departureUtcOffset: string;
+  arrivalUtcOffset: string;
   departureAt: Date;
   arrivalAt: Date;
   durationMinutes: number;
@@ -599,6 +607,11 @@ export class FlightsService {
       arrivalTimeZone: flight.arrivalTimeZone,
       departureLocal: utcToLocal(flight.departureAt, flight.departureTimeZone),
       arrivalLocal: utcToLocal(flight.arrivalAt, flight.arrivalTimeZone),
+      departureUtcOffset: utcOffset(
+        flight.departureAt,
+        flight.departureTimeZone,
+      ),
+      arrivalUtcOffset: utcOffset(flight.arrivalAt, flight.arrivalTimeZone),
       departureAt: flight.departureAt,
       arrivalAt: flight.arrivalAt,
       durationMinutes: Math.round(
