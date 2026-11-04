@@ -895,3 +895,89 @@ The AI-generated output was used as a starting point for implementing the FLT-17
 
 The endpoint was tested through Swagger using a valid flight ID and an invalid or non-existing ID. The response was checked to verify the flight information and local airport times.
 ================================================
+================================================
+Date: 2026-11-04
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-07
+
+Prompt:
+Implement and test DELETE /api/itineraries/:id/days/:dayId with confirmation, ownership,
+renumbering, date recalculation, and the documented error statuses.
+
+How the output was used:
+Added the guarded controller route, service deletion logic, validation for confirm=true,
+focused unit coverage, and matching OpenAPI documentation. Verification uses npm run lint,
+npm run build, and the focused Jest test.
+================================================
+Date: 2026-11-03
+Student: [Abdallah Mahmoud]
+Tool: Codex
+Related Requirement: ITN-03
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #56 (ITN-03). Implement ITN-03 on branch
+feature/ITN-03-list-view-itineraries: list the logged-in user's own itineraries showing title,
+countries, start date and number of days through GET /api/itineraries, and view one own itinerary
+in full through GET /api/itineraries/:id. Follow the issue, docs/api/openapi.yaml,
+docs/CONVENTIONS.md and the existing code patterns. Use PaginationQueryDto, paginate and
+emptyPaginatedList from backend/src/common with 10 per page (GEN-04, GEN-05) and the paginated
+response shape in openapi.yaml. Another user's itinerary must give 404, a malformed id 400 and no
+login 401. Add local unit tests for the main rules. Public viewing (ITN-21) and every other ITN
+requirement are left for their own issues.
+
+How the output was used:
+Used as the base for the list query DTO, the list and detail methods in ItinerariesService and the
+two GET routes. I checked it against the issue and openapi.yaml: only the logged-in user's
+itineraries are listed, 10 per page with the pagination fields from common/, an empty list returns
+the friendly empty result, the detail route returns the days in order, and another user's id gives
+404. Verified with npm run lint, npm run build, local tests and in Swagger (page 1 and 2, empty
+list, another user's itinerary, no login).
+================================================
+Date: 2026-11-03
+Student: [Abdallah Mahmoud]
+Tool: Codex
+Related Requirement: ITN-05
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #57 (ITN-05). Implement ITN-05 on branch
+feature/ITN-05-add-edit-days: add days to the user's own itinerary and edit each day's city
+(selected from the seeded cities) through POST /api/itineraries/:id/days and PATCH
+/api/itineraries/:id/days/:dayId. Follow the issue, docs/api/openapi.yaml, docs/CONVENTIONS.md and
+the existing code patterns. Every change must renumber the days and recompute each date (start date
++ position) in one reusable helper that ITN-07, ITN-08 and ITN-09 will reuse. The city must exist in
+the seeded cities (read the seeded collection directly, or use Area 5's lookup if it is merged, so
+this module does not depend on unmerged code), otherwise return a clear 400. Keep the day structure
+stable because Area 6 depends on it. Add local unit tests for the helper and the main rules. Delete,
+reorder and city groups are left for their own issues.
+
+How the output was used:
+Used as the base for the day DTOs, the add and edit methods in ItinerariesService, the shared
+renumber and date helper and the two routes. I checked it against the issue and openapi.yaml: a new
+day gets the next position and its date is the start date plus its position, the city must exist in
+the seeded cities (400 otherwise), a day that is not in this itinerary or an itinerary of another
+user gives 404, and the position numbers always stay consecutive. Verified with npm run lint,
+npm run build, local tests and by testing every valid and invalid case in Swagger.
+================================================
+Date: 2026-11-03
+Student: [Abdallah Mahmoud]
+Tool: Opus 5.5
+Related Requirement: ITN-09
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #60 (ITN-09). Implement ITN-09 on branch
+feature/ITN-09-city-groups: every itinerary day has a city, and consecutive days in the same city
+are returned as one city group in GET /api/itineraries/:id (no new endpoint). Follow the issue,
+docs/api/openapi.yaml for the group shape, docs/CONVENTIONS.md and the existing code patterns. Reuse
+the renumber and date helper from ITN-05 so the groups are recomputed after every day change. For
+example days 1-2 Cairo, day 3 Luxor and days 4-5 Cairo give three groups, not two. Keep the day and
+group structure stable because Area 6 depends on it. Add a local unit test for the grouping logic
+with that example. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the city group computation, its hook into the day helper and the groups in the
+itinerary response. I checked it against the issue and openapi.yaml: only consecutive days with the
+same city are grouped, the group shows its city and its day numbers, and the groups are correct
+after adding a day and after editing a city. Verified with npm run lint, npm run build, a local unit
+test of the grouping example and in Swagger.
+================================================
