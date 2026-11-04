@@ -1004,3 +1004,23 @@ Used as the base for the reorder DTO, the reorder method in ItinerariesService a
 I checked it against the issue and openapi.yaml: an out-of-range position and a day from another
 itinerary are rejected, the new order, dates and city groups are correct, and each day's content
 moved with it. Verified with npm run lint, npm run build, local tests and in Swagger.
+================================================
+Date: 2026-11-03
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-01
+
+Prompt:
+Implement only BLG-01 (GitHub issue #70) on feature/BLG-01-create-post-Alamy. Follow
+docs/api/openapi.yaml and the Blog scaffolding, create posts as draft or published for the
+authenticated registered user, validate title/body/tags, set hidden false, and keep image uploads
+and attachment out of scope for BLG-01. Add isolated automated tests and update the approved
+CreatedPost response contract in OpenAPI.
+
+How the output was used:
+Used AI-generated implementation changes for the Post model, create DTO, service, controller,
+module registration, OpenAPI response, and unit tests. The generated changes were reviewed and
+adjusted to the repository conventions. The automated test suite passed (2 suites, 23 tests), and
+the backend build passed. Targeted ESLint checks passed. After Atlas connectivity was restored,
+the student completed the manual Swagger tests. Codex did not directly observe those manual tests.
+================================================
