@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -20,6 +21,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { PaginatedList } from '../common/dto/pagination.dto';
 import { CreateDayDto } from './dto/create-day.dto';
+import { DeleteDayQueryDto } from './dto/delete-day-query.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { ListItinerariesQueryDto } from './dto/list-itineraries-query.dto';
 import { UpdateDayDto } from './dto/update-day.dto';
@@ -153,5 +155,23 @@ export class ItinerariesController {
     @Body() dto: UpdateDayDto,
   ): Promise<DayResponse> {
     return this.itinerariesService.updateDay(id, dayId, user.id, dto);
+  }
+
+  @Delete('itineraries/:id/days/:dayId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async deleteDay(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('dayId', ParseObjectIdPipe) dayId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Query() query: DeleteDayQueryDto,
+  ): Promise<void> {
+    if (!query.confirm) {
+      throw new BadRequestException(
+        'Confirmation is required to delete an itinerary day.',
+      );
+    }
+    await this.itinerariesService.deleteDay(id, dayId, user.id);
   }
 }

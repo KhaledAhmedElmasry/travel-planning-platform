@@ -3635,9 +3635,22 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Id'
         - $ref: '#/components/parameters/DayId'
+        - name: confirm
+          in: query
+          required: true
+          description: Must be true to confirm deletion.
+          schema:
+            type: boolean
       responses:
         '204':
           description: Day deleted.
+        '400':
+          description: Confirmation is required, or an id is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Confirmation is required to delete an itinerary day.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/days/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':

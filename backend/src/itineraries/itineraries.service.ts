@@ -160,6 +160,29 @@ export class ItinerariesService {
     return toDayResponse(day);
   }
 
+  async deleteDay(
+    itineraryId: string | Types.ObjectId,
+    dayId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<void> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    const day = isValidObjectId(dayId) ? itinerary.days.id(dayId) : null;
+    if (!day) throw dayNotFound();
+
+    itinerary.days.pull(day._id);
+    renumberDays(itinerary.days, itinerary.startDate);
+    try {
+      await itinerary.save();
+    } catch (error) {
+      if (error instanceof mongoose.Error.VersionError) {
+        throw new ConflictException(
+          'The itinerary was changed by another request. Please retry.',
+        );
+      }
+      throw error;
+    }
+  }
+
   async list(
     userId: string,
     page = 1,
