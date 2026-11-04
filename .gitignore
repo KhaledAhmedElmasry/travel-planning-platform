@@ -18,6 +18,8 @@ coverage/
 
 # Unit / e2e tests stay local (not part of the submission)
 *.spec.ts
+!backend/src/blog/*.blg05.spec.ts
+!backend/src/blog/dto/create-comment.dto.spec.ts
 *.e2e-spec.ts
 *.test.ts
 

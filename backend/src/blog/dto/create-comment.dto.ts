@@ -1,8 +1,25 @@
+import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsNotEmpty,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+
 // Area: Community & Cross-cutting
 // Used by: POST /api/posts/:id/comments (body)
 // Requirements: BLG-05
-//
-// TODO: define the DTO class with class-validator rules for the fields this endpoint needs,
-// exactly as documented in docs/api/openapi.yaml.
-
-export {};
+export class CreateCommentDto {
+  @ApiProperty({
+    minLength: 1,
+    maxLength: 500,
+    example: 'Thanks, this helped me plan my trip!',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(1)
+  @MaxLength(500)
+  @Matches(/\S/, { message: 'text must contain a non-whitespace character' })
+  text: string;
+}

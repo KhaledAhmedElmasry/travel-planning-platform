@@ -6,6 +6,24 @@ in chronological order, using the format below (project description, section 11)
 Add your entry in the same pull request as the work it relates to.
 
 ================================================
+Date: 2026-11-04
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-05 / Issue #74
+
+Prompt:
+Implement only BLG-05 on feature/BLG-05-comment-on-posts-Alamy. Follow the existing POST
+/api/posts/{id}/comments contract, create a Comment model and validation DTO, associate the
+authenticated registered user, accept comments only on visible published posts, set hidden false,
+increment commentCount safely, add isolated automated tests, and preserve pending BLG-03/BLG-08 work.
+
+How the output was used:
+Used AI assistance to implement the comment schema, DTO, controller route, service logic, model
+registration, and focused tests. The implementation was checked against the task text, issues.csv,
+TEAM_PLAN.md and OpenAPI. Three focused test suites (17 tests), backend build, targeted ESLint and
+OpenAPI YAML parsing passed. Tests use mocks; no live MongoDB or manual Swagger verification has been
+performed.
+================================================
 Date: 2026-11-03
 Student: [Abdallah Mahmoud]
 Tool: Codex

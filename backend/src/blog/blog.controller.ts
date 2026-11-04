@@ -3,9 +3,12 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Param,
   Post as HttpPost,
   UseGuards,
 } from '@nestjs/common';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 import { CurrentUser, Roles } from '../common/decorators';
 import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
@@ -13,6 +16,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
+import { CreateCommentDto } from './dto/create-comment.dto';
 import type { CreatedPostResponse } from './blog.service';
 
 // Area: Community & Cross-cutting
@@ -42,6 +46,18 @@ import type { CreatedPostResponse } from './blog.service';
 @Controller()
 export class BlogController {
   constructor(private readonly blogService: BlogService) {}
+
+  @HttpPost('posts/:id/comments')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  createComment(
+    @Param('id', ParseObjectIdPipe) postId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateCommentDto,
+  ): Promise<void> {
+    return this.blogService.createComment(postId, user.id, dto);
+  }
 
   @HttpPost('posts')
   @HttpCode(HttpStatus.CREATED)
