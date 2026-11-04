@@ -4992,7 +4992,8 @@ paths:
         and back (ACC-10).
 
         A post has a required title and body and optional tags (BLG-08), and is saved as a draft or
-        published. Published posts appear in the author's blog and in search. Images are added after
+        published. Published posts appear in the author's blog and in search. The author is taken from
+        the authenticated session. New posts start with `hidden: false` (GEN-10). Images are added after
         creation with `POST /api/posts/{id}/images` (BLG-10).
       security: *auth
       requestBody:
@@ -5004,13 +5005,12 @@ paths:
       responses:
         '201':
           description: Post created.
-        '400':
-          description: Missing title or body, more than 5 tags, or a tag longer than 30 characters.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Missing title or body, more than 5 tags, or a tag longer than 30 characters.", "path": "/api/posts", "timestamp": "2026-11-01T10:00:00.000Z"}
+                $ref: '#/components/schemas/CreatedPost'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -7696,6 +7696,73 @@ components:
           example: [egypt, cairo, history]
         status:
           $ref: '#/components/schemas/PostStatus'
+
+    CreatedPost:
+      type: object
+      description: A created post, with fields reusable by future Blog read and edit operations.
+      required:
+        - id
+        - title
+        - body
+        - author
+        - status
+        - tags
+        - hidden
+        - likeCount
+        - commentCount
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          description: Post identifier.
+          example: '665f1c2a9b1e8a0012345678'
+        title:
+          type: string
+          maxLength: 200
+          example: Three days in Cairo
+        body:
+          type: string
+          example: We started at the Egyptian Museum...
+        author:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+              example: '665f1c2a9b1e8a0012340001'
+            name:
+              type: string
+              example: Alex Traveler
+        status:
+          $ref: '#/components/schemas/PostStatus'
+        tags:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            maxLength: 30
+          example: [egypt, cairo, history]
+        hidden:
+          type: boolean
+          description: Moderation visibility flag. False for a newly created post (GEN-10).
+          example: false
+        likeCount:
+          type: integer
+          minimum: 0
+          example: 0
+        commentCount:
+          type: integer
+          minimum: 0
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-03T10:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2026-11-03T10:00:00.000Z'
 
     UpdatePostRequest:
       type: object
