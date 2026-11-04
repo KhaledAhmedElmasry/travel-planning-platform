@@ -1,5 +1,31 @@
-import { Controller } from '@nestjs/common';
-import { HotelsService } from './hotels.service';
+import {
+  Body,
+  Controller,
+  Param,
+  Patch,
+  Post,
+  Put,
+  UploadedFiles,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { CurrentUser, Roles } from '../common/decorators';
+import { Role } from '../common/enums';
+import { JwtAuthGuard } from '../common/guards/auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import type { AuthUser } from '../common/interfaces';
+import { CreateHotelDto } from './dto/create-hotel.dto';
+import { CreateRoomDto } from './dto/create-room.dto';
+import { HotelPoliciesDto } from './dto/hotel-policies.dto';
+import { UpdateHotelDto } from './dto/update-hotel.dto';
+import {
+  deleteHotelPhotos,
+  type HotelPhotoFile,
+  storeHotelPhotos,
+} from './hotel-photos';
+import { HotelsService, MAX_HOTEL_PHOTOS } from './hotels.service';
 
 // Area: Hotels & Rooms
 // Requirements: HTL-01..HTL-06, HTL-08..HTL-12, HTL-15, HTL-22
@@ -26,9 +52,77 @@ import { HotelsService } from './hotels.service';
 //   Deactivated hotels (ACC-15) and deactivated rooms (HTL-06) are excluded from search.
 //   Hotel search must be reusable from itineraries (ITN-25): keep it in the exported service.
 //   Declare /hotels/search before /hotels/:id so "search" is not matched as an id.
+
+// Multer keeps the files in memory by default. One more file than the limit is accepted on
+// purpose, so the service answers with a clear "at most 5 photos" message instead of multer's
+// generic "Unexpected field".
+const photoUpload = FilesInterceptor('photos', MAX_HOTEL_PHOTOS + 1, {
+  limits: { fileSize: 20 * 1024 * 1024 }, // hard cap; the 5 MB rule is checked in storeHotelPhotos
+});
+
 @Controller('hotels')
 export class HotelsController {
   constructor(private readonly hotelsService: HotelsService) {}
 
-  // TODO: add the endpoints listed above.
+  // HTL-01: an admin creates a hotel (multipart).
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @UseInterceptors(photoUpload)
+  async create(
+    @Body() dto: CreateHotelDto,
+    @UploadedFiles() files: HotelPhotoFile[],
+  ) {
+    const photos = await storeHotelPhotos(files ?? []);
+    try {
+      return await this.hotelsService.createHotel(dto, photos);
+    } catch (error) {
+      await deleteHotelPhotos(photos);
+      throw error;
+    }
+  }
+
+  // HTL-01: the moderator assigned to this hotel edits it (multipart).
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  @UseInterceptors(photoUpload)
+  async update(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateHotelDto,
+    @UploadedFiles() files: HotelPhotoFile[],
+  ) {
+    const photos = await storeHotelPhotos(files ?? []);
+    try {
+      return await this.hotelsService.updateHotel(id, user, dto, photos);
+    } catch (error) {
+      await deleteHotelPhotos(photos);
+      throw error;
+    }
+  }
+
+  // HTL-03: the moderator of this hotel adds a room.
+  @Post(':id/rooms')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  createRoom(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateRoomDto,
+  ) {
+    return this.hotelsService.createRoom(id, user, dto);
+  }
+
+  // HTL-09, HTL-10: the moderator of this hotel sets check-in/out times and cancellation tiers.
+  @Put(':id/policies')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  updatePolicies(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: HotelPoliciesDto,
+  ) {
+    return this.hotelsService.updatePolicies(id, user, dto);
+  }
 }

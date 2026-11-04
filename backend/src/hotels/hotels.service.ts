@@ -1,24 +1,34 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
-  NotImplementedException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
+import { formatDate } from '../hotel-bookings/stay-dates';
+import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
 import type {
   CancellationTier,
   RefundTier,
 } from '../payments/interfaces/payable-booking.interface';
 import { CreateHotelDto } from './dto/create-hotel.dto';
+import { CreateRoomDto } from './dto/create-room.dto';
+import { HotelPoliciesDto } from './dto/hotel-policies.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
+import { pickRefundTier } from './hotel-refund-tier';
 import { Hotel, HotelDocument, HotelPhoto } from './schemas/hotel.schema';
+import { Room, RoomDocument } from './schemas/room.schema';
 
 // Area: Hotels & Rooms
 // Business logic and database access for: HTL-01..HTL-06, HTL-08..HTL-12, HTL-15, HTL-22
 
 export const MAX_HOTEL_PHOTOS = 5; // GEN-08
+
+// Used when a moderator has not set the times yet (HTL-09), because a reservation always shows them.
+const DEFAULT_CHECK_IN_TIME = '14:00';
+const DEFAULT_CHECK_OUT_TIME = '12:00';
 
 // A photo already stored by the upload service (GEN-08).
 export interface NewHotelPhoto {
@@ -26,8 +36,7 @@ export interface NewHotelPhoto {
   filename: string;
 }
 
-// The logged-in user. hotelId is the hotel a moderator is assigned to (ACC-13).
-// TODO: map this from the real current-user object once Area 2 is merged.
+// The logged-in user (AuthUser has these fields). hotelId is the hotel a moderator manages.
 export interface HotelActor {
   id: string;
   hotelId?: string | null;
@@ -48,6 +57,7 @@ export interface HotelBookingPoliciesData {
 export class HotelsService {
   constructor(
     @InjectModel(Hotel.name) private readonly hotelModel: Model<Hotel>,
+    @InjectModel(Room.name) private readonly roomModel: Model<Room>,
     @InjectConnection() private readonly connection: Connection,
   ) {}
 
@@ -84,12 +94,7 @@ export class HotelsService {
     newPhotos: NewHotelPhoto[] = [],
   ) {
     const hotel = await this.findHotelOrThrow(hotelId);
-
-    if (!actor.hotelId || String(actor.hotelId) !== hotel.id) {
-      throw new ForbiddenException(
-        'You can only edit the hotel you are assigned to.',
-      );
-    }
+    this.assertModeratorOf(hotel, actor);
 
     // If either the city or the country changes, the pair must still match.
     if (dto.cityId !== undefined || dto.countryCode !== undefined) {
@@ -100,7 +105,7 @@ export class HotelsService {
     }
 
     // Photos: remove the requested ones, add the new ones, at most 5 in total.
-    const removeIds = new Set(dto.removePhotoIds ?? []);
+    const removeIds = new Set<string>(dto.removePhotoIds ?? []);
     const existingIds = new Set(hotel.photos.map((p) => this.photoId(p)));
     const unknownIds = [...removeIds].filter((id) => !existingIds.has(id));
     if (unknownIds.length > 0) {
@@ -136,7 +141,126 @@ export class HotelsService {
     return this.toResponse(hotel);
   }
 
+  // --- HTL-03: add a room (only the moderator assigned to THIS hotel) ---
+
+  async createRoom(hotelId: string, actor: HotelActor, dto: CreateRoomDto) {
+    const hotel = await this.findHotelOrThrow(hotelId);
+    this.assertModeratorOf(hotel, actor);
+
+    try {
+      const room = await this.roomModel.create({
+        hotelId: hotel._id,
+        roomNumber: dto.roomNumber,
+        type: dto.type,
+        beds: dto.beds,
+        maxOccupancy: dto.maxOccupancy,
+        pricePerNight: dto.pricePerNight,
+        active: true,
+      });
+      return this.toRoomResponse(room);
+    } catch (error) {
+      // The unique (hotelId, roomNumber) index refused a second room with this number.
+      if (isDuplicateKeyError(error)) {
+        throw new ConflictException(
+          `Room "${dto.roomNumber}" already exists in this hotel.`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  // --- HTL-09, HTL-10: check-in/out times and cancellation tiers (moderator of THIS hotel) ---
+
+  async updatePolicies(
+    hotelId: string,
+    actor: HotelActor,
+    dto: HotelPoliciesDto,
+  ) {
+    const hotel = await this.findHotelOrThrow(hotelId);
+    this.assertModeratorOf(hotel, actor);
+
+    // Each tier needs its own days-before-check-in threshold.
+    const seen = new Set<number>();
+    const duplicates = new Set<number>();
+    for (const tier of dto.cancellationTiers) {
+      if (seen.has(tier.daysBefore)) duplicates.add(tier.daysBefore);
+      seen.add(tier.daysBefore);
+    }
+    if (duplicates.size > 0) {
+      throw new BadRequestException(
+        `Each cancellation tier needs a unique daysBefore. Used more than once: ${[...duplicates].join(', ')}.`,
+      );
+    }
+
+    // Stored with the highest threshold first.
+    const tiers = dto.cancellationTiers
+      .map((t) => ({
+        daysBefore: t.daysBefore,
+        refundPercentage: t.refundPercentage,
+      }))
+      .sort((a, b) => b.daysBefore - a.daysBefore);
+
+    // ONE atomic update that replaces everything: the last write wins. (hotel.set + hotel.save
+    // would check the document version, so requests at the same moment would fail with a
+    // VersionError.)
+    const updated = await this.hotelModel.findByIdAndUpdate(
+      hotel._id,
+      {
+        $set: {
+          checkInTime: dto.checkInTime,
+          checkOutTime: dto.checkOutTime,
+          cancellationTiers: tiers,
+        },
+      },
+      { new: true, runValidators: true },
+    );
+    if (!updated) throw new NotFoundException('Hotel not found.');
+
+    return {
+      hotelId: updated.id as string,
+      checkInTime: updated.checkInTime,
+      checkOutTime: updated.checkOutTime,
+      cancellationTiers: this.sortedTiers(updated),
+    };
+  }
+
+  // --- Used by hotel bookings (Area 1: PAY-02, HTL-21) ---
+
+  // The hotel's name, times and tiers (highest daysBefore first), or null if it does not exist.
+  async getBookingPolicies(
+    hotelId: string,
+  ): Promise<HotelBookingPoliciesData | null> {
+    if (!isValidObjectId(hotelId)) return null;
+    const hotel = await this.hotelModel.findById(hotelId);
+    if (!hotel) return null;
+    return {
+      hotelId: hotel.id as string,
+      name: hotel.name,
+      checkInTime: hotel.checkInTime ?? DEFAULT_CHECK_IN_TIME,
+      checkOutTime: hotel.checkOutTime ?? DEFAULT_CHECK_OUT_TIME,
+      cancellationTiers: this.sortedTiers(hotel),
+    };
+  }
+
+  // HTL-10: the tier that applies when the guest cancels this many days before check-in.
+  async getRefundTier(
+    hotelId: string,
+    daysBeforeCheckIn: number,
+  ): Promise<RefundTier> {
+    const hotel = await this.findHotelOrThrow(hotelId);
+    return pickRefundTier(this.sortedTiers(hotel), daysBeforeCheckIn);
+  }
+
   // --- helpers ---
+
+  private sortedTiers(hotel: HotelDocument): CancellationTier[] {
+    return hotel.cancellationTiers
+      .map((t) => ({
+        daysBefore: t.daysBefore,
+        refundPercentage: t.refundPercentage,
+      }))
+      .sort((a, b) => b.daysBefore - a.daysBefore);
+  }
 
   private async findHotelOrThrow(hotelId: string): Promise<HotelDocument> {
     if (!isValidObjectId(hotelId))
@@ -144,6 +268,15 @@ export class HotelsService {
     const hotel = await this.hotelModel.findById(hotelId);
     if (!hotel) throw new NotFoundException('Hotel not found.');
     return hotel;
+  }
+
+  // ACC-11, ACC-13: a moderator manages exactly one hotel, and only that one.
+  private assertModeratorOf(hotel: HotelDocument, actor: HotelActor) {
+    if (!actor.hotelId || String(actor.hotelId) !== hotel.id) {
+      throw new ForbiddenException(
+        'You can only manage the hotel you are assigned to.',
+      );
+    }
   }
 
   // NEW-05: the country and city must exist, and the city must belong to the country.
@@ -199,31 +332,26 @@ export class HotelsService {
     };
   }
 
-  // --- Used by hotel bookings (Area 1: PAY-02, HTL-21) ---
-
-  // WAITING FOR (Area 7, HTL-01 / HTL-09 / HTL-10): the hotel schema with its check-in and
-  // check-out times and cancellation tiers.
-  // TODO(HTL-09, HTL-10; Area 7): find the hotel (null if it does not exist) and return its name,
-  // checkInTime, checkOutTime and cancellationTiers sorted by daysBefore (highest first).
-  getBookingPolicies(
-    _hotelId: string,
-  ): Promise<HotelBookingPoliciesData | null> {
-    throw new NotImplementedException(
-      'Hotel policies are not implemented yet (HTL-09, HTL-10).',
-    );
-  }
-
-  // WAITING FOR (Area 7, HTL-10): the cancellation tiers and the shared tier rule in common/utils
-  // (FLT-09, also used by AirlinesService.getRefundTier()).
-  // TODO(HTL-10; Area 7): apply the rule to the hotel's tiers: the tier with the highest
-  // daysBefore that is not more than daysBeforeCheckIn; if none applies, 0% and null.
-  // Example: tiers 14 -> 100%, 3 -> 50%; 5 days left -> { refundPercentage: 50, tierDaysBefore: 3 }.
-  getRefundTier(
-    _hotelId: string,
-    _daysBeforeCheckIn: number,
-  ): Promise<RefundTier> {
-    throw new NotImplementedException(
-      'Hotel cancellation tiers are not implemented yet (HTL-10).',
-    );
+  private toRoomResponse(room: RoomDocument) {
+    return {
+      id: room.id as string,
+      hotelId: String(room.hotelId),
+      roomNumber: room.roomNumber,
+      type: room.type,
+      beds: room.beds,
+      maxOccupancy: room.maxOccupancy,
+      pricePerNight: room.pricePerNight,
+      active: room.active,
+      availableRanges: room.availableRanges.map((r) => ({
+        from: formatDate(r.from),
+        to: formatDate(r.to),
+      })),
+      blockedRanges: room.blockedRanges.map((r) => ({
+        from: formatDate(r.from),
+        to: formatDate(r.to),
+      })),
+      createdAt: room.get('createdAt') as Date | undefined,
+      updatedAt: room.get('updatedAt') as Date | undefined,
+    };
   }
 }
