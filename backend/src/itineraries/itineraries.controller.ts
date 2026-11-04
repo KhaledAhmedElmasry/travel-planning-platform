@@ -24,6 +24,7 @@ import { CreateDayDto } from './dto/create-day.dto';
 import { DeleteDayQueryDto } from './dto/delete-day-query.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { ListItinerariesQueryDto } from './dto/list-itineraries-query.dto';
+import { ReorderDaysDto } from './dto/reorder-days.dto';
 import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
 import {
@@ -144,7 +145,20 @@ export class ItinerariesController {
     return this.itinerariesService.addDay(id, user.id, dto);
   }
 
-  // ITN-05: edits a day's city and notes. ITN-08 must declare PATCH days/reorder above this route.
+  // ITN-08: moves a day to a new position. Declared before PATCH days/:dayId so "reorder" is
+  // never read as a day id.
+  @Patch('itineraries/:id/days/reorder')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  reorderDays(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ReorderDaysDto,
+  ): Promise<ItineraryResponse> {
+    return this.itinerariesService.reorderDays(id, user.id, dto);
+  }
+
+  // ITN-05: edits a day's city and notes.
   @Patch('itineraries/:id/days/:dayId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User)
