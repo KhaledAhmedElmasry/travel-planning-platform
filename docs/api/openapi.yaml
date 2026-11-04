@@ -5092,7 +5092,9 @@ paths:
       description: |
         **Access:** the author.
 
-        Send only the fields to change. Publishing a draft is done by setting `status` to `published`.
+        Send only the fields to change. For BLG-08, send `tags` to replace the tag list or `[]` to
+        clear it; tags are trimmed, lowercased and deduplicated. Publishing a draft is done by setting
+        `status` to `published`.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -5105,6 +5107,10 @@ paths:
       responses:
         '200':
           description: The updated post.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedPost'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -5418,8 +5424,10 @@ paths:
       description: |
         **Access:** everyone, including guests.
 
-        Used when a tag is clicked. Tags match case-insensitively; newest first. An unknown tag gives an
-        empty list, not an error (GEN-04).
+        Used when a tag is clicked. Tags match case-insensitively; newest first. Each item includes the
+        post body excerpt, title, author id and name, date, tags, like count and comment count. Drafts,
+        hidden posts and posts by deactivated authors are excluded. An unknown tag gives an empty list,
+        not an error (GEN-04).
       security: []
       parameters:
         - name: tag
@@ -5427,6 +5435,8 @@ paths:
           required: true
           schema:
             type: string
+            minLength: 1
+            maxLength: 30
             example: egypt
         - $ref: '#/components/parameters/Page'
       responses:
