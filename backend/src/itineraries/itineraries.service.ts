@@ -22,6 +22,7 @@ import {
 } from './day-schedule';
 import { CreateDayDto } from './dto/create-day.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
+import { ReorderDaysDto } from './dto/reorder-days.dto';
 import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
 import {
@@ -183,6 +184,54 @@ export class ItinerariesService {
     }
   }
 
+  // ITN-08: moves one day to a new position (1-based). The day is moved as a whole, so everything
+  // stored on it (activities, images, budget entries once they exist) moves with it. Numbers,
+  // dates and city groups are then rebuilt by the shared helpers, like every other day change.
+  async reorderDays(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+    dto: ReorderDaysDto,
+  ): Promise<ItineraryResponse> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    const from = isValidObjectId(dto.dayId)
+      ? itinerary.days.findIndex((day) => day._id.equals(dto.dayId))
+      : -1;
+    if (from === -1) throw dayNotFound();
+
+    const dayCount = itinerary.days.length;
+    if (
+      !Number.isInteger(dto.position) ||
+      dto.position < 1 ||
+      dto.position > dayCount
+    ) {
+      throw new BadRequestException(
+        'The position is outside 1 to the number of days.',
+      );
+    }
+
+    const to = dto.position - 1;
+    // Same position: nothing to change, so nothing is saved (updatedAt stays as it was).
+    if (from === to) return this.toResponse(itinerary);
+
+    const ordered = itinerary.days.map((day) => day.toObject<ItineraryDay>());
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(to, 0, moved);
+    itinerary.set('days', ordered);
+
+    renumberDays(itinerary.days, itinerary.startDate);
+    try {
+      await itinerary.save();
+    } catch (error) {
+      if (error instanceof mongoose.Error.VersionError) {
+        throw new ConflictException(
+          'The itinerary was changed by another request. Please retry.',
+        );
+      }
+      throw error;
+    }
+    return this.toResponse(itinerary);
+  }
+
   async list(
     userId: string,
     page = 1,
@@ -270,7 +319,7 @@ export class ItinerariesService {
       visibility: itinerary.visibility,
       days: itinerary.days.map(toDayResponse),
       // ITN-09: rebuilt from the days on every response, so it is always current after an add,
-      // edit (or later delete / reorder) that went through renumberDays.
+      // edit, delete or reorder that went through renumberDays.
       cityGroups: computeCityGroups(itinerary.days),
       createdAt: itinerary.createdAt,
       updatedAt: itinerary.updatedAt,
