@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import { RoomNight, RoomNightStatus } from './schemas/room-night.schema';
@@ -12,20 +12,13 @@ import { RoomNight, RoomNightStatus } from './schemas/room-night.schema';
 // rooms): use findTakenNights(). Import HotelBookingsModule with forwardRef(() => ...) from
 // HotelsModule, because HotelBookingsModule already imports HotelsModule.
 @Injectable()
-export class RoomInventoryService implements OnModuleInit {
+export class RoomInventoryService {
   private readonly logger = new Logger(RoomInventoryService.name);
 
   constructor(
     @InjectModel(RoomNight.name)
     private readonly nightModel: Model<RoomNight>,
   ) {}
-
-  // The unique (roomId, night) index must exist before the first hold, otherwise MongoDB would
-  // accept two holds for the same night. init() waits until Mongoose has built the indexes, so
-  // the app only starts once double booking is impossible.
-  async onModuleInit(): Promise<void> {
-    await this.nightModel.init();
-  }
 
   // HTL-18: takes every night of every room for this reservation. Throws MongoDB's duplicate key
   // error (11000) if any of them is already held or booked: the caller's transaction is then
@@ -41,6 +34,11 @@ export class RoomInventoryService implements OnModuleInit {
     },
     session: ClientSession,
   ): Promise<void> {
+    // Build the unique (roomId, night) index before the first hold, so MongoDB cannot accept two
+    // holds for the same night. Do this on demand so an unavailable database does not block the
+    // API (including Swagger) from starting.
+    await this.nightModel.init();
+
     const { bookingId, hotelId, roomIds, nights, expiresAt, now } = hold;
     // Holds that have ended but that the expiry job has not released yet do not block anyone
     // (NEW-01): remove them first. Their reservation can no longer be confirmed anyway.
