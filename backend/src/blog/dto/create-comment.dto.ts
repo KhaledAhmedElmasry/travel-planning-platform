@@ -1,4 +1,3 @@
-import { ApiProperty } from '@nestjs/swagger';
 import {
   IsNotEmpty,
   IsString,
@@ -11,11 +10,6 @@ import {
 // Used by: POST /api/posts/:id/comments (body)
 // Requirements: BLG-05
 export class CreateCommentDto {
-  @ApiProperty({
-    minLength: 1,
-    maxLength: 500,
-    example: 'Thanks, this helped me plan my trip!',
-  })
   @IsString()
   @IsNotEmpty()
   @MinLength(1)

@@ -1023,6 +1023,29 @@ I checked it against the issue and openapi.yaml: an out-of-range position and a 
 itinerary are rejected, the new order, dates and city groups are correct, and each day's content
 moved with it. Verified with npm run lint, npm run build, local tests and in Swagger.
 ================================================
+Date: 2026-11-04
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-03
+
+Prompt:
+Implement only BLG-03 (GitHub issue #72) on feature/BLG-03-list-own-posts-Alamy. Implement the
+existing GET /api/posts/mine contract for the authenticated registered user, including their drafts.
+Use the optional PostStatus filter, shared page query and 10-item pagination. Return only id, title,
+status, date, likeCount and commentCount, newest first. Derive ownership from the authenticated
+session, add focused tests, and do not implement other Blog requirements. Preserve pending BLG-08
+work and do not commit or merge.
+
+How the output was used:
+Used Codex-generated implementation changes for the BLG-03 query DTO, controller route, service
+query and tests. Reviewed them against the repository issue export, OpenAPI contract, Post schema,
+auth interface and shared pagination helpers. OpenAPI was updated only to document the 403 response
+for the registered-user role restriction. The full backend test command passed (3 suites, 13 tests),
+the Nest build and lint passed, and OpenAPI YAML parsed successfully. GitHub issue #72 could not be
+fetched in this environment; the local issue export was used. Manual Swagger and live MongoDB testing
+have not been performed.
+================================================
+
 Date: 2026-11-03
 Student: Ibrahim Alalamy
 Tool: Codex
@@ -1041,4 +1064,26 @@ module registration, OpenAPI response, and unit tests. The generated changes wer
 adjusted to the repository conventions. The automated test suite passed (2 suites, 23 tests), and
 the backend build passed. Targeted ESLint checks passed. After Atlas connectivity was restored,
 the student completed the manual Swagger tests. Codex did not directly observe those manual tests.
+================================================
+
+Date: 2026-11-04
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-08
+
+Prompt:
+Implement BLG-08 using the existing PATCH /api/posts/{id} and GET /api/tags/{tag}/posts
+contracts. Preserve the shared UpdatePostRequest fields for future BLG-04 work, support tags-only
+updates including clearing tags, apply the existing normalization and five-tag/30-character rules,
+and restrict updates to the authenticated author. Implement public case-insensitive, newest-first,
+paginated tag browsing with drafts, hidden posts and posts by deactivated authors excluded. Defer
+GET /api/posts?tag=... to BLG-11. Add automated tests, keep OpenAPI aligned, and do not commit or
+merge.
+
+How the output was used:
+Used Codex-generated code as the starting point for the tag update DTO and service behavior, the
+existing tag browsing route, and focused unit tests. Reviewed the implementation against the existing
+OpenAPI contract, shared pagination helpers, Post/User schemas and project conventions. The full
+backend test command passed (4 suites, 23 tests), the Nest build and lint passed, and the OpenAPI YAML
+parsed successfully. Manual Swagger and live MongoDB testing have not yet been performed.
 ================================================
