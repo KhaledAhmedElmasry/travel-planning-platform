@@ -68,7 +68,11 @@ describe('ItinerariesService (ITN-14)', () => {
     ],
   } as never;
 
-  function service(currencyFound = true): ItinerariesService {
+  function service(
+    currencyFound = true,
+    usersService?: { findById: jest.Mock },
+    exchangeRatesService?: { convertTotals: jest.Mock },
+  ): ItinerariesService {
     const model = {
       findOne: jest.fn().mockReturnValue({
         exec: jest.fn().mockResolvedValue(itinerary),
@@ -81,7 +85,13 @@ describe('ItinerariesService (ITN-14)', () => {
           .mockResolvedValue(currencyFound ? { _id: 'USD' } : null),
       }),
     };
-    return new ItinerariesService(model as never, connection as never);
+    return new ItinerariesService(
+      model as never,
+      connection as never,
+      undefined,
+      usersService as never,
+      exchangeRatesService as never,
+    );
   }
 
   it('totals budget entries, activity costs and intercity transport per currency', async () => {
@@ -123,6 +133,54 @@ describe('ItinerariesService (ITN-14)', () => {
         currency: 'ZZZ',
       }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects an unsupported conversion currency', async () => {
+    await expect(
+      service(false).getBudgetSummary(itinerary._id, userId, 'ZZZ'),
+    ).rejects.toThrow("Currency 'ZZZ' is not supported.");
+  });
+
+  it('converts category, day and grand totals to the preferred currency', async () => {
+    const exchangeRates = {
+      convertTotals: jest
+        .fn()
+        .mockImplementation((totals: Record<string, number>) => ({
+          currency: 'EUR',
+          rateDate: '2026-11-05',
+          totals: {
+            EUR: Number(
+              Object.entries(totals)
+                .reduce(
+                  (sum, [code, amount]) =>
+                    sum + Number(amount) * (code === 'USD' ? 0.8 : 1),
+                  0,
+                )
+                .toFixed(2),
+            ),
+          },
+        })),
+    };
+    const current = service(
+      true,
+      { findById: jest.fn().mockResolvedValue({ preferredCurrency: 'EUR' }) },
+      exchangeRates,
+    );
+
+    const result = await current.getBudgetSummary(itinerary._id, userId);
+
+    expect(result.convertedTotal).toMatchObject({
+      currency: 'EUR',
+      rateDate: '2026-11-05',
+      totalsByCategory: {
+        food: { EUR: 32 },
+        accommodation: { EUR: 100 },
+        activities: { EUR: 8 },
+      },
+      intercityTransport: { EUR: 20 },
+      grandTotal: { EUR: 160 },
+    });
+    expect(exchangeRates.convertTotals).toHaveBeenCalled();
   });
 
   it('returns 404 for a budget entry owned by another user', async () => {
