@@ -2,6 +2,32 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 import { TransportMode } from '../../common/enums';
 
+export enum BudgetCategory {
+  Food = 'food',
+  Accommodation = 'accommodation',
+  InCityTransport = 'in_city_transport',
+  Activities = 'activities',
+}
+
+@Schema({ _id: true, timestamps: false })
+export class BudgetEntry {
+  _id: Types.ObjectId;
+
+  @Prop({ type: String, enum: Object.values(BudgetCategory), required: true })
+  category: BudgetCategory;
+
+  @Prop({ type: Number, required: true, min: 0 })
+  amount: number;
+
+  @Prop({ type: String, required: true, uppercase: true })
+  currency: string;
+
+  @Prop({ type: String, default: '', maxlength: 200 })
+  description: string;
+}
+
+export const BudgetEntrySchema = SchemaFactory.createForClass(BudgetEntry);
+
 @Schema({ _id: true, timestamps: false })
 export class ActivityImage {
   _id: Types.ObjectId;
@@ -69,6 +95,9 @@ export class ItineraryDay {
 
   @Prop({ type: [ActivitySchema], default: [] })
   activities: Types.DocumentArray<Activity>;
+
+  @Prop({ type: [BudgetEntrySchema], default: [] })
+  budgets: Types.DocumentArray<BudgetEntry>;
 }
 
 export const ItineraryDaySchema = SchemaFactory.createForClass(ItineraryDay);

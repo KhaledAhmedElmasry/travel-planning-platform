@@ -1056,7 +1056,6 @@ same city are grouped, the group shows its city and its day numbers, and the gro
 after adding a day and after editing a city. Verified with npm run lint, npm run build, a local unit
 test of the grouping example and in Swagger.
 =========================================
-=======
 ==================================================================================
 Date: 2026-11-05
 Student: Abdallah Mahmoud
@@ -1064,15 +1063,22 @@ Tool: Copilot
 Related Requirement: ITN-12
 
 Prompt:
-Implement ITN-12 on feature/ITN-12-activity-images: attach and remove activity images
-through the documented multipart endpoints, using the shared GEN-08 media-upload rule,
-ownership checks, image-file cleanup on activity/day/itinerary deletion, and focused unit tests.
+I am on Area 8 and want to finish GitHub issue #62 (ITN-12). Implement ITN-12 on branch
+feature/ITN-12-activity-images: attach images to and remove images from an activity through POST
+/api/activities/:id/images and DELETE /api/activities/:id/images/:imageId. Follow the issue,
+docs/api/openapi.yaml (the multipart request and status codes), docs/CONVENTIONS.md and the existing
+code patterns. Use the shared media-upload rule (GEN-08) from Area 4 and do not write own upload
+rules. If it is not merged yet, use a clearly marked placeholder that I can replace. Only the owner
+can change an activity's images; another user's activity or an image that is not on it gives 404.
+Deleting an activity (ITN-10) or a day (ITN-07) must not leave orphaned image files. Add local unit
+tests for the main rules. Every other ITN requirement is left for its own issue.
 
 How the output was used:
-Added the guarded multipart attach and delete routes, embedded activity image records,
-shared upload-service placeholder integration, ownership and image-limit enforcement,
-cleanup calls, focused tests, and validation with npm run lint, npm run build and npm test.
-================================================
+Used as the base for the image schema on the activity, the attach and remove methods and the two
+routes. I checked it against the issue and openapi.yaml: the upload goes through the shared rule
+(allowed types, size and number of images), removing an image removes it from the activity, and
+another user's activity gives 404. Verified with npm run lint, npm run build, local tests and in
+Swagger with a wrong file type, a file that is too large and another user's activity.================================================
 Date: 2026-11-03
 Student: [Abdallah Mahmoud]
 Tool: Codex
@@ -1159,3 +1165,36 @@ OpenAPI contract, shared pagination helpers, Post/User schemas and project conve
 backend test command passed (4 suites, 23 tests), the Nest build and lint passed, and the OpenAPI YAML
 parsed successfully. Manual Swagger and live MongoDB testing have not yet been performed.
 ================================================
+
+================================================
+Date: 2026-11-05
+Student: [Abdallah Mahmoud]
+Tool: Codex
+Related Requirement: ITN-14
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #63 (ITN-14). Implement ITN-14 on branch
+feature/ITN-14-budget-entries: add, edit and delete non-negative budget entries for each day across
+food, accommodation, in-city transport and activities, each in a selected currency, through POST
+/api/itineraries/:id/days/:dayId/budgets, PATCH /api/budgets/:id and DELETE /api/budgets/:id, and
+show the itinerary's total budget broken down by category and by day through GET
+/api/itineraries/:id/budget-summary. Follow the issue, docs/api/openapi.yaml, docs/CONVENTIONS.md
+and the existing code patterns. The totals include the budget entries, the activity costs from
+ITN-10 (counted under Activities) and the intercity transport entries from ITN-16. Reject negative
+amounts and unknown categories with a clear 400, and check the currency against the supported
+currency list (GEN-12). The PATCH and DELETE routes only receive the budget id, so the service must
+find the itinerary and day that contain it and check ownership; another user's entry gives 404.
+Compute the totals on the fly from the stored entries so that deleting or reordering a day (ITN-07,
+ITN-08) recalculates them automatically, and add the budget subtotal to each city group returned by
+GET /api/itineraries/:id (ITN-09). Without conversion, never add amounts of different currencies
+together: return the totals per currency and leave a marked extension point for the converted total
+(ITN-18). Add local unit tests for the main rules. Every other ITN requirement is left for its own
+issue.
+
+How the output was used:
+Used as the base for the budget entry schema, its DTOs, the budget methods in ItinerariesService,
+the budget summary and the budget routes. I checked it against the issue and openapi.yaml: amounts
+cannot be negative, only the four categories are accepted, the currency must be a supported one, the
+totals by category and by day include budget entries, activity costs and transport entries, each city
+group shows its subtotal, and another user's entry gives 404. Verified with npm run lint,
+npm run build, local tests and in Swagger, including a day delete and a reorder.

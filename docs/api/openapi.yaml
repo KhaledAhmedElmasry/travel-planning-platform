@@ -4590,7 +4590,7 @@ paths:
     get:
       operationId: getItinerariesByIdBudgetSummary
       tags: [Itineraries]
-      summary: 'Get the budget totals in the display currency (ITN-14, ITN-18)'
+      summary: 'Get budget totals by category, day and currency (ITN-14)'
       description: |
         **Access:** the owner.
 
@@ -4598,23 +4598,25 @@ paths:
         the activity costs from ITN-10), by day, intercity transport (ITN-16) separately, and the grand
         total (ITN-14).
 
-        All amounts are converted to the display currency (ITN-18): the `currency` parameter, or the
-        user's preferred currency (ACC-09). The backend fetches exchange rates from FXRatesAPI once per
-        day and caches them in the database; the API key is never sent to the frontend. If the API is
-        unavailable, the last cached rates are used and their date is shown. Booking prices are never
-        converted (NEW-04).
+        Each total is an object keyed by currency; amounts in different currencies are never added
+        together. Currency conversion is reserved for ITN-18 and is represented by the marked
+        `convertedTotal` extension point.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
         - name: currency
           in: query
-          description: Display currency from the supported currency list. Defaults to the user's preferred currency.
+          description: Optional supported currency to validate for a future conversion request (ITN-18).
           schema:
             type: string
             example: EUR
       responses:
         '200':
-          description: The display currency, the date of the exchange rates used, totals per category, per day and per city group, intercity transport total, and grand total.
+          description: Totals per category, day and currency, intercity transport total, grand total, and the ITN-18 conversion extension point.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetSummary'
         '400':
           description: The currency code is invalid or not supported.
           content:
@@ -4631,14 +4633,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Itinerary not found, or it belongs to another user.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/budget-summary", "timestamp": "2026-11-01T10:00:00.000Z"}
-        '503':
-          description: The exchange-rate API failed and no cached rates exist for this currency yet.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 503, "error": "SERVICE_UNAVAILABLE", "message": "The exchange-rate API failed and no cached rates exist for this currency yet.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/budget-summary", "timestamp": "2026-11-01T10:00:00.000Z"}
-
   /api/itineraries/public/search:
     get:
       operationId: getItinerariesPublicSearch
@@ -6592,6 +6586,43 @@ components:
       type: string
       description: Daily budget categories (ITN-14).
       enum: [food, accommodation, in_city_transport, activities]
+    CurrencyTotals:
+      type: object
+      description: Amounts keyed by ISO currency code; currencies are never mixed.
+      additionalProperties:
+        type: number
+        minimum: 0
+    BudgetSummary:
+      type: object
+      required: [totalsByCategory, totalsByDay, intercityTransport, grandTotal, convertedTotal]
+      properties:
+        totalsByCategory:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/CurrencyTotals'
+        totalsByDay:
+          type: array
+          items:
+            type: object
+            required: [dayId, dayNumber, date, totals]
+            properties:
+              dayId:
+                type: string
+              dayNumber:
+                type: integer
+              date:
+                type: string
+                format: date
+              totals:
+                $ref: '#/components/schemas/CurrencyTotals'
+        intercityTransport:
+          $ref: '#/components/schemas/CurrencyTotals'
+        grandTotal:
+          $ref: '#/components/schemas/CurrencyTotals'
+        convertedTotal:
+          nullable: true
+          description: Reserved for currency conversion in ITN-18; null until conversion is implemented.
+          type: object
     TransportMode:
       type: string
       enum: [flight, train, bus, car, ferry, other]

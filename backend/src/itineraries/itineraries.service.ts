@@ -30,6 +30,8 @@ import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
 import { CreateTransportCostDto } from './dto/create-transport-cost.dto';
 import { UpdateTransportCostDto } from './dto/update-transport-cost.dto';
+import { CreateBudgetEntryDto } from './dto/create-budget-entry.dto';
+import { UpdateBudgetEntryDto } from './dto/update-budget-entry.dto';
 import { UploadsService } from '../uploads/uploads.service';
 import {
   Itinerary,
@@ -37,6 +39,8 @@ import {
   ItineraryDocument,
   Activity,
   TransportCost,
+  BudgetCategory,
+  BudgetEntry,
 } from './schemas/itinerary.schema';
 
 // Area: Itineraries
@@ -282,6 +286,117 @@ export class ItinerariesService {
     userId: string,
   ): Promise<ItineraryResponse> {
     return this.toResponse(await this.findOwnedOrThrow(itineraryId, userId));
+  }
+
+  async addBudgetEntry(
+    itineraryId: string | Types.ObjectId,
+    dayId: string | Types.ObjectId,
+    userId: string,
+    dto: CreateBudgetEntryDto,
+  ): Promise<BudgetEntryResponse> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    const day = isValidObjectId(dayId) ? itinerary.days.id(dayId) : null;
+    if (!day) throw dayNotFound();
+    await this.assertCurrencyExists(dto.currency);
+
+    const entry = {
+      _id: new Types.ObjectId(),
+      category: dto.category,
+      amount: dto.amount,
+      currency: dto.currency,
+      description: dto.description ?? '',
+    };
+    day.budgets.push(entry);
+    await this.saveItinerary(itinerary);
+    return toBudgetEntryResponse(entry, day._id);
+  }
+
+  async updateBudgetEntry(
+    budgetId: string | Types.ObjectId,
+    userId: string,
+    dto: UpdateBudgetEntryDto,
+  ): Promise<BudgetEntryResponse> {
+    const itinerary = await this.findItineraryByOwnedBudgetEntry(
+      budgetId,
+      userId,
+    );
+    const found = this.findBudgetEntry(itinerary, budgetId);
+    if (!found) throw budgetEntryNotFound();
+    const { entry, day } = found;
+    if (dto.currency !== undefined)
+      await this.assertCurrencyExists(dto.currency);
+    if (dto.category !== undefined) entry.category = dto.category;
+    if (dto.amount !== undefined) entry.amount = dto.amount;
+    if (dto.currency !== undefined) entry.currency = dto.currency;
+    if (dto.description !== undefined) entry.description = dto.description;
+    await this.saveItinerary(itinerary);
+    return toBudgetEntryResponse(entry, day._id);
+  }
+
+  async deleteBudgetEntry(
+    budgetId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<void> {
+    const itinerary = await this.findItineraryByOwnedBudgetEntry(
+      budgetId,
+      userId,
+    );
+    const found = this.findBudgetEntry(itinerary, budgetId);
+    if (!found) throw budgetEntryNotFound();
+    found.day.budgets.pull(found.entry._id);
+    await this.saveItinerary(itinerary);
+  }
+
+  async getBudgetSummary(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+    currency?: string,
+  ): Promise<BudgetSummaryResponse> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    if (currency !== undefined) await this.assertCurrencyExists(currency);
+
+    const byCategory = emptyCategoryTotals();
+    const byDay: BudgetDayTotal[] = [];
+    for (const day of itinerary.days) {
+      const totals = emptyTotals();
+      for (const budget of day.budgets ?? []) {
+        addAmount(byCategory[budget.category], budget.currency, budget.amount);
+        addAmount(totals, budget.currency, budget.amount);
+      }
+      for (const activity of day.activities ?? []) {
+        if (activity.cost !== undefined && activity.currency !== undefined) {
+          addAmount(byCategory.activities, activity.currency, activity.cost);
+          addAmount(totals, activity.currency, activity.cost);
+        }
+      }
+      for (const cost of itinerary.transportCosts.filter((item) =>
+        item.dayId.equals(day._id),
+      )) {
+        addAmount(totals, cost.currency, cost.amount);
+      }
+      byDay.push({
+        dayId: String(day._id),
+        dayNumber: day.number,
+        date: day.date.toISOString().slice(0, 10),
+        totals,
+      });
+    }
+
+    const intercityTransport = emptyTotals();
+    for (const cost of itinerary.transportCosts) {
+      addAmount(intercityTransport, cost.currency, cost.amount);
+    }
+    const grandTotal = sumTotals(
+      Object.values(byCategory).concat(intercityTransport),
+    );
+
+    return {
+      totalsByCategory: byCategory,
+      totalsByDay: byDay,
+      intercityTransport,
+      grandTotal,
+      convertedTotal: null,
+    };
   }
 
   async addActivity(
@@ -554,7 +669,10 @@ export class ItinerariesService {
       transportCosts: itinerary.transportCosts.map(toTransportCostResponse),
       // ITN-09: rebuilt from the days on every response, so it is always current after an add,
       // edit, delete or reorder that went through renumberDays.
-      cityGroups: computeCityGroups(itinerary.days),
+      cityGroups: computeCityGroups(itinerary.days).map((group) => ({
+        ...group,
+        budgetSubtotal: this.cityGroupSubtotal(itinerary, group.dayIds),
+      })),
       createdAt: itinerary.createdAt,
       updatedAt: itinerary.updatedAt,
     };
@@ -590,6 +708,21 @@ export class ItinerariesService {
     return itinerary;
   }
 
+  private async findItineraryByOwnedBudgetEntry(
+    budgetId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<ItineraryDocument> {
+    if (!isValidObjectId(budgetId)) throw budgetEntryNotFound();
+    const itinerary = await this.itineraryModel
+      .findOne({
+        userId: new Types.ObjectId(userId),
+        'days.budgets._id': budgetId,
+      })
+      .exec();
+    if (!itinerary) throw budgetEntryNotFound();
+    return itinerary;
+  }
+
   private findActivity(
     itinerary: ItineraryDocument,
     activityId: string | Types.ObjectId,
@@ -599,6 +732,42 @@ export class ItinerariesService {
       if (activity) return activity;
     }
     return null;
+  }
+
+  private findBudgetEntry(
+    itinerary: ItineraryDocument,
+    budgetId: string | Types.ObjectId,
+  ): { entry: BudgetEntry; day: ItineraryDay } | null {
+    for (const day of itinerary.days) {
+      const entry = day.budgets?.id(budgetId);
+      if (entry) return { entry, day };
+    }
+    return null;
+  }
+
+  private cityGroupSubtotal(
+    itinerary: ItineraryDocument,
+    dayIds: string[],
+  ): CurrencyTotals {
+    const totals = emptyTotals();
+    for (const dayId of dayIds) {
+      const day = itinerary.days.id(dayId);
+      if (!day) continue;
+      for (const budget of day.budgets ?? []) {
+        addAmount(totals, budget.currency, budget.amount);
+      }
+      for (const activity of day.activities ?? []) {
+        if (activity.cost !== undefined && activity.currency !== undefined) {
+          addAmount(totals, activity.currency, activity.cost);
+        }
+      }
+      for (const cost of itinerary.transportCosts.filter((item) =>
+        item.dayId.equals(day._id),
+      )) {
+        addAmount(totals, cost.currency, cost.amount);
+      }
+    }
+    return totals;
   }
 
   private async removeImages(storageKeys: string[]): Promise<void> {
@@ -674,6 +843,7 @@ export interface DayResponse {
   cityId: string;
   notes: string;
   activities?: ActivityResponse[];
+  budgets?: BudgetEntryResponse[];
 }
 
 export interface ActivityResponse {
@@ -715,6 +885,32 @@ export interface TransportCostResponse {
   currency: string;
 }
 
+export type CurrencyTotals = Record<string, number>;
+
+export interface BudgetEntryResponse {
+  id: string;
+  dayId: string;
+  category: BudgetCategory;
+  amount: number;
+  currency: string;
+  description: string;
+}
+
+export interface BudgetDayTotal {
+  dayId: string;
+  dayNumber: number;
+  date: string;
+  totals: CurrencyTotals;
+}
+
+export interface BudgetSummaryResponse {
+  totalsByCategory: Record<BudgetCategory, CurrencyTotals>;
+  totalsByDay: BudgetDayTotal[];
+  intercityTransport: CurrencyTotals;
+  grandTotal: CurrencyTotals;
+  convertedTotal: null;
+}
+
 export interface ItinerarySummary {
   id: string;
   title: string;
@@ -731,6 +927,7 @@ function toStartDate(value: string): Date {
 function toDayResponse(
   day: Pick<ItineraryDay, 'number' | 'date' | 'cityId' | 'notes' | '_id'> & {
     activities?: Activity[];
+    budgets?: BudgetEntry[];
   },
   includeActivities = false,
 ): DayResponse {
@@ -743,6 +940,9 @@ function toDayResponse(
   };
   if (includeActivities) {
     response.activities = (day.activities ?? []).map(toActivityResponse);
+    response.budgets = (day.budgets ?? []).map((budget) =>
+      toBudgetEntryResponse(budget, day._id),
+    );
   }
   return response;
 }
@@ -773,6 +973,43 @@ function activityNotFound(): NotFoundException {
   return new NotFoundException(
     "Activity not found, or it belongs to another user's itinerary.",
   );
+}
+
+function budgetEntryNotFound(): NotFoundException {
+  return new NotFoundException(
+    "Budget entry not found, or it belongs to another user's itinerary.",
+  );
+}
+
+function emptyTotals(): CurrencyTotals {
+  return {};
+}
+
+function emptyCategoryTotals(): Record<BudgetCategory, CurrencyTotals> {
+  return {
+    [BudgetCategory.Food]: emptyTotals(),
+    [BudgetCategory.Accommodation]: emptyTotals(),
+    [BudgetCategory.InCityTransport]: emptyTotals(),
+    [BudgetCategory.Activities]: emptyTotals(),
+  };
+}
+
+function addAmount(
+  totals: CurrencyTotals,
+  currency: string,
+  amount: number,
+): void {
+  totals[currency] = (totals[currency] ?? 0) + amount;
+}
+
+function sumTotals(totals: CurrencyTotals[]): CurrencyTotals {
+  const result = emptyTotals();
+  for (const totalsForCurrency of totals) {
+    for (const [currency, amount] of Object.entries(totalsForCurrency)) {
+      addAmount(result, currency, amount);
+    }
+  }
+  return result;
 }
 
 function assertActivityCostCurrency(
@@ -808,5 +1045,19 @@ function toTransportCostResponse(cost: TransportCost): TransportCostResponse {
     toCityId: cost.toCityId,
     amount: cost.amount,
     currency: cost.currency,
+  };
+}
+
+function toBudgetEntryResponse(
+  entry: BudgetEntry,
+  dayId: Types.ObjectId,
+): BudgetEntryResponse {
+  return {
+    id: String(entry._id),
+    dayId: String(dayId),
+    category: entry.category,
+    amount: entry.amount,
+    currency: entry.currency,
+    description: entry.description ?? '',
   };
 }

@@ -34,6 +34,9 @@ import { CreateTransportCostDto } from './dto/create-transport-cost.dto';
 import { UpdateTransportCostDto } from './dto/update-transport-cost.dto';
 import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
+import { CreateBudgetEntryDto } from './dto/create-budget-entry.dto';
+import { UpdateBudgetEntryDto } from './dto/update-budget-entry.dto';
+import { BudgetSummaryQueryDto } from './dto/budget-summary-query.dto';
 import {
   ActivityResponse,
   ActivityImageResponse,
@@ -42,6 +45,8 @@ import {
   ItineraryResponse,
   ItinerarySummary,
   TransportCostResponse,
+  BudgetEntryResponse,
+  BudgetSummaryResponse,
 } from './itineraries.service';
 
 // Area: Itineraries
@@ -256,6 +261,55 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
     await this.itinerariesService.removeActivityImage(id, imageId, user.id);
+  }
+
+  @Post('itineraries/:id/days/:dayId/budgets')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  addBudgetEntry(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('dayId', ParseObjectIdPipe) dayId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateBudgetEntryDto,
+  ): Promise<BudgetEntryResponse> {
+    return this.itinerariesService.addBudgetEntry(id, dayId, user.id, dto);
+  }
+
+  @Patch('budgets/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  updateBudgetEntry(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateBudgetEntryDto,
+  ): Promise<BudgetEntryResponse> {
+    return this.itinerariesService.updateBudgetEntry(id, user.id, dto);
+  }
+
+  @Delete('budgets/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async deleteBudgetEntry(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    await this.itinerariesService.deleteBudgetEntry(id, user.id);
+  }
+
+  @Get('itineraries/:id/budget-summary')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  getBudgetSummary(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Query() query: BudgetSummaryQueryDto,
+  ): Promise<BudgetSummaryResponse> {
+    return this.itinerariesService.getBudgetSummary(
+      id,
+      user.id,
+      query.currency,
+    );
   }
 
   @Post('itineraries/:id/transport-costs')
