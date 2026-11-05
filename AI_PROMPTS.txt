@@ -40,6 +40,35 @@ Used as the implementation of ITN-01: itinerary schema, DTOs, service and the cr
 delete routes with ownership checks and Swagger decorators. Verified by building, linting and
 testing the happy path and every error case in Swagger.
 ================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-16
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #64 (ITN-16). Implement ITN-16 on branch
+feature/ITN-16-transport-costs: add, edit and delete a transport cost entry (mode, from-city,
+to-city, amount, currency and the itinerary day it belongs to) through POST
+/api/itineraries/:id/transport-costs, PATCH /api/transport-costs/:id and DELETE
+/api/transport-costs/:id. Follow the issue, docs/api/openapi.yaml (allowed modes and status codes),
+docs/CONVENTIONS.md and the existing code patterns. Both cities must exist in the predefined city
+list, the day must be a day of this itinerary, the amount must be non-negative and the currency must
+be in the supported currency list (GEN-12), otherwise return a clear 400. The PATCH and DELETE routes
+only receive the entry id, so the service must find the itinerary that contains it and check
+ownership; another user's entry gives 404. Include the entries in GET /api/itineraries/:id with no
+conversion (ITN-18), and when a day is deleted (ITN-07) its transport entries must not point to a
+missing day. This requirement must be merged before ITN-14, because the budget totals include it.
+Add local unit tests for the main rules. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the transport cost schema, its DTOs, the service methods and the three routes.
+I checked it against the issue and openapi.yaml: the mode comes from the allowed values, both cities
+exist, the day belongs to the itinerary, the amount is not negative, the currency is supported, and
+another user's entry gives 404. Verified with npm run lint, npm run build, local tests and by
+testing every valid and invalid case in Swagger.
+================================================
+
+================================================
 Date: YYYY-MM-DD
 Student: <Full name>
 Tool: <ChatGPT / Claude / Copilot / Gemini / ...>
