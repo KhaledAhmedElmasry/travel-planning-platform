@@ -6613,6 +6613,7 @@ components:
         grandTotal:
           $ref: '#/components/schemas/CurrencyTotals'
         convertedTotal:
+          type: object
           allOf:
             - $ref: '#/components/schemas/ConvertedBudgetSummary'
           nullable: true
