@@ -307,6 +307,11 @@ export class ItinerariesService {
     );
     const cost = itinerary.transportCosts.id(costId);
     if (!cost) throw transportCostNotFound();
+    if (Object.values(dto).every((value) => value === undefined)) {
+      throw new BadRequestException(
+        'At least one transport cost field is required.',
+      );
+    }
 
     if (dto.dayId !== undefined) {
       this.assertDayBelongsToItinerary(itinerary, dto.dayId);
