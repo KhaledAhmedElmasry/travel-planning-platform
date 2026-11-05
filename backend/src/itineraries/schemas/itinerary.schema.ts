@@ -2,6 +2,19 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 import { TransportMode } from '../../common/enums';
 
+@Schema({ _id: true, timestamps: false })
+export class ActivityImage {
+  _id: Types.ObjectId;
+
+  @Prop({ type: String, required: true })
+  url: string;
+
+  @Prop({ type: String, required: true })
+  storageKey: string;
+}
+
+export const ActivityImageSchema = SchemaFactory.createForClass(ActivityImage);
+
 // Area: Itineraries
 // ITN-01: a user's private itinerary. ITN-05: its ordered days. Activities, budgets, transport,
 // cloning and public visibility are added by their own requirements.
@@ -24,6 +37,9 @@ export class Activity {
 
   @Prop({ type: String, match: /^[A-Z]{3}$/ })
   currency?: string;
+
+  @Prop({ type: [ActivityImageSchema], default: [] })
+  images?: Types.DocumentArray<ActivityImage>;
 }
 
 export const ActivitySchema = SchemaFactory.createForClass(Activity);

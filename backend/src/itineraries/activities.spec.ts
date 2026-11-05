@@ -16,6 +16,11 @@ describe('ItinerariesService activities (ITN-10)', () => {
   let itinerary: ItineraryDocument;
   let save: jest.Mock;
   let findOne: jest.Mock;
+  let uploads: {
+    storeImage: jest.Mock;
+    removeImage: jest.Mock;
+    removeImages: jest.Mock;
+  };
   let service: ItinerariesService;
 
   beforeEach(() => {
@@ -31,7 +36,20 @@ describe('ItinerariesService activities (ITN-10)', () => {
     findOne = jest.fn().mockReturnValue({
       exec: jest.fn().mockResolvedValue(itinerary),
     });
-    service = new ItinerariesService({ findOne } as never, {} as never);
+    uploads = {
+      storeImage: jest.fn().mockResolvedValue({
+        id: new Types.ObjectId().toHexString(),
+        url: '/uploads/images/activity.jpg',
+        storageKey: 'activity.jpg',
+      }),
+      removeImage: jest.fn().mockResolvedValue(undefined),
+      removeImages: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new ItinerariesService(
+      { findOne } as never,
+      {} as never,
+      uploads,
+    );
   });
 
   const createDto: CreateActivityDto = {
@@ -118,5 +136,73 @@ describe('ItinerariesService activities (ITN-10)', () => {
 
     await service.deleteActivity(new Types.ObjectId(activity.id), userId);
     expect(itinerary.days[0].activities).toHaveLength(0);
+  });
+
+  it('attaches and removes an image only on an owned activity', async () => {
+    const activity = await service.addActivity(
+      itinerary._id,
+      itinerary.days[0]._id,
+      userId,
+      createDto,
+    );
+    const activityId = new Types.ObjectId(activity.id);
+    const uploaded = await service.attachActivityImage(activityId, userId, {
+      mimetype: 'image/jpeg',
+      size: 10,
+      buffer: Buffer.from('jpg'),
+    } as Express.Multer.File);
+
+    expect(uploaded.id).toEqual(expect.any(String));
+    expect(uploaded.url).toBe('/uploads/images/activity.jpg');
+    expect(itinerary.days[0].activities[0].images).toHaveLength(1);
+
+    await service.removeActivityImage(
+      activityId,
+      new Types.ObjectId(uploaded.id),
+      userId,
+    );
+    expect(uploads.removeImages).toHaveBeenCalledWith(['activity.jpg']);
+    expect(itinerary.days[0].activities[0].images).toHaveLength(0);
+  });
+
+  it('removes all activity image files when deleting a day or itinerary', async () => {
+    const activity = await service.addActivity(
+      itinerary._id,
+      itinerary.days[0]._id,
+      userId,
+      createDto,
+    );
+    await service.attachActivityImage(new Types.ObjectId(activity.id), userId, {
+      mimetype: 'image/png',
+      size: 10,
+      buffer: Buffer.from('png'),
+    } as Express.Multer.File);
+
+    await service.deleteDay(itinerary._id, itinerary.days[0]._id, userId);
+    expect(uploads.removeImages).toHaveBeenCalledWith(['activity.jpg']);
+  });
+
+  it('rejects a sixth image through the shared upload limit', async () => {
+    const activity = await service.addActivity(
+      itinerary._id,
+      itinerary.days[0]._id,
+      userId,
+      createDto,
+    );
+    itinerary.days[0].activities[0].images!.push(
+      ...Array.from({ length: 5 }, () => ({
+        _id: new Types.ObjectId(),
+        url: '/uploads/images/existing.jpg',
+        storageKey: 'existing.jpg',
+      })),
+    );
+
+    await expect(
+      service.attachActivityImage(new Types.ObjectId(activity.id), userId, {
+        mimetype: 'image/jpeg',
+        size: 10,
+        buffer: Buffer.from('jpg'),
+      } as Express.Multer.File),
+    ).rejects.toThrow(BadRequestException);
   });
 });

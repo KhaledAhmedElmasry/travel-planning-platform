@@ -11,7 +11,10 @@ import {
   Post,
   Query,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { CurrentUser, Roles } from '../common/decorators';
@@ -33,6 +36,7 @@ import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
 import {
   ActivityResponse,
+  ActivityImageResponse,
   DayResponse,
   ItinerariesService,
   ItineraryResponse,
@@ -227,6 +231,31 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
     await this.itinerariesService.deleteActivity(id, user.id);
+  }
+
+  @Post('activities/:id/images')
+  @UseInterceptors(FileInterceptor('image'))
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  attachActivityImage(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ): Promise<ActivityImageResponse> {
+    if (!file) throw new BadRequestException('image is required');
+    return this.itinerariesService.attachActivityImage(id, user.id, file);
+  }
+
+  @Delete('activities/:id/images/:imageId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async removeActivityImage(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('imageId', ParseObjectIdPipe) imageId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    await this.itinerariesService.removeActivityImage(id, imageId, user.id);
   }
 
   @Post('itineraries/:id/transport-costs')
