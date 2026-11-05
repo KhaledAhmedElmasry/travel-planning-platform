@@ -1218,3 +1218,32 @@ cannot be negative, only the four categories are accepted, the currency must be 
 totals by category and by day include budget entries, activity costs and transport entries, each city
 group shows its subtotal, and another user's entry gives 404. Verified with npm run lint,
 npm run build, local tests and in Swagger, including a day delete and a reorder.
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-20
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #66 (ITN-20). Implement ITN-20 on branch
+feature/ITN-20-visibility: the owner sets an itinerary's visibility to Public or Private through
+PATCH /api/itineraries/:id, and public itineraries are listed in the shared search through GET
+/api/itineraries/public/search without keyword filtering, declared before the /:id route so
+"public" is not read as an id. Follow the issue, docs/api/openapi.yaml, docs/CONVENTIONS.md and the
+existing code patterns. New itineraries stay Private, an invalid value gives a clear 400, and
+another user's itinerary gives 404. Setting Private removes the itinerary from the search
+immediately, and deleting an itinerary (ITN-01) removes it too. The public list needs no login (guests
+can search), returns only Public itineraries that are not hidden (the hidden flag belongs to Area 3
+and must not be renamed), never shows private data, and uses paginate and emptyPaginatedList with 10
+per page. Add local unit tests for the main rules. Keyword search, filters, public view and cloning
+(ITN-21) are left for their own issue.
+
+How the output was used:
+Used as the base for the visibility field in the update DTO, the visibility check in
+ItinerariesService and the public list route. I checked it against the issue and openapi.yaml: only
+the owner can change visibility, the default is Private, private and hidden itineraries never appear
+in the public list, a guest can call the list, switching to Private removes the itinerary at once,
+and the list is paginated with the friendly empty result. Verified with npm run lint, npm run build,
+local tests and in Swagger by making an itinerary Public, finding it in the public list as a guest
+and making it Private again.

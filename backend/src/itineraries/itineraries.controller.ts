@@ -27,6 +27,7 @@ import { CreateDayDto } from './dto/create-day.dto';
 import { DeleteDayQueryDto } from './dto/delete-day-query.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { ListItinerariesQueryDto } from './dto/list-itineraries-query.dto';
+import { SearchPublicItinerariesQueryDto } from './dto/search-public-itineraries-query.dto';
 import { ReorderDaysDto } from './dto/reorder-days.dto';
 import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
@@ -111,6 +112,14 @@ export class ItinerariesController {
     @Query() query: ListItinerariesQueryDto,
   ): Promise<PaginatedList<ItinerarySummary>> {
     return this.itinerariesService.list(user.id, query.page);
+  }
+
+  // ITN-20: guests can browse public, non-hidden itineraries. Keep this before /:id.
+  @Get('itineraries/public/search')
+  searchPublic(
+    @Query() query: SearchPublicItinerariesQueryDto,
+  ): Promise<PaginatedList<ItinerarySummary>> {
+    return this.itinerariesService.searchPublic(query.page);
   }
 
   // ITN-03 / ACC-11: ownership is checked by the service; invalid ids are rejected at the edge.

@@ -83,6 +83,10 @@ export class ItinerariesService {
       itinerary.countryCodes = dto.countryCodes;
     }
     if (dto.title !== undefined) itinerary.title = dto.title;
+    if (dto.visibility !== undefined) {
+      assertVisibility(dto.visibility);
+      itinerary.visibility = dto.visibility;
+    }
     if (dto.startDate !== undefined) {
       itinerary.startDate = toStartDate(dto.startDate);
       // Changing the start date moves the dates of all days (openapi.yaml, PATCH /itineraries/{id}).
@@ -264,6 +268,29 @@ export class ItinerariesService {
     page = 1,
   ): Promise<PaginatedList<ItinerarySummary>> {
     const filter = { userId: new Types.ObjectId(userId) };
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [itineraries, total] = await Promise.all([
+      this.itineraryModel
+        .find(filter)
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.itineraryModel.countDocuments(filter).exec(),
+    ]);
+
+    if (total === 0) return emptyPaginatedList(page, DEFAULT_PAGE_SIZE);
+
+    return paginate(
+      itineraries.map((itinerary) => this.toSummary(itinerary)),
+      total,
+      page,
+      DEFAULT_PAGE_SIZE,
+    );
+  }
+
+  async searchPublic(page = 1): Promise<PaginatedList<ItinerarySummary>> {
+    const filter = { visibility: 'public', hidden: { $ne: true } };
     const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
     const [itineraries, total] = await Promise.all([
       this.itineraryModel
@@ -1085,6 +1112,16 @@ function assertActivityCostCurrency(
 ): void {
   if (cost !== undefined && currency === undefined) {
     throw new BadRequestException('currency is required when cost is given.');
+  }
+}
+
+function assertVisibility(
+  visibility: unknown,
+): asserts visibility is 'private' | 'public' {
+  if (visibility !== 'private' && visibility !== 'public') {
+    throw new BadRequestException(
+      'Visibility must be either private or public.',
+    );
   }
 }
 
