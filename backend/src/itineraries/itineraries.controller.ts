@@ -45,6 +45,7 @@ import {
   ItinerariesService,
   ItineraryResponse,
   ItinerarySummary,
+  PublicItineraryResponse,
   TransportCostResponse,
   BudgetEntryResponse,
   BudgetSummaryResponse,
@@ -119,7 +120,15 @@ export class ItinerariesController {
   searchPublic(
     @Query() query: SearchPublicItinerariesQueryDto,
   ): Promise<PaginatedList<ItinerarySummary>> {
-    return this.itinerariesService.searchPublic(query.page);
+    return this.itinerariesService.searchPublic(query);
+  }
+
+  @Get('itineraries/public/:id')
+  getPublic(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Query('currency') currency?: string,
+  ): Promise<PublicItineraryResponse> {
+    return this.itinerariesService.getPublic(id, currency);
   }
 
   // ITN-03 / ACC-11: ownership is checked by the service; invalid ids are rejected at the edge.
@@ -131,6 +140,16 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
   ): Promise<ItineraryResponse> {
     return this.itinerariesService.getOne(id, user.id);
+  }
+
+  @Post('itineraries/:id/clone')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  clone(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<ItineraryResponse> {
+    return this.itinerariesService.clone(id, user.id);
   }
 
   // ITN-01: ownership is enforced in the service so another user's itinerary is indistinguishable
