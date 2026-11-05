@@ -97,6 +97,26 @@ testing every valid and invalid case in Swagger.
 ================================================
 
 ================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-18
+
+Prompt:
+Implement ITN-18 on feature/ITN-18-exchange-rates: convert itinerary budget entries, activity
+costs and intercity transport to the user's supported preferred currency in the budget summary,
+using backend-only FXRatesAPI access, a daily MongoDB cache, cached fallback behavior, clear
+currency/API errors, the rate date, environment validation, OpenAPI documentation and mocked
+local unit tests. Booking prices remain in the platform currency.
+
+How the output was used:
+Added the daily exchange-rate cache schema and service, backend-only API integration, preferred
+currency validation and conversion details to the budget summary, environment configuration,
+OpenAPI response documentation and unit tests covering cache hit/miss and API failure fallback
+cases. Verified with npm run lint, npm run build and npm test -- --runInBand.
+================================================
+
+================================================
 Date: YYYY-MM-DD
 Student: <Full name>
 Tool: <ChatGPT / Claude / Copilot / Gemini / ...>

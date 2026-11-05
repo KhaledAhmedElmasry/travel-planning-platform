@@ -42,6 +42,8 @@ import {
   BudgetCategory,
   BudgetEntry,
 } from './schemas/itinerary.schema';
+import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service';
+import { UsersService } from '../users/users.service';
 
 // Area: Itineraries
 // Business logic and database access for: ITN-01..ITN-26
@@ -52,6 +54,8 @@ export class ItinerariesService {
     private readonly itineraryModel: Model<Itinerary>,
     @InjectConnection() private readonly connection: Connection,
     @Optional() private readonly uploadsService?: UploadsService,
+    @Optional() private readonly usersService?: UsersService,
+    @Optional() private readonly exchangeRatesService?: ExchangeRatesService,
   ) {}
 
   async create(
@@ -389,6 +393,60 @@ export class ItinerariesService {
     const grandTotal = sumTotals(
       Object.values(byCategory).concat(intercityTransport),
     );
+    const targetCurrency =
+      currency ??
+      (this.usersService
+        ? (await this.usersService.findById(userId))?.preferredCurrency
+        : undefined);
+
+    if (targetCurrency && this.exchangeRatesService) {
+      await this.assertCurrencyExists(targetCurrency);
+      const convertedCategories: Record<BudgetCategory, CurrencyTotals> =
+        {} as Record<BudgetCategory, CurrencyTotals>;
+      for (const category of Object.values(BudgetCategory)) {
+        convertedCategories[category] = (
+          await this.exchangeRatesService.convertTotals(
+            byCategory[category],
+            targetCurrency,
+          )
+        ).totals;
+      }
+      const convertedDays: BudgetDayTotal[] = [];
+      let rateDate: string | undefined;
+      for (const dayTotal of byDay) {
+        const converted = await this.exchangeRatesService.convertTotals(
+          dayTotal.totals,
+          targetCurrency,
+        );
+        rateDate ??= converted.rateDate;
+        convertedDays.push({ ...dayTotal, totals: converted.totals });
+      }
+      const convertedTransport = await this.exchangeRatesService.convertTotals(
+        intercityTransport,
+        targetCurrency,
+      );
+      const convertedGrandTotal = await this.exchangeRatesService.convertTotals(
+        grandTotal,
+        targetCurrency,
+      );
+      rateDate ??= convertedTransport.rateDate;
+      rateDate ??= convertedGrandTotal.rateDate;
+
+      return {
+        totalsByCategory: byCategory,
+        totalsByDay: byDay,
+        intercityTransport,
+        grandTotal,
+        convertedTotal: {
+          currency: targetCurrency,
+          rateDate: rateDate,
+          totalsByCategory: convertedCategories,
+          totalsByDay: convertedDays,
+          intercityTransport: convertedTransport.totals,
+          grandTotal: convertedGrandTotal.totals,
+        },
+      };
+    }
 
     return {
       totalsByCategory: byCategory,
@@ -908,7 +966,16 @@ export interface BudgetSummaryResponse {
   totalsByDay: BudgetDayTotal[];
   intercityTransport: CurrencyTotals;
   grandTotal: CurrencyTotals;
-  convertedTotal: null;
+  convertedTotal: ConvertedBudgetSummary | null;
+}
+
+export interface ConvertedBudgetSummary {
+  currency: string;
+  rateDate: string;
+  totalsByCategory: Record<BudgetCategory, CurrencyTotals>;
+  totalsByDay: BudgetDayTotal[];
+  intercityTransport: CurrencyTotals;
+  grandTotal: CurrencyTotals;
 }
 
 export interface ItinerarySummary {

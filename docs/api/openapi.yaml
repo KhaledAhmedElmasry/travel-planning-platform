@@ -4590,29 +4590,31 @@ paths:
     get:
       operationId: getItinerariesByIdBudgetSummary
       tags: [Itineraries]
-      summary: 'Get budget totals by category, day and currency (ITN-14)'
+      summary: 'Get budget totals and conversion in the preferred currency (ITN-14, ITN-18)'
       description: |
         **Access:** the owner.
 
         Totals by category (food, accommodation, in-city transport, activities, where activities include
         the activity costs from ITN-10), by day, intercity transport (ITN-16) separately, and the grand
-        total (ITN-14).
+        total (ITN-14). `convertedTotal` contains the same category, day, intercity and grand totals
+        converted to the authenticated user's preferred currency (ACC-09), rounded to two decimals,
+        and the date of the rates used (ITN-18). Booking prices are not included or converted (PAY-04).
 
         Each total is an object keyed by currency; amounts in different currencies are never added
-        together. Currency conversion is reserved for ITN-18 and is represented by the marked
-        `convertedTotal` extension point.
+        together in the original totals. The optional `currency` query parameter requests a supported
+        target currency; when omitted, the user's preferred currency is used.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
         - name: currency
           in: query
-          description: Optional supported currency to validate for a future conversion request (ITN-18).
+          description: Optional supported target currency. Defaults to the user's preferred currency.
           schema:
             type: string
             example: EUR
       responses:
         '200':
-          description: Totals per category, day and currency, intercity transport total, grand total, and the ITN-18 conversion extension point.
+          description: Original totals plus converted category, day, intercity and grand totals with the FX rate date.
           content:
             application/json:
               schema:
@@ -6620,9 +6622,44 @@ components:
         grandTotal:
           $ref: '#/components/schemas/CurrencyTotals'
         convertedTotal:
+          allOf:
+            - $ref: '#/components/schemas/ConvertedBudgetSummary'
           nullable: true
-          description: Reserved for currency conversion in ITN-18; null until conversion is implemented.
+          description: Converted totals in the requested or preferred currency, using rates from rateDate.
+    ConvertedBudgetSummary:
+      type: object
+      required: [currency, rateDate, totalsByCategory, totalsByDay, intercityTransport, grandTotal]
+      properties:
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        rateDate:
+          type: string
+          format: date
+          description: Date of the exchange-rate snapshot used for conversion.
+        totalsByCategory:
           type: object
+          additionalProperties:
+            $ref: '#/components/schemas/CurrencyTotals'
+        totalsByDay:
+          type: array
+          items:
+            type: object
+            required: [dayId, dayNumber, date, totals]
+            properties:
+              dayId:
+                type: string
+              dayNumber:
+                type: integer
+              date:
+                type: string
+                format: date
+              totals:
+                $ref: '#/components/schemas/CurrencyTotals'
+        intercityTransport:
+          $ref: '#/components/schemas/CurrencyTotals'
+        grandTotal:
+          $ref: '#/components/schemas/CurrencyTotals'
     TransportMode:
       type: string
       enum: [flight, train, bus, car, ferry, other]
