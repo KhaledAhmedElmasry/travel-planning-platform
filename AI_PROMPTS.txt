@@ -6,6 +6,24 @@ in chronological order, using the format below (project description, section 11)
 Add your entry in the same pull request as the work it relates to.
 
 ================================================
+Date: 2026-11-04
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-05 / Issue #74
+
+Prompt:
+Implement only BLG-05 on feature/BLG-05-comment-on-posts-Alamy. Follow the existing POST
+/api/posts/{id}/comments contract, create a Comment model and validation DTO, associate the
+authenticated registered user, accept comments only on visible published posts, set hidden false,
+increment commentCount safely, add isolated automated tests, and preserve pending BLG-03/BLG-08 work.
+
+How the output was used:
+Used AI assistance to implement the comment schema, DTO, controller route, service logic, model
+registration, and focused tests. The implementation was checked against the task text, issues.csv,
+TEAM_PLAN.md and OpenAPI. Three focused test suites (17 tests), backend build, targeted ESLint and
+OpenAPI YAML parsing passed. Tests use mocks; no live MongoDB or manual Swagger verification has been
+performed.
+================================================
 Date: 2026-11-03
 Student: [Abdallah Mahmoud]
 Tool: Codex
@@ -21,6 +39,63 @@ How the output was used:
 Used as the implementation of ITN-01: itinerary schema, DTOs, service and the create, edit and
 delete routes with ownership checks and Swagger decorators. Verified by building, linting and
 testing the happy path and every error case in Swagger.
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-10
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #61 (ITN-10). Implement ITN-10 on branch
+feature/ITN-10-activities: add, edit and delete activities for an itinerary day, with a required
+name, a description, an optional time and an optional cost, through POST
+/api/itineraries/:id/days/:dayId/activities, PATCH /api/activities/:id and DELETE
+/api/activities/:id. Follow the issue, docs/api/openapi.yaml (field limits and status codes),
+docs/CONVENTIONS.md and the existing code patterns. The optional cost must be non-negative and
+will be counted under Activities in the budget (ITN-14), so store it in a form ITN-14 can total.
+The time, when sent, must be a valid time. The PATCH and DELETE routes only receive the activity id,
+so the service must find the itinerary and day that contain it and check that the logged-in user owns
+it; another user's activity gives 404. Add local unit tests for the main rules. Images (ITN-12) and
+every other ITN requirement are left for their own issues.
+
+How the output was used:
+Used as the base for the activity schema, its DTOs, the activity methods in ItinerariesService and
+the three routes. I checked it against the issue and openapi.yaml: the name is required, the
+description, time and cost follow the limits in openapi.yaml, a negative cost and an invalid time give
+400, an activity is only added to a day of the user's own itinerary, and another user's activity or a
+malformed id gives 404 or 400. Verified with npm run lint, npm run build, local tests and by testing
+every valid and invalid case in Swagger.
+================================================
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-16
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #64 (ITN-16). Implement ITN-16 on branch
+feature/ITN-16-transport-costs: add, edit and delete a transport cost entry (mode, from-city,
+to-city, amount, currency and the itinerary day it belongs to) through POST
+/api/itineraries/:id/transport-costs, PATCH /api/transport-costs/:id and DELETE
+/api/transport-costs/:id. Follow the issue, docs/api/openapi.yaml (allowed modes and status codes),
+docs/CONVENTIONS.md and the existing code patterns. Both cities must exist in the predefined city
+list, the day must be a day of this itinerary, the amount must be non-negative and the currency must
+be in the supported currency list (GEN-12), otherwise return a clear 400. The PATCH and DELETE routes
+only receive the entry id, so the service must find the itinerary that contains it and check
+ownership; another user's entry gives 404. Include the entries in GET /api/itineraries/:id with no
+conversion (ITN-18), and when a day is deleted (ITN-07) its transport entries must not point to a
+missing day. This requirement must be merged before ITN-14, because the budget totals include it.
+Add local unit tests for the main rules. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the transport cost schema, its DTOs, the service methods and the three routes.
+I checked it against the issue and openapi.yaml: the mode comes from the allowed values, both cities
+exist, the day belongs to the itinerary, the amount is not negative, the currency is supported, and
+another user's entry gives 404. Verified with npm run lint, npm run build, local tests and by
+testing every valid and invalid case in Swagger.
+================================================
+
 ================================================
 Date: YYYY-MM-DD
 Student: <Full name>
@@ -608,4 +683,464 @@ Help me implement GEN-01 (in-app notifications: unread count, notification list,
 
 How the output was used:
 Used AI guidance to design the notification schema, query pagination (GEN-05, page size 10), and ownership verification. Implemented the Notification schema, ListNotificationsQueryDto, NotificationsService, and NotificationsController myself, protecting routes with JwtAuthGuard, and updated openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-04 (with the cabin part of FLT-05)
+
+Prompt:
+Continuing my Area 5 work on the latest develop, I asked the assistant to implement FLT-04 exactly
+as documented in docs/api/openapi.yaml: POST /api/flights/:id/cabins to add a cabin class from the
+fixed set (economy, premium_economy, business, first, each at most once per flight) with a seat
+count, price in cents and free baggage allowance, and PATCH /api/flights/:id/cabins/:cabinId to
+edit them, never lowering the seat count below the seats already booked or held by Area 1's seat
+holds, and only by the moderator of the flight's airline on a scheduled flight.
+
+How the output was used:
+Used the generated CreateCabinDto and UpdateCabinDto with class-validator rules, FlightsService
+addCabin() (atomic $push that cannot add the same class twice), updateCabin() (only applies if
+the booked/held counters did not change since they were checked, otherwise re-reads and retries),
+findManagedFlight() (404 unknown flight, 403 another airline or deactivated airline) and the two
+routes. Added response examples to the cabin endpoints in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-11
+
+Prompt:
+I asked the assistant to implement GitHub issue #8 (ACC-11): bookings and private itineraries are
+accessible only to their owner, except that admins may view all bookings (ACC-17) and moderators
+the bookings of their own hotel or airline (FLT-29, HTL-22), with unauthorised requests rejected
+(403/404). JwtAuthGuard, RolesGuard and @CurrentUser() already existed, so I asked for the shared
+ownership helper from the Area 2 task sheet, following the 403/404 rules in docs/CONVENTIONS.md
+and the access notes in docs/api/openapi.yaml.
+After the pull request review (2026-11-04) I gave the assistant the reviewer's comment and the
+flight booking schema and asked it to fix the airline moderator check.
+
+How the output was used:
+Used as backend/src/common/guards/ownership.ts: assertOwner (own data, otherwise 404),
+canViewBooking / assertCanViewBooking (owner, admin, or the moderator of the booking's airline or
+hotel, otherwise 404), bookingVisibilityFilter (the MongoDB filter for booking lists per role),
+assertManagesAirline / assertManagesHotel (provider data, otherwise 403) and canViewItinerary /
+assertCanViewItinerary (public for everyone, private or hidden only for the owner, no admin
+exception). I checked every rule against the requirement and openapi.yaml and checked that the
+field names match the hotel reservation (userId, hotelId) schema. Review fix: the flight booking
+stores the airline per segment (segments.airlineId, a round trip can have two airlines), not at the
+top level, so canViewBooking now accepts segments and lets an airline moderator through if any
+segment is on their airline, and bookingVisibilityFilter filters on 'segments.airlineId'. Verified
+with npm run lint, npm run build and local unit tests for every role (including a round trip with two
+airlines and a moderator of a third airline), including checks that fail when the admin rule, the
+moderator's provider check, the segments check or the private-itinerary rule is changed.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-12
+
+Prompt:
+I asked the assistant to implement GitHub issue #121 (ACC-12): a registered user deactivates
+their own account after confirmation; it is blocked while the user has upcoming Confirmed bookings,
+and a deactivated user cannot log in. I asked it to follow DELETE /api/users/me in
+docs/api/openapi.yaml (registered users only, 204 with the cookies cleared, 401, 403 for other
+roles, 409 for upcoming confirmed bookings, all sessions revoked) and to use the real booking
+fields from the flight booking and hotel reservation schemas.
+After the pull request review (2026-11-04) I gave the assistant the reviewer's comment and asked it
+to use the agreed hasUpcomingBookings() of the two booking services instead of reading the booking
+collections.
+
+How the output was used:
+Used as the base for the DELETE route in UsersController, AuthService.deactivateOwnAccount,
+UsersService.hasUpcomingBookings and deactivate, and the deactivatedAt field. Review fix:
+UsersService now injects FlightBookingsService and HotelBookingsService (UsersModule imports both
+modules) and calls their hasUpcomingBookings(), so deactivation and My Bookings share the NEW-01
+rule; the direct collection queries are removed. I checked it
+against the issue and openapi.yaml: admins and moderators get 403; a confirmed flight with a leg
+that has not departed (including only the return flight) or a confirmed stay that has not started
+(check-in after today; a stay that starts today no longer blocks) gives 409 and changes nothing; past, cancelled, expired, pending and other users'
+bookings do not block; on success the status becomes deactivated, every session is revoked, the
+cookies are cleared and the account can no longer log in. Hiding posts and public itineraries and
+showing "Deleted user" belong to the blog, reviews and itineraries areas, which filter on the
+deactivated status. Verified with npm run lint, npm run build, local tests (including checks that
+fail when the booking check, the session revoke or the role restriction is removed), a check that
+the whole application module graph still resolves with the two booking modules imported (no
+circular dependency, so no forwardRef was needed), and in Swagger.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-08 (endpoint also listed for FLT-04)
+
+Prompt:
+Continuing my Area 5 work on the latest develop, I asked the assistant to implement FLT-08 exactly
+as documented in docs/api/openapi.yaml: PUT /api/airlines/:id/baggage-policy, where the airline's
+own moderator sets the price per extra bag (integer cents, greater than 0) and the maximum number
+of extra bags per passenger (0 or more) for all the airline's flights, and to show the policy on
+the airline profile.
+
+How the output was used:
+Used the generated extraBagPrice and maxExtraBagsPerPassenger fields on the Airline schema (null
+and 0 until the policy is set, so no extra bags can be bought before that), BaggagePolicyDto with
+class-validator rules, AirlinesService.setBaggagePolicy() (reusing findManagedAirline: 404 unknown
+airline, 403 not its moderator or deactivated airline), the baggagePolicy object in the airline
+response and the PUT route. Updated the airline examples and the baggage-policy response in
+docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-09 (and the shared tier rule used by HTL-10)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-08 branch, I asked the assistant to implement FLT-09
+exactly as documented in docs/api/openapi.yaml: PUT /api/airlines/:id/cancellation-policy, where
+the airline's moderator replaces all cancellation tiers (unique daysBefore of 0 or more, refund
+0-100%), the shared refund rule in common/utils (the tier with the highest threshold not exceeding
+the days remaining, otherwise 0%) for airlines and hotels, and the two functions Area 1 was waiting
+for: AirlinesService.getBookingPolicies() and getRefundTier().
+
+How the output was used:
+Used the generated pickRefundTier(), findDuplicateThreshold() and sortTiers() helpers in
+common/utils, the cancellationTiers field on the Airline schema, CancellationPolicyDto with nested
+class-validator rules, AirlinesService.setCancellationPolicy() (duplicate threshold -> 400, tiers
+saved highest daysBefore first), getBookingPolicies() (name, tiers, extra-bag price and maximum, or
+null for an unknown airline) and getRefundTier() replacing the stubs, and the PUT route. Updated the
+cancellation-policy responses and the airline examples in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-05 (with NEW-02 and GEN-01 for time changes)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-09 branch, I asked the assistant to implement FLT-05
+exactly as documented in docs/api/openapi.yaml and the agreement with Area 1 in the flight schema
+comments: PATCH /api/flights/:id for the moderator of the flight's airline, only on scheduled
+flights, with the FLT-03 rules applied again, no airport change once the flight has any booking,
+time changes copied to the bookings' segments in the same transaction, and an in-app notification
+to every passenger with a Confirmed booking when the times change.
+
+How the output was used:
+Used the generated UpdateFlightDto, FlightsService.update() (re-checks airports, future departure,
+arrival after departure in UTC and the unique flight number per date; 409 for airport changes when
+the flight has bookings or seats booked/held), the MongoDB transaction that updates the flight and
+segments.$[s].departureAt/arrivalAt of its bookings together, flight-change-notification.ts with
+the notification text in each airport's local time, notifyTimeChange() using NotificationsService
+after the commit, and the PATCH route. Registered Area 1's FlightBooking schema in FlightsModule to
+update the copied times. Added a response example to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-30
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-05 branch, I asked the assistant to implement FLT-30:
+flights have the status Scheduled, Cancelled or Departed, a flight becomes Departed once its
+departure time has passed, and only Scheduled flights are searchable, editable or bookable. I asked
+for a scheduled job in the same style as Area 1's every-minute jobs and a shared check that other
+areas (flight search, booking) can use.
+
+How the output was used:
+Used the generated FlightStatusJob with an @Cron job that runs every minute and marks Scheduled
+flights whose departure has passed as Departed in one updateMany, the isOpenFlight() and
+openFlightFilter() helpers (Scheduled and not yet departed) for Area 6 and the edit checks, and
+registered the job in FlightsModule. FlightsService now uses isOpenFlight() for the "only scheduled
+flights can be edited" rule. Added the FlightStatus schema to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-06 (with NEW-02, PAY-03 and GEN-01)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-30 branch, I asked the assistant to implement FLT-06
+exactly as documented in docs/api/openapi.yaml and as agreed with Area 1 in the flight schema
+comments: POST /api/flights/:id/cancel for the moderator of the flight's airline, only for a
+scheduled flight, setting the flight to cancelled and calling Area 1's
+FlightBookingLifecycleService.cancelBookingsForFlight() in the same transaction, then
+finishFlightCancellation() after the commit for the 100% refunds and the notifications.
+
+How the output was used:
+Used the generated FlightsService.cancel() (404 unknown flight, 403 another airline or deactivated
+airline, 409 not scheduled or already departed; the flight update is conditional on status
+scheduled so two cancels at the same moment cannot both succeed), the transaction with
+cancelBookingsForFlight() and the finishFlightCancellation() call after it, the response with the
+cancelled flight and the numbers of cancelled bookings and ended seat holds, the cancelledAt field
+on the Flight schema, the POST route (200) and the FlightBookingsModule import in FlightsModule.
+Added a response example to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: NEW-02
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-06 branch, I asked the assistant to check NEW-02 in
+docs/requirements/ASSUMED_REQUIREMENTS.md against what FLT-05 and FLT-06 already do and to
+implement what was still missing. It found that the acceptance criterion "each affected user
+receives exactly one notification per change" was not met for time changes, because a user with
+two bookings on the same flight got two notifications.
+
+How the output was used:
+Used the generated change to FlightsService.notifyTimeChange(), which now groups the Confirmed
+bookings of the flight by user and sends one notification per user, and to
+flightTimeChangedText(), which lists all of that user's booking references. Updated the
+PATCH /api/flights/{id} description in docs/api/openapi.yaml. The other NEW-02 points (agreed
+price kept, times copied in the same transaction, 100% refunds, holds released, round trips
+cancelled as a whole) were already done in FLT-05 and FLT-06, and I listed them in the pull request.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: GEN-06
+
+Prompt:
+Finishing my Area 5 issues on top of my NEW-02 branch, I asked the assistant to check GEN-06 ("show
+flight times in each airport's local time zone") against what was already done in FLT-02 (IANA time
+zone per airport) and FLT-03 (local times entered, stored in UTC and returned in local time with
+luxon), and to add what was still useful for showing local times correctly.
+
+How the output was used:
+Used the generated utcOffset() helper in flights/flight-time.ts (luxon, daylight saving time
+included) and the new departureUtcOffset / arrivalUtcOffset fields in every flight response
+(FlightsService.toResponse), so the frontend can show e.g. "14:30 (UTC+02:00)". Updated the flight
+examples and the POST /api/flights description in docs/api/openapi.yaml. I listed in the pull
+request where the rest of GEN-06 was done (FLT-02, FLT-03, the time-change notification of FLT-05).
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+Date: 2026-11-03  
+Student: Omar Ahmed Alaga  
+Tool: Copilot  
+Related Requirement: FLT-17
+
+**Prompt:**
+
+Implement FLT-17: Flight Details.
+
+Create an endpoint `GET /api/flights/:id` that retrieves flight details by flight ID.
+
+The response should include:
+- Airline information.
+- Flight number.
+- Departure and arrival airport information.
+- Departure and arrival times displayed in the respective airports' local time zones.
+
+Use the existing NestJS and Mongoose project structure. Follow the existing controller, service, validation, error-handling, and Swagger documentation conventions. Keep the implementation within the flights module and avoid unrelated changes.
+
+**How the output was used:**
+
+The AI-generated output was used as a starting point for implementing the FLT-17 flight details functionality. The generated code was reviewed and adjusted to match the existing project structure and conventions.
+
+The endpoint was tested through Swagger using a valid flight ID and an invalid or non-existing ID. The response was checked to verify the flight information and local airport times.
+================================================
+================================================
+Date: 2026-11-04
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-07
+
+Prompt:
+Implement and test DELETE /api/itineraries/:id/days/:dayId with confirmation, ownership,
+renumbering, date recalculation, and the documented error statuses.
+
+How the output was used:
+Added the guarded controller route, service deletion logic, validation for confirm=true,
+focused unit coverage, and matching OpenAPI documentation. Verification uses npm run lint,
+npm run build, and the focused Jest test.
+================================================
+Date: 2026-11-03
+Student: [Abdallah Mahmoud]
+Tool: Codex
+Related Requirement: ITN-03
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #56 (ITN-03). Implement ITN-03 on branch
+feature/ITN-03-list-view-itineraries: list the logged-in user's own itineraries showing title,
+countries, start date and number of days through GET /api/itineraries, and view one own itinerary
+in full through GET /api/itineraries/:id. Follow the issue, docs/api/openapi.yaml,
+docs/CONVENTIONS.md and the existing code patterns. Use PaginationQueryDto, paginate and
+emptyPaginatedList from backend/src/common with 10 per page (GEN-04, GEN-05) and the paginated
+response shape in openapi.yaml. Another user's itinerary must give 404, a malformed id 400 and no
+login 401. Add local unit tests for the main rules. Public viewing (ITN-21) and every other ITN
+requirement are left for their own issues.
+
+How the output was used:
+Used as the base for the list query DTO, the list and detail methods in ItinerariesService and the
+two GET routes. I checked it against the issue and openapi.yaml: only the logged-in user's
+itineraries are listed, 10 per page with the pagination fields from common/, an empty list returns
+the friendly empty result, the detail route returns the days in order, and another user's id gives
+404. Verified with npm run lint, npm run build, local tests and in Swagger (page 1 and 2, empty
+list, another user's itinerary, no login).
+================================================
+Date: 2026-11-03
+Student: [Abdallah Mahmoud]
+Tool: Codex
+Related Requirement: ITN-05
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #57 (ITN-05). Implement ITN-05 on branch
+feature/ITN-05-add-edit-days: add days to the user's own itinerary and edit each day's city
+(selected from the seeded cities) through POST /api/itineraries/:id/days and PATCH
+/api/itineraries/:id/days/:dayId. Follow the issue, docs/api/openapi.yaml, docs/CONVENTIONS.md and
+the existing code patterns. Every change must renumber the days and recompute each date (start date
++ position) in one reusable helper that ITN-07, ITN-08 and ITN-09 will reuse. The city must exist in
+the seeded cities (read the seeded collection directly, or use Area 5's lookup if it is merged, so
+this module does not depend on unmerged code), otherwise return a clear 400. Keep the day structure
+stable because Area 6 depends on it. Add local unit tests for the helper and the main rules. Delete,
+reorder and city groups are left for their own issues.
+
+How the output was used:
+Used as the base for the day DTOs, the add and edit methods in ItinerariesService, the shared
+renumber and date helper and the two routes. I checked it against the issue and openapi.yaml: a new
+day gets the next position and its date is the start date plus its position, the city must exist in
+the seeded cities (400 otherwise), a day that is not in this itinerary or an itinerary of another
+user gives 404, and the position numbers always stay consecutive. Verified with npm run lint,
+npm run build, local tests and by testing every valid and invalid case in Swagger.
+================================================
+Date: 2026-11-03
+Student: [Abdallah Mahmoud]
+Tool: Opus 5.5
+Related Requirement: ITN-09
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #60 (ITN-09). Implement ITN-09 on branch
+feature/ITN-09-city-groups: every itinerary day has a city, and consecutive days in the same city
+are returned as one city group in GET /api/itineraries/:id (no new endpoint). Follow the issue,
+docs/api/openapi.yaml for the group shape, docs/CONVENTIONS.md and the existing code patterns. Reuse
+the renumber and date helper from ITN-05 so the groups are recomputed after every day change. For
+example days 1-2 Cairo, day 3 Luxor and days 4-5 Cairo give three groups, not two. Keep the day and
+group structure stable because Area 6 depends on it. Add a local unit test for the grouping logic
+with that example. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the city group computation, its hook into the day helper and the groups in the
+itinerary response. I checked it against the issue and openapi.yaml: only consecutive days with the
+same city are grouped, the group shows its city and its day numbers, and the groups are correct
+after adding a day and after editing a city. Verified with npm run lint, npm run build, a local unit
+test of the grouping example and in Swagger.
+=========================================
+=======
+==================================================================================
+Date: 2026-11-03
+Student: [Abdallah Mahmoud]
+Tool: Codex
+Related Requirement: ITN-08
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #59 (ITN-08). Implement ITN-08 on branch
+feature/ITN-08-reorder-days: move a day to a new position through PATCH
+/api/itineraries/:id/days/reorder, declared before the /days/:dayId route so "reorder" is not read
+as an id. Follow the issue, docs/api/openapi.yaml (the request body and status codes),
+docs/CONVENTIONS.md and the existing code patterns. The day must belong to the itinerary and the
+new position must be in range, otherwise return a clear 400. After the move the days are renumbered
+and every date and city group is recomputed with the existing helpers, and each day's activities,
+images and budget entries move with it. Another user's itinerary gives 404. Add a local unit test
+that moves day 3 of 4 to position 1. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the reorder DTO, the reorder method in ItinerariesService and the PATCH route.
+I checked it against the issue and openapi.yaml: an out-of-range position and a day from another
+itinerary are rejected, the new order, dates and city groups are correct, and each day's content
+moved with it. Verified with npm run lint, npm run build, local tests and in Swagger.
+================================================
+Date: 2026-11-04
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-03
+
+Prompt:
+Implement only BLG-03 (GitHub issue #72) on feature/BLG-03-list-own-posts-Alamy. Implement the
+existing GET /api/posts/mine contract for the authenticated registered user, including their drafts.
+Use the optional PostStatus filter, shared page query and 10-item pagination. Return only id, title,
+status, date, likeCount and commentCount, newest first. Derive ownership from the authenticated
+session, add focused tests, and do not implement other Blog requirements. Preserve pending BLG-08
+work and do not commit or merge.
+
+How the output was used:
+Used Codex-generated implementation changes for the BLG-03 query DTO, controller route, service
+query and tests. Reviewed them against the repository issue export, OpenAPI contract, Post schema,
+auth interface and shared pagination helpers. OpenAPI was updated only to document the 403 response
+for the registered-user role restriction. The full backend test command passed (3 suites, 13 tests),
+the Nest build and lint passed, and OpenAPI YAML parsed successfully. GitHub issue #72 could not be
+fetched in this environment; the local issue export was used. Manual Swagger and live MongoDB testing
+have not been performed.
+================================================
+
+Date: 2026-11-03
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-01
+
+Prompt:
+Implement only BLG-01 (GitHub issue #70) on feature/BLG-01-create-post-Alamy. Follow
+docs/api/openapi.yaml and the Blog scaffolding, create posts as draft or published for the
+authenticated registered user, validate title/body/tags, set hidden false, and keep image uploads
+and attachment out of scope for BLG-01. Add isolated automated tests and update the approved
+CreatedPost response contract in OpenAPI.
+
+How the output was used:
+Used AI-generated implementation changes for the Post model, create DTO, service, controller,
+module registration, OpenAPI response, and unit tests. The generated changes were reviewed and
+adjusted to the repository conventions. The automated test suite passed (2 suites, 23 tests), and
+the backend build passed. Targeted ESLint checks passed. After Atlas connectivity was restored,
+the student completed the manual Swagger tests. Codex did not directly observe those manual tests.
+================================================
+
+Date: 2026-11-04
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-08
+
+Prompt:
+Implement BLG-08 using the existing PATCH /api/posts/{id} and GET /api/tags/{tag}/posts
+contracts. Preserve the shared UpdatePostRequest fields for future BLG-04 work, support tags-only
+updates including clearing tags, apply the existing normalization and five-tag/30-character rules,
+and restrict updates to the authenticated author. Implement public case-insensitive, newest-first,
+paginated tag browsing with drafts, hidden posts and posts by deactivated authors excluded. Defer
+GET /api/posts?tag=... to BLG-11. Add automated tests, keep OpenAPI aligned, and do not commit or
+merge.
+
+How the output was used:
+Used Codex-generated code as the starting point for the tag update DTO and service behavior, the
+existing tag browsing route, and focused unit tests. Reviewed the implementation against the existing
+OpenAPI contract, shared pagination helpers, Post/User schemas and project conventions. The full
+backend test command passed (4 suites, 23 tests), the Nest build and lint passed, and the OpenAPI YAML
+parsed successfully. Manual Swagger and live MongoDB testing have not yet been performed.
 ================================================

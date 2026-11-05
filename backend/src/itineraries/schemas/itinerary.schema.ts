@@ -1,9 +1,86 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
+import { TransportMode } from '../../common/enums';
 
 // Area: Itineraries
-// ITN-01: a user's private itinerary. Days, activities, budgets, transport, cloning and public
-// visibility are deliberately added by their own requirements rather than being represented here.
+// ITN-01: a user's private itinerary. ITN-05: its ordered days. Activities, budgets, transport,
+// cloning and public visibility are added by their own requirements.
+
+@Schema({ _id: true, timestamps: false })
+export class Activity {
+  _id: Types.ObjectId;
+
+  @Prop({ type: String, required: true, trim: true, maxlength: 100 })
+  name: string;
+
+  @Prop({ type: String, required: true, trim: true, maxlength: 1000 })
+  description: string;
+
+  @Prop({ type: String, match: /^([01]\d|2[0-3]):[0-5]\d$/ })
+  time?: string;
+
+  @Prop({ type: Number, min: 0 })
+  cost?: number;
+
+  @Prop({ type: String, match: /^[A-Z]{3}$/ })
+  currency?: string;
+}
+
+export const ActivitySchema = SchemaFactory.createForClass(Activity);
+
+// ITN-05: one day of an itinerary. Days are embedded (at most 60, owned by the itinerary), so a
+// renumber after add / edit / delete / reorder is saved atomically with one write. number and date
+// are always set by renumberDays in ../day-schedule.ts and must never be set anywhere else.
+// Area 6 (ITN-09 hotels) reads days in array order with { _id, number, date, cityId }.
+@Schema({ _id: true, timestamps: false })
+export class ItineraryDay {
+  _id: Types.ObjectId;
+
+  // 1-based position; days are always numbered 1..N without gaps.
+  @Prop({ type: Number, required: true, min: 1 })
+  number: number;
+
+  // Start date + number - 1 days, at midnight UTC.
+  @Prop({ type: Date, required: true })
+  date: Date;
+
+  // city_id from the predefined city list (NEW-05), e.g. 'cairo'.
+  @Prop({ type: String, required: true })
+  cityId: string;
+
+  @Prop({ type: String, default: '', maxlength: 1000 })
+  notes: string;
+
+  @Prop({ type: [ActivitySchema], default: [] })
+  activities: Types.DocumentArray<Activity>;
+}
+
+export const ItineraryDaySchema = SchemaFactory.createForClass(ItineraryDay);
+
+@Schema({ _id: true, timestamps: false })
+export class TransportCost {
+  _id: Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  dayId: Types.ObjectId;
+
+  @Prop({ type: String, enum: Object.values(TransportMode), required: true })
+  mode: TransportMode;
+
+  @Prop({ type: String, required: true })
+  fromCityId: string;
+
+  @Prop({ type: String, required: true })
+  toCityId: string;
+
+  @Prop({ type: Number, required: true, min: 0 })
+  amount: number;
+
+  @Prop({ type: String, required: true })
+  currency: string;
+}
+
+export const TransportCostSchema = SchemaFactory.createForClass(TransportCost);
 
 export type ItineraryDocument = HydratedDocument<Itinerary>;
 
@@ -31,6 +108,13 @@ export class Itinerary {
   // ITN-01: every newly-created itinerary is private. ITN-20 will add changing this value.
   @Prop({ enum: ['private', 'public'], default: 'private' })
   visibility: 'private' | 'public';
+
+  // ITN-05: the days in order (day 1 first).
+  @Prop({ type: [ItineraryDaySchema], default: [] })
+  days: Types.DocumentArray<ItineraryDay>;
+
+  @Prop({ type: [TransportCostSchema], default: [] })
+  transportCosts: Types.DocumentArray<TransportCost>;
 
   createdAt?: Date;
   updatedAt?: Date;

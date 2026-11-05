@@ -1,22 +1,44 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 import { CurrentUser, Roles } from '../common/decorators';
 import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
+import { PaginatedList } from '../common/dto/pagination.dto';
+import { CreateDayDto } from './dto/create-day.dto';
+import { DeleteDayQueryDto } from './dto/delete-day-query.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
+import { ListItinerariesQueryDto } from './dto/list-itineraries-query.dto';
+import { ReorderDaysDto } from './dto/reorder-days.dto';
+import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
-import { ItinerariesService, ItineraryResponse } from './itineraries.service';
+import { CreateTransportCostDto } from './dto/create-transport-cost.dto';
+import { UpdateTransportCostDto } from './dto/update-transport-cost.dto';
+import { CreateActivityDto } from './dto/create-activity.dto';
+import { UpdateActivityDto } from './dto/update-activity.dto';
+import {
+  ActivityResponse,
+  DayResponse,
+  ItinerariesService,
+  ItineraryResponse,
+  ItinerarySummary,
+  TransportCostResponse,
+} from './itineraries.service';
 
 // Area: Itineraries
 // Requirements: ITN-01..ITN-26
@@ -71,6 +93,28 @@ export class ItinerariesController {
     return this.itinerariesService.create(user.id, dto);
   }
 
+  // ITN-03 / GEN-04 / GEN-05: only the current user's itineraries, ten at a time.
+  @Get('itineraries')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListItinerariesQueryDto,
+  ): Promise<PaginatedList<ItinerarySummary>> {
+    return this.itinerariesService.list(user.id, query.page);
+  }
+
+  // ITN-03 / ACC-11: ownership is checked by the service; invalid ids are rejected at the edge.
+  @Get('itineraries/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  getOne(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<ItineraryResponse> {
+    return this.itinerariesService.getOne(id, user.id);
+  }
+
   // ITN-01: ownership is enforced in the service so another user's itinerary is indistinguishable
   // from a missing one (ACC-11).
   @Patch('itineraries/:id')
@@ -93,5 +137,128 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
     await this.itinerariesService.remove(id, user.id);
+  }
+
+  // ITN-05: adds a day at the end; the service sets its number and date.
+  @Post('itineraries/:id/days')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  addDay(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateDayDto,
+  ): Promise<DayResponse> {
+    return this.itinerariesService.addDay(id, user.id, dto);
+  }
+
+  // ITN-08: moves a day to a new position. Declared before PATCH days/:dayId so "reorder" is
+  // never read as a day id.
+  @Patch('itineraries/:id/days/reorder')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  reorderDays(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ReorderDaysDto,
+  ): Promise<ItineraryResponse> {
+    return this.itinerariesService.reorderDays(id, user.id, dto);
+  }
+
+  // ITN-05: edits a day's city and notes.
+  @Patch('itineraries/:id/days/:dayId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  updateDay(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('dayId', ParseObjectIdPipe) dayId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateDayDto,
+  ): Promise<DayResponse> {
+    return this.itinerariesService.updateDay(id, dayId, user.id, dto);
+  }
+
+  @Delete('itineraries/:id/days/:dayId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async deleteDay(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('dayId', ParseObjectIdPipe) dayId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Query() query: DeleteDayQueryDto,
+  ): Promise<void> {
+    if (!query.confirm) {
+      throw new BadRequestException(
+        'Confirmation is required to delete an itinerary day.',
+      );
+    }
+    await this.itinerariesService.deleteDay(id, dayId, user.id);
+  }
+
+  @Post('itineraries/:id/days/:dayId/activities')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  addActivity(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('dayId', ParseObjectIdPipe) dayId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateActivityDto,
+  ): Promise<ActivityResponse> {
+    return this.itinerariesService.addActivity(id, dayId, user.id, dto);
+  }
+
+  @Patch('activities/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  updateActivity(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateActivityDto,
+  ): Promise<ActivityResponse> {
+    return this.itinerariesService.updateActivity(id, user.id, dto);
+  }
+
+  @Delete('activities/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async deleteActivity(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    await this.itinerariesService.deleteActivity(id, user.id);
+  }
+
+  @Post('itineraries/:id/transport-costs')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  addTransportCost(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateTransportCostDto,
+  ): Promise<TransportCostResponse> {
+    return this.itinerariesService.addTransportCost(id, user.id, dto);
+  }
+
+  @Patch('transport-costs/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  updateTransportCost(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateTransportCostDto,
+  ): Promise<TransportCostResponse> {
+    return this.itinerariesService.updateTransportCost(id, user.id, dto);
+  }
+
+  @Delete('transport-costs/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async deleteTransportCost(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    await this.itinerariesService.deleteTransportCost(id, user.id);
   }
 }

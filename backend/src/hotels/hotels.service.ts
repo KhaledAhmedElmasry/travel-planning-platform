@@ -268,16 +268,27 @@ export class HotelsService {
       }))
       .sort((a, b) => b.daysBefore - a.daysBefore);
 
-    hotel.checkInTime = dto.checkInTime;
-    hotel.checkOutTime = dto.checkOutTime;
-    hotel.set('cancellationTiers', tiers);
-    await hotel.save();
+    // ONE atomic update that replaces everything: the last write wins. (hotel.set + hotel.save
+    // would check the document version, so requests at the same moment would fail with a
+    // VersionError.)
+    const updated = await this.hotelModel.findByIdAndUpdate(
+      hotel._id,
+      {
+        $set: {
+          checkInTime: dto.checkInTime,
+          checkOutTime: dto.checkOutTime,
+          cancellationTiers: tiers,
+        },
+      },
+      { new: true, runValidators: true },
+    );
+    if (!updated) throw new NotFoundException('Hotel not found.');
 
     return {
-      hotelId: hotel.id as string,
-      checkInTime: dto.checkInTime,
-      checkOutTime: dto.checkOutTime,
-      cancellationTiers: tiers,
+      hotelId: updated.id as string,
+      checkInTime: updated.checkInTime,
+      checkOutTime: updated.checkOutTime,
+      cancellationTiers: this.sortedTiers(updated),
     };
   }
 
@@ -332,7 +343,8 @@ export class HotelsService {
     hotel: HotelDocument,
     roomId: string,
   ): Promise<RoomDocument> {
-    if (!isValidObjectId(roomId)) throw new NotFoundException('Room not found.');
+    if (!isValidObjectId(roomId))
+      throw new NotFoundException('Room not found.');
     const room = await this.roomModel.findOne({
       _id: roomId,
       hotelId: hotel._id,
@@ -391,7 +403,10 @@ export class HotelsService {
   }
 
   private formatRanges(ranges: RoomDateRange[]) {
-    return ranges.map((r) => ({ from: formatDate(r.from), to: formatDate(r.to) }));
+    return ranges.map((r) => ({
+      from: formatDate(r.from),
+      to: formatDate(r.to),
+    }));
   }
 
   private toResponse(hotel: HotelDocument) {
@@ -432,7 +447,6 @@ export class HotelsService {
       updatedAt: room.get('updatedAt') as Date | undefined,
     };
   }
-
   // The room's bookable and blocked ranges (HTL-04, HTL-05, HTL-06).
   private toAvailabilityResponse(room: RoomDocument) {
     return {
