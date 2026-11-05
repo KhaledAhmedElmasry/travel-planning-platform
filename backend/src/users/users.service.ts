@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model, Types } from 'mongoose';
 import { AccountStatus, Role } from '../common/enums';
+import { FlightBookingsService } from '../flight-bookings/flight-bookings.service';
+import { HotelBookingsService } from '../hotel-bookings/hotel-bookings.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { User, UserDocument } from './schemas/user.schema';
 
@@ -44,6 +46,10 @@ export class UsersService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectConnection() private readonly connection: Connection,
     private readonly config: ConfigService,
+    // ACC-12: the agreed "upcoming booking" rules (NEW-01) live in the booking services, so
+    // deactivation and My Bookings always agree on what is upcoming.
+    private readonly flightBookings: FlightBookingsService,
+    private readonly hotelBookings: HotelBookingsService,
   ) {}
 
   // ACC-11: the own profile, for GET /api/users/me.
@@ -94,6 +100,36 @@ export class UsersService {
       .exec();
     if (!updated) throw new UnauthorizedException('You must be logged in');
     return toProfile(updated);
+  }
+
+  // ACC-12: whether the user still has an upcoming Confirmed booking (NEW-01): a flight with a leg
+  // that has not departed yet, or a stay that has not started yet (a stay that starts today is no
+  // longer upcoming). The rules are the ones My Bookings uses, in the two booking services.
+  async hasUpcomingBookings(
+    userId: string,
+    now = new Date(),
+  ): Promise<boolean> {
+    const [flight, stay] = await Promise.all([
+      this.flightBookings.hasUpcomingBookings(userId, now),
+      this.hotelBookings.hasUpcomingBookings(userId, now),
+    ]);
+    return flight || stay;
+  }
+
+  // ACC-12: mark the own account as deactivated. Only an active account changes.
+  async deactivate(userId: Types.ObjectId): Promise<boolean> {
+    const result = await this.userModel
+      .updateOne(
+        { _id: userId, status: AccountStatus.Active },
+        {
+          $set: {
+            status: AccountStatus.Deactivated,
+            deactivatedAt: new Date(),
+          },
+        },
+      )
+      .exec();
+    return result.modifiedCount === 1;
   }
 
   // GEN-12: whether a currency code is in the seeded supported list.

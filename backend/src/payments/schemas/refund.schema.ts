@@ -74,6 +74,11 @@ export class Refund {
   @Prop()
   failureReason?: string;
 
+  // GEN-01: statuses the user was already notified about ('refunded', 'failed'). The Stripe reply
+  // and the webhook can report the same status at the same moment; see claimNotification().
+  @Prop({ type: [String], default: [] })
+  notified: string[];
+
   createdAt?: Date;
   updatedAt?: Date;
 }
