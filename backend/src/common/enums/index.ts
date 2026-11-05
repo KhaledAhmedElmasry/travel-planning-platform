@@ -78,3 +78,12 @@ export enum AuditAction {
   DeactivateHotel = 'deactivate_hotel',
   ReactivateHotel = 'reactivate_hotel',
 }
+
+export enum TransportMode {
+  Flight = 'flight',
+  Train = 'train',
+  Bus = 'bus',
+  Car = 'car',
+  Ferry = 'ferry',
+  Other = 'other',
+}

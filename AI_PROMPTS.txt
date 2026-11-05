@@ -40,6 +40,25 @@ Used as the implementation of ITN-01: itinerary schema, DTOs, service and the cr
 delete routes with ownership checks and Swagger decorators. Verified by building, linting and
 testing the happy path and every error case in Swagger.
 ================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-16
+
+Prompt:
+Implement GitHub issue #64 (ITN-16) on feature/ITN-16-transport-costs: add, edit and delete
+transport cost entries through the documented itinerary API, validate modes, predefined cities,
+itinerary days, non-negative amounts and supported currencies, enforce ownership, include entries
+in itinerary details, remove entries when a day is deleted, and add local unit tests.
+
+How the output was used:
+Used as the base for the transport cost schema, its DTOs, service methods and the three routes.
+I checked it against the issue and openapi.yaml: modes use the documented enum, both cities exist,
+the day belongs to the itinerary, amounts are non-negative, currencies are supported, and another
+user's entry returns 404. Verification uses npm run lint, npm run build and focused Jest tests.
+================================================
+
+================================================
 Date: YYYY-MM-DD
 Student: <Full name>
 Tool: <ChatGPT / Claude / Copilot / Gemini / ...>
