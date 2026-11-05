@@ -25,6 +25,23 @@ export class UploadsService {
       );
     }
 
+    const bytes = file.buffer;
+    const isPng =
+      bytes.length >= 8 &&
+      bytes
+        .subarray(0, 8)
+        .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    const isJpg =
+      bytes.length >= 3 &&
+      bytes[0] === 0xff &&
+      bytes[1] === 0xd8 &&
+      bytes[2] === 0xff;
+    if (file.mimetype === 'image/png' ? !isPng : !isJpg) {
+      throw new BadRequestException(
+        'The file content is not a real JPG/PNG image.',
+      );
+    }
+
     const extension = file.mimetype === 'image/png' ? 'png' : 'jpg';
     const storageKey = `${randomUUID()}.${extension}`;
     const directory = join(process.cwd(), 'uploads', 'images');
