@@ -18,6 +18,15 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { Post, PostDocument, PostStatus } from './schemas/post.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 
+export interface MyPostSummary {
+  id: string;
+  title: string;
+  status: PostStatus;
+  date: Date;
+  likeCount: number;
+  commentCount: number;
+}
+
 export interface CreatedPostResponse {
   id: string;
   title: string;
@@ -51,6 +60,40 @@ export class BlogService {
     @InjectModel(Post.name) private readonly postModel: Model<PostDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
+
+  async listMine(
+    authorId: string,
+    page = 1,
+    status?: PostStatus,
+  ): Promise<PaginatedList<MyPostSummary>> {
+    const filter: { author: Types.ObjectId; status?: PostStatus } = {
+      author: new Types.ObjectId(authorId),
+    };
+    if (status !== undefined) filter.status = status;
+
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [posts, total] = await Promise.all([
+      this.postModel
+        .find(filter)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.postModel.countDocuments(filter).exec(),
+    ]);
+
+    const items: MyPostSummary[] = posts.map((post) => ({
+      id: post._id.toString(),
+      title: post.title,
+      status: post.status,
+      date: post.createdAt!,
+      likeCount: post.likeCount,
+      commentCount: post.commentCount,
+    }));
+
+    return paginate(items, total, page);
+  }
 
   async createPost(
     authorId: string,

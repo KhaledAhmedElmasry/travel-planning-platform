@@ -5093,7 +5093,7 @@ paths:
         **Access:** the author.
 
         Send only the fields to change. For BLG-08, send `tags` to replace the tag list or `[]` to
-        clear it; tags are trimmed, lowercased and deduplicated. Publishing a draft is done by setting
+        clear it; tags are trimmed and lowercased, and duplicate tags are rejected with 400. Publishing a draft is done by setting
         `status` to `published`.
       security: *auth
       parameters:
@@ -5182,6 +5182,13 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not a registered user.", "path": "/api/posts/mine", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/posts/{id}/comments:
     post:

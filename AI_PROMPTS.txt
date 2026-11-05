@@ -1005,6 +1005,29 @@ I checked it against the issue and openapi.yaml: an out-of-range position and a 
 itinerary are rejected, the new order, dates and city groups are correct, and each day's content
 moved with it. Verified with npm run lint, npm run build, local tests and in Swagger.
 ================================================
+Date: 2026-11-04
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-03
+
+Prompt:
+Implement only BLG-03 (GitHub issue #72) on feature/BLG-03-list-own-posts-Alamy. Implement the
+existing GET /api/posts/mine contract for the authenticated registered user, including their drafts.
+Use the optional PostStatus filter, shared page query and 10-item pagination. Return only id, title,
+status, date, likeCount and commentCount, newest first. Derive ownership from the authenticated
+session, add focused tests, and do not implement other Blog requirements. Preserve pending BLG-08
+work and do not commit or merge.
+
+How the output was used:
+Used Codex-generated implementation changes for the BLG-03 query DTO, controller route, service
+query and tests. Reviewed them against the repository issue export, OpenAPI contract, Post schema,
+auth interface and shared pagination helpers. OpenAPI was updated only to document the 403 response
+for the registered-user role restriction. The full backend test command passed (3 suites, 13 tests),
+the Nest build and lint passed, and OpenAPI YAML parsed successfully. GitHub issue #72 could not be
+fetched in this environment; the local issue export was used. Manual Swagger and live MongoDB testing
+have not been performed.
+================================================
+
 Date: 2026-11-03
 Student: Ibrahim Alalamy
 Tool: Codex

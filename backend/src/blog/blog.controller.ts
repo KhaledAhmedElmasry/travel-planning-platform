@@ -22,7 +22,9 @@ import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { BrowsePostsByTagDto } from './dto/browse-posts-by-tag.dto';
-import type { CreatedPostResponse } from './blog.service';
+import { ListMyPostsQueryDto } from './dto/list-my-posts-query.dto';
+import type { CreatedPostResponse, MyPostSummary } from './blog.service';
+import type { PaginatedList } from '../common/dto/pagination.dto';
 
 // Area: Community & Cross-cutting
 // Requirements: BLG-01..BLG-12
@@ -51,6 +53,17 @@ import type { CreatedPostResponse } from './blog.service';
 @Controller()
 export class BlogController {
   constructor(private readonly blogService: BlogService) {}
+
+  // Declare /posts/mine before a future /posts/:id route (BLG-02).
+  @Get('posts/mine')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  listMyPosts(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListMyPostsQueryDto,
+  ): Promise<PaginatedList<MyPostSummary>> {
+    return this.blogService.listMine(user.id, query.page, query.status);
+  }
 
   @HttpPost('posts')
   @HttpCode(HttpStatus.CREATED)
