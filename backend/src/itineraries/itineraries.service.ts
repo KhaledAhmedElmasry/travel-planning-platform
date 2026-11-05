@@ -143,6 +143,9 @@ export class ItinerariesService {
     const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
     const day = isValidObjectId(dayId) ? itinerary.days.id(dayId) : null;
     if (!day) throw dayNotFound();
+    if (dto.cityId === undefined && dto.notes === undefined) {
+      throw new BadRequestException('At least one day field is required.');
+    }
 
     if (dto.cityId !== undefined) {
       await this.assertCityExists(dto.cityId);
@@ -304,6 +307,11 @@ export class ItinerariesService {
     );
     const cost = itinerary.transportCosts.id(costId);
     if (!cost) throw transportCostNotFound();
+    if (Object.values(dto).every((value) => value === undefined)) {
+      throw new BadRequestException(
+        'At least one transport cost field is required.',
+      );
+    }
 
     if (dto.dayId !== undefined) {
       this.assertDayBelongsToItinerary(itinerary, dto.dayId);
@@ -388,7 +396,7 @@ export class ItinerariesService {
 
   private toResponse(itinerary: ItineraryDocument): ItineraryResponse {
     return {
-      id: String(itinerary.id),
+      id: itinerary._id.toString(),
       title: itinerary.title,
       countryCodes: itinerary.countryCodes,
       startDate: itinerary.startDate.toISOString().slice(0, 10),

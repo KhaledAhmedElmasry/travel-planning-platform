@@ -8,7 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ROLES_KEY } from '../decorators';
-import type { Role } from '../enums';
+import { Role } from '../enums';
 import type { AuthUser } from '../interfaces';
 
 // Role-based authorization guard.
@@ -36,6 +36,9 @@ export class RolesGuard implements CanActivate {
     if (!user) throw new UnauthorizedException('You must be logged in');
 
     if (!allowed.includes(user.role)) {
+      if (allowed.includes(Role.Admin)) {
+        throw new ForbiddenException('Not an admin.');
+      }
       throw new ForbiddenException('You do not have permission to do this');
     }
     return true;
