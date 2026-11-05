@@ -637,6 +637,8 @@ export class ItinerariesService {
     const day = itinerary.days.id(dayId);
     if (!day) throw dayNotFound();
     assertActivityCostCurrency(dto.cost, dto.currency);
+    if (dto.currency !== undefined)
+      await this.assertCurrencyExists(dto.currency);
 
     const activity = {
       _id: new Types.ObjectId(),
@@ -669,6 +671,8 @@ export class ItinerariesService {
     const cost = dto.cost !== undefined ? dto.cost : activity.cost;
     const currency = dto.currency ?? activity.currency;
     assertActivityCostCurrency(cost, currency);
+    if (dto.currency !== undefined)
+      await this.assertCurrencyExists(dto.currency);
 
     if (dto.name !== undefined) activity.name = dto.name;
     if (dto.description !== undefined) activity.description = dto.description;
@@ -1141,6 +1145,11 @@ export class ItinerariesService {
     fromCityId: string,
     toCityId: string,
   ): Promise<void> {
+    if (fromCityId === toCityId) {
+      throw new BadRequestException(
+        'Intercity transport needs two different cities.',
+      );
+    }
     const cityIds = [...new Set([fromCityId, toCityId])];
     const cities = await this.connection
       .collection<{ _id: string }>('cities')
