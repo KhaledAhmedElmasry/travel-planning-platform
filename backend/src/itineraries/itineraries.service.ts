@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { Connection, isValidObjectId, Model, Types } from 'mongoose';
@@ -29,6 +30,7 @@ import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
 import { CreateTransportCostDto } from './dto/create-transport-cost.dto';
 import { UpdateTransportCostDto } from './dto/update-transport-cost.dto';
+import { UploadsService } from '../uploads/uploads.service';
 import {
   Itinerary,
   ItineraryDay,
@@ -45,6 +47,7 @@ export class ItinerariesService {
     @InjectModel(Itinerary.name)
     private readonly itineraryModel: Model<Itinerary>,
     @InjectConnection() private readonly connection: Connection,
+    @Optional() private readonly uploadsService?: UploadsService,
   ) {}
 
   async create(
@@ -179,6 +182,11 @@ export class ItinerariesService {
     const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
     const day = isValidObjectId(dayId) ? itinerary.days.id(dayId) : null;
     if (!day) throw dayNotFound();
+    await this.removeImages(
+      (day.activities ?? []).flatMap((activity) =>
+        (activity.images ?? []).map((image) => image.storageKey),
+      ),
+    );
 
     itinerary.days.pull(day._id);
     itinerary.transportCosts.pull({ dayId: day._id });
@@ -344,7 +352,64 @@ export class ItinerariesService {
       candidate.activities.id(activityId),
     );
     if (!day) throw activityNotFound();
+    await this.removeImages(
+      (activity.images ?? []).map((image) => image.storageKey),
+    );
     day.activities.pull(activity._id);
+    await this.saveItinerary(itinerary);
+  }
+
+  async attachActivityImage(
+    activityId: string | Types.ObjectId,
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<ActivityImageResponse> {
+    const itinerary = await this.findItineraryByOwnedActivity(
+      activityId,
+      userId,
+    );
+    const activity = this.findActivity(itinerary, activityId);
+    if (!activity) throw activityNotFound();
+    if ((activity.images ?? []).length >= 5) {
+      throw new BadRequestException(
+        'Not JPG/PNG, larger than 5 MB, or the activity already has 5 images.',
+      );
+    }
+    if (!this.uploadsService) {
+      throw new Error('The shared GEN-08 upload service is not configured.');
+    }
+
+    const image = await this.uploadsService.storeImage(file);
+    const imageDocument = {
+      _id: new Types.ObjectId(image.id),
+      url: image.url,
+      storageKey: image.storageKey,
+    };
+    activity.images!.push(imageDocument);
+    try {
+      await this.saveItinerary(itinerary);
+    } catch (error) {
+      await this.uploadsService.removeImage(image.storageKey);
+      throw error;
+    }
+    return { id: image.id, url: image.url };
+  }
+
+  async removeActivityImage(
+    activityId: string | Types.ObjectId,
+    imageId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<void> {
+    const itinerary = await this.findItineraryByOwnedActivity(
+      activityId,
+      userId,
+    );
+    const activity = this.findActivity(itinerary, activityId);
+    const image = activity?.images?.id(imageId);
+    if (!activity || !image) throw activityNotFound();
+
+    await this.removeImages([image.storageKey]);
+    activity.images!.pull(image._id);
     await this.saveItinerary(itinerary);
   }
 
@@ -427,6 +492,14 @@ export class ItinerariesService {
 
   async remove(itineraryId: string, userId: string): Promise<void> {
     if (!isValidObjectId(itineraryId)) throw itineraryNotFound();
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    await this.removeImages(
+      itinerary.days.flatMap((day) =>
+        (day.activities ?? []).flatMap((activity) =>
+          (activity.images ?? []).map((image) => image.storageKey),
+        ),
+      ),
+    );
     const result = await this.itineraryModel
       .deleteOne({ _id: itineraryId, userId: new Types.ObjectId(userId) })
       .exec();
@@ -528,6 +601,12 @@ export class ItinerariesService {
     return null;
   }
 
+  private async removeImages(storageKeys: string[]): Promise<void> {
+    if (storageKeys.length > 0 && this.uploadsService) {
+      await this.uploadsService.removeImages(storageKeys);
+    }
+  }
+
   private assertDayBelongsToItinerary(
     itinerary: ItineraryDocument,
     dayId: string,
@@ -604,6 +683,12 @@ export interface ActivityResponse {
   time?: string;
   cost?: number;
   currency?: string;
+  images?: ActivityImageResponse[];
+}
+
+export interface ActivityImageResponse {
+  id: string;
+  url: string;
 }
 
 export interface ItineraryResponse {
@@ -707,6 +792,10 @@ function toActivityResponse(activity: Activity): ActivityResponse {
     ...(activity.time !== undefined ? { time: activity.time } : {}),
     ...(activity.cost !== undefined ? { cost: activity.cost } : {}),
     ...(activity.currency !== undefined ? { currency: activity.currency } : {}),
+    images: (activity.images ?? []).map((image) => ({
+      id: String(image._id),
+      url: image.url,
+    })),
   };
 }
 

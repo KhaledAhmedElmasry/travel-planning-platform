@@ -1058,6 +1058,21 @@ test of the grouping example and in Swagger.
 =========================================
 =======
 ==================================================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-12
+
+Prompt:
+Implement ITN-12 on feature/ITN-12-activity-images: attach and remove activity images
+through the documented multipart endpoints, using the shared GEN-08 media-upload rule,
+ownership checks, image-file cleanup on activity/day/itinerary deletion, and focused unit tests.
+
+How the output was used:
+Added the guarded multipart attach and delete routes, embedded activity image records,
+shared upload-service placeholder integration, ownership and image-limit enforcement,
+cleanup calls, focused tests, and validation with npm run lint, npm run build and npm test.
+================================================
 Date: 2026-11-03
 Student: [Abdallah Mahmoud]
 Tool: Codex
