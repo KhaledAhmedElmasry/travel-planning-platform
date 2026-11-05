@@ -21,8 +21,10 @@ import {
   renumberDays,
 } from './day-schedule';
 import { CreateDayDto } from './dto/create-day.dto';
+import { CreateActivityDto } from './dto/create-activity.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { ReorderDaysDto } from './dto/reorder-days.dto';
+import { UpdateActivityDto } from './dto/update-activity.dto';
 import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
 import { CreateTransportCostDto } from './dto/create-transport-cost.dto';
@@ -31,6 +33,7 @@ import {
   Itinerary,
   ItineraryDay,
   ItineraryDocument,
+  Activity,
   TransportCost,
 } from './schemas/itinerary.schema';
 
@@ -110,6 +113,7 @@ export class ItinerariesService {
         _id: new Types.ObjectId(),
         cityId: dto.cityId,
         notes: dto.notes ?? '',
+        activities: [],
         number: dayCount + 1,
         date: dayDate(itinerary.startDate, dayCount + 1),
       };
@@ -272,6 +276,78 @@ export class ItinerariesService {
     return this.toResponse(await this.findOwnedOrThrow(itineraryId, userId));
   }
 
+  async addActivity(
+    itineraryId: string | Types.ObjectId,
+    dayId: string | Types.ObjectId,
+    userId: string,
+    dto: CreateActivityDto,
+  ): Promise<ActivityResponse> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    const day = itinerary.days.id(dayId);
+    if (!day) throw dayNotFound();
+    assertActivityCostCurrency(dto.cost, dto.currency);
+
+    const activity = {
+      _id: new Types.ObjectId(),
+      name: dto.name,
+      description: dto.description,
+      time: dto.time,
+      cost: dto.cost,
+      currency: dto.currency,
+    };
+    day.activities.push(activity);
+    await this.saveItinerary(itinerary);
+    return toActivityResponse(activity);
+  }
+
+  async updateActivity(
+    activityId: string | Types.ObjectId,
+    userId: string,
+    dto: UpdateActivityDto,
+  ): Promise<ActivityResponse> {
+    const itinerary = await this.findItineraryByOwnedActivity(
+      activityId,
+      userId,
+    );
+    const activity = this.findActivity(itinerary, activityId);
+    if (!activity) throw activityNotFound();
+    if (Object.values(dto).every((value) => value === undefined)) {
+      throw new BadRequestException('At least one activity field is required.');
+    }
+
+    const cost = dto.cost !== undefined ? dto.cost : activity.cost;
+    const currency = dto.currency ?? activity.currency;
+    assertActivityCostCurrency(cost, currency);
+
+    if (dto.name !== undefined) activity.name = dto.name;
+    if (dto.description !== undefined) activity.description = dto.description;
+    if (dto.time !== undefined) activity.time = dto.time;
+    if (dto.cost !== undefined) activity.cost = dto.cost;
+    if (dto.currency !== undefined) activity.currency = dto.currency;
+
+    await this.saveItinerary(itinerary);
+    return toActivityResponse(activity);
+  }
+
+  async deleteActivity(
+    activityId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<void> {
+    const itinerary = await this.findItineraryByOwnedActivity(
+      activityId,
+      userId,
+    );
+    const activity = this.findActivity(itinerary, activityId);
+    if (!activity) throw activityNotFound();
+
+    const day = itinerary.days.find((candidate) =>
+      candidate.activities.id(activityId),
+    );
+    if (!day) throw activityNotFound();
+    day.activities.pull(activity._id);
+    await this.saveItinerary(itinerary);
+  }
+
   async addTransportCost(
     itineraryId: string | Types.ObjectId,
     userId: string,
@@ -401,7 +477,7 @@ export class ItinerariesService {
       countryCodes: itinerary.countryCodes,
       startDate: itinerary.startDate.toISOString().slice(0, 10),
       visibility: itinerary.visibility,
-      days: itinerary.days.map(toDayResponse),
+      days: itinerary.days.map((day) => toDayResponse(day, true)),
       transportCosts: itinerary.transportCosts.map(toTransportCostResponse),
       // ITN-09: rebuilt from the days on every response, so it is always current after an add,
       // edit, delete or reorder that went through renumberDays.
@@ -424,6 +500,32 @@ export class ItinerariesService {
       .exec();
     if (!itinerary) throw transportCostNotFound();
     return itinerary;
+  }
+
+  private async findItineraryByOwnedActivity(
+    activityId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<ItineraryDocument> {
+    if (!isValidObjectId(activityId)) throw activityNotFound();
+    const itinerary = await this.itineraryModel
+      .findOne({
+        userId: new Types.ObjectId(userId),
+        'days.activities._id': activityId,
+      })
+      .exec();
+    if (!itinerary) throw activityNotFound();
+    return itinerary;
+  }
+
+  private findActivity(
+    itinerary: ItineraryDocument,
+    activityId: string | Types.ObjectId,
+  ): Activity | null {
+    for (const day of itinerary.days) {
+      const activity = day.activities.id(activityId);
+      if (activity) return activity;
+    }
+    return null;
   }
 
   private assertDayBelongsToItinerary(
@@ -492,6 +594,16 @@ export interface DayResponse {
   date: string;
   cityId: string;
   notes: string;
+  activities?: ActivityResponse[];
+}
+
+export interface ActivityResponse {
+  id: string;
+  name: string;
+  description: string;
+  time?: string;
+  cost?: number;
+  currency?: string;
 }
 
 export interface ItineraryResponse {
@@ -531,14 +643,23 @@ function toStartDate(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
-function toDayResponse(day: ItineraryDay): DayResponse {
-  return {
+function toDayResponse(
+  day: Pick<ItineraryDay, 'number' | 'date' | 'cityId' | 'notes' | '_id'> & {
+    activities?: Activity[];
+  },
+  includeActivities = false,
+): DayResponse {
+  const response: DayResponse = {
     id: String(day._id),
     number: day.number,
     date: day.date.toISOString().slice(0, 10),
     cityId: day.cityId,
     notes: day.notes ?? '',
   };
+  if (includeActivities) {
+    response.activities = (day.activities ?? []).map(toActivityResponse);
+  }
+  return response;
 }
 
 function dayNotFound(): NotFoundException {
@@ -561,6 +682,32 @@ function transportCostNotFound(): NotFoundException {
   return new NotFoundException(
     "Transport cost not found, or it belongs to another user's itinerary.",
   );
+}
+
+function activityNotFound(): NotFoundException {
+  return new NotFoundException(
+    "Activity not found, or it belongs to another user's itinerary.",
+  );
+}
+
+function assertActivityCostCurrency(
+  cost: number | undefined,
+  currency: string | undefined,
+): void {
+  if (cost !== undefined && currency === undefined) {
+    throw new BadRequestException('currency is required when cost is given.');
+  }
+}
+
+function toActivityResponse(activity: Activity): ActivityResponse {
+  return {
+    id: String(activity._id),
+    name: activity.name,
+    description: activity.description,
+    ...(activity.time !== undefined ? { time: activity.time } : {}),
+    ...(activity.cost !== undefined ? { cost: activity.cost } : {}),
+    ...(activity.currency !== undefined ? { currency: activity.currency } : {}),
+  };
 }
 
 function toTransportCostResponse(cost: TransportCost): TransportCostResponse {

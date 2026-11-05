@@ -6,6 +6,28 @@ import { TransportMode } from '../../common/enums';
 // ITN-01: a user's private itinerary. ITN-05: its ordered days. Activities, budgets, transport,
 // cloning and public visibility are added by their own requirements.
 
+@Schema({ _id: true, timestamps: false })
+export class Activity {
+  _id: Types.ObjectId;
+
+  @Prop({ type: String, required: true, trim: true, maxlength: 100 })
+  name: string;
+
+  @Prop({ type: String, required: true, trim: true, maxlength: 1000 })
+  description: string;
+
+  @Prop({ type: String, match: /^([01]\d|2[0-3]):[0-5]\d$/ })
+  time?: string;
+
+  @Prop({ type: Number, min: 0 })
+  cost?: number;
+
+  @Prop({ type: String, match: /^[A-Z]{3}$/ })
+  currency?: string;
+}
+
+export const ActivitySchema = SchemaFactory.createForClass(Activity);
+
 // ITN-05: one day of an itinerary. Days are embedded (at most 60, owned by the itinerary), so a
 // renumber after add / edit / delete / reorder is saved atomically with one write. number and date
 // are always set by renumberDays in ../day-schedule.ts and must never be set anywhere else.
@@ -28,6 +50,9 @@ export class ItineraryDay {
 
   @Prop({ type: String, default: '', maxlength: 1000 })
   notes: string;
+
+  @Prop({ type: [ActivitySchema], default: [] })
+  activities: Types.DocumentArray<Activity>;
 }
 
 export const ItineraryDaySchema = SchemaFactory.createForClass(ItineraryDay);
