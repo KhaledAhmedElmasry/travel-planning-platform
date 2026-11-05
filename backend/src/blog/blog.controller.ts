@@ -20,6 +20,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
+import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { BrowsePostsByTagDto } from './dto/browse-posts-by-tag.dto';
 import { ListMyPostsQueryDto } from './dto/list-my-posts-query.dto';
@@ -53,6 +54,18 @@ import type { PaginatedList } from '../common/dto/pagination.dto';
 @Controller()
 export class BlogController {
   constructor(private readonly blogService: BlogService) {}
+
+  @HttpPost('posts/:id/comments')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  createComment(
+    @Param('id', ParseObjectIdPipe) postId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateCommentDto,
+  ): Promise<void> {
+    return this.blogService.createComment(postId, user.id, dto);
+  }
 
   // Declare /posts/mine before a future /posts/:id route (BLG-02).
   @Get('posts/mine')

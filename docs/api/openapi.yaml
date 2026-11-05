@@ -5198,7 +5198,7 @@ paths:
       description: |
         **Access:** registered users. Only on published posts.
 
-        A comment is non-empty and at most 500 characters. Comments are shown in chronological order.
+        A comment must contain non-whitespace text and be at most 500 characters. Comments are shown in chronological order.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -5212,14 +5212,21 @@ paths:
         '201':
           description: Comment created.
         '400':
-          description: The comment is empty or longer than 500 characters.
+          description: The comment is missing, empty, whitespace-only, or longer than 500 characters.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "The comment is empty or longer than 500 characters.", "path": "/api/posts/665f1c2a9b1e8a00123400a1/comments", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Validation failed", "fieldErrors": [{"field": "text", "messages": ["text must contain a non-whitespace character"]}], "path": "/api/posts/665f1c2a9b1e8a00123400a1/comments", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Authenticated account is not a registered user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/posts/665f1c2a9b1e8a00123400a1/comments", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Post not found or not published.
           content:
