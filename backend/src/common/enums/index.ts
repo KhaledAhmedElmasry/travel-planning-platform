@@ -47,3 +47,12 @@ export enum BookingStatus {
   Expired = 'expired',
   Cancelled = 'cancelled',
 }
+
+export enum TransportMode {
+  Flight = 'flight',
+  Train = 'train',
+  Bus = 'bus',
+  Car = 'car',
+  Ferry = 'ferry',
+  Other = 'other',
+}

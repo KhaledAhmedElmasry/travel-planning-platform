@@ -25,10 +25,13 @@ import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { ReorderDaysDto } from './dto/reorder-days.dto';
 import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
+import { CreateTransportCostDto } from './dto/create-transport-cost.dto';
+import { UpdateTransportCostDto } from './dto/update-transport-cost.dto';
 import {
   Itinerary,
   ItineraryDay,
   ItineraryDocument,
+  TransportCost,
 } from './schemas/itinerary.schema';
 
 // Area: Itineraries
@@ -171,6 +174,7 @@ export class ItinerariesService {
     if (!day) throw dayNotFound();
 
     itinerary.days.pull(day._id);
+    itinerary.transportCosts.pull({ dayId: day._id });
     renumberDays(itinerary.days, itinerary.startDate);
     try {
       await itinerary.save();
@@ -265,6 +269,78 @@ export class ItinerariesService {
     return this.toResponse(await this.findOwnedOrThrow(itineraryId, userId));
   }
 
+  async addTransportCost(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+    dto: CreateTransportCostDto,
+  ): Promise<TransportCostResponse> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    this.assertDayBelongsToItinerary(itinerary, dto.dayId);
+    await this.assertCitiesExist(dto.fromCityId, dto.toCityId);
+    await this.assertCurrencyExists(dto.currency);
+
+    const cost = {
+      _id: new Types.ObjectId(),
+      dayId: new Types.ObjectId(dto.dayId),
+      mode: dto.mode,
+      fromCityId: dto.fromCityId,
+      toCityId: dto.toCityId,
+      amount: dto.amount,
+      currency: dto.currency,
+    };
+    itinerary.transportCosts.push(cost);
+    await this.saveItinerary(itinerary);
+    return toTransportCostResponse(cost);
+  }
+
+  async updateTransportCost(
+    costId: string | Types.ObjectId,
+    userId: string,
+    dto: UpdateTransportCostDto,
+  ): Promise<TransportCostResponse> {
+    const itinerary = await this.findItineraryByOwnedTransportCost(
+      costId,
+      userId,
+    );
+    const cost = itinerary.transportCosts.id(costId);
+    if (!cost) throw transportCostNotFound();
+
+    if (dto.dayId !== undefined) {
+      this.assertDayBelongsToItinerary(itinerary, dto.dayId);
+      cost.dayId = new Types.ObjectId(dto.dayId);
+    }
+    if (dto.fromCityId !== undefined || dto.toCityId !== undefined) {
+      await this.assertCitiesExist(
+        dto.fromCityId ?? cost.fromCityId,
+        dto.toCityId ?? cost.toCityId,
+      );
+    }
+    if (dto.currency !== undefined)
+      await this.assertCurrencyExists(dto.currency);
+    if (dto.mode !== undefined) cost.mode = dto.mode;
+    if (dto.fromCityId !== undefined) cost.fromCityId = dto.fromCityId;
+    if (dto.toCityId !== undefined) cost.toCityId = dto.toCityId;
+    if (dto.amount !== undefined) cost.amount = dto.amount;
+    if (dto.currency !== undefined) cost.currency = dto.currency;
+
+    await this.saveItinerary(itinerary);
+    return toTransportCostResponse(cost);
+  }
+
+  async deleteTransportCost(
+    costId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<void> {
+    const itinerary = await this.findItineraryByOwnedTransportCost(
+      costId,
+      userId,
+    );
+    const cost = itinerary.transportCosts.id(costId);
+    if (!cost) throw transportCostNotFound();
+    itinerary.transportCosts.pull(cost._id);
+    await this.saveItinerary(itinerary);
+  }
+
   async remove(itineraryId: string, userId: string): Promise<void> {
     if (!isValidObjectId(itineraryId)) throw itineraryNotFound();
     const result = await this.itineraryModel
@@ -318,12 +394,74 @@ export class ItinerariesService {
       startDate: itinerary.startDate.toISOString().slice(0, 10),
       visibility: itinerary.visibility,
       days: itinerary.days.map(toDayResponse),
+      transportCosts: itinerary.transportCosts.map(toTransportCostResponse),
       // ITN-09: rebuilt from the days on every response, so it is always current after an add,
       // edit, delete or reorder that went through renumberDays.
       cityGroups: computeCityGroups(itinerary.days),
       createdAt: itinerary.createdAt,
       updatedAt: itinerary.updatedAt,
     };
+  }
+
+  private async findItineraryByOwnedTransportCost(
+    costId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<ItineraryDocument> {
+    if (!isValidObjectId(costId)) throw transportCostNotFound();
+    const itinerary = await this.itineraryModel
+      .findOne({
+        userId: new Types.ObjectId(userId),
+        'transportCosts._id': costId,
+      })
+      .exec();
+    if (!itinerary) throw transportCostNotFound();
+    return itinerary;
+  }
+
+  private assertDayBelongsToItinerary(
+    itinerary: ItineraryDocument,
+    dayId: string,
+  ): void {
+    if (!isValidObjectId(dayId) || !itinerary.days.id(dayId)) {
+      throw new BadRequestException('The day must belong to this itinerary.');
+    }
+  }
+
+  private async assertCitiesExist(
+    fromCityId: string,
+    toCityId: string,
+  ): Promise<void> {
+    const cityIds = [...new Set([fromCityId, toCityId])];
+    const cities = await this.connection
+      .collection<{ _id: string }>('cities')
+      .countDocuments({ _id: { $in: cityIds } });
+    if (cities !== cityIds.length) {
+      throw new BadRequestException(
+        'Both transport cities must be in the list of cities.',
+      );
+    }
+  }
+
+  private async assertCurrencyExists(currency: string): Promise<void> {
+    const found = await this.connection
+      .collection<{ _id: string }>('currencies')
+      .findOne({ _id: currency }, { projection: { _id: 1 } });
+    if (!found) {
+      throw new BadRequestException(`Currency '${currency}' is not supported.`);
+    }
+  }
+
+  private async saveItinerary(itinerary: ItineraryDocument): Promise<void> {
+    try {
+      await itinerary.save();
+    } catch (error) {
+      if (error instanceof mongoose.Error.VersionError) {
+        throw new ConflictException(
+          'The itinerary was changed by another request. Please retry.',
+        );
+      }
+      throw error;
+    }
   }
 
   private toSummary(itinerary: ItineraryDocument): ItinerarySummary {
@@ -357,8 +495,19 @@ export interface ItineraryResponse {
   days: DayResponse[];
   // ITN-09: consecutive days in the same city, in day order.
   cityGroups: CityGroup[];
+  transportCosts: TransportCostResponse[];
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface TransportCostResponse {
+  id: string;
+  dayId: string;
+  mode: TransportCost['mode'];
+  fromCityId: string;
+  toCityId: string;
+  amount: number;
+  currency: string;
 }
 
 export interface ItinerarySummary {
@@ -398,4 +547,22 @@ function itineraryNotFound(): NotFoundException {
 
 function invalidItineraryId(): BadRequestException {
   return new BadRequestException('Invalid itinerary id.');
+}
+
+function transportCostNotFound(): NotFoundException {
+  return new NotFoundException(
+    "Transport cost not found, or it belongs to another user's itinerary.",
+  );
+}
+
+function toTransportCostResponse(cost: TransportCost): TransportCostResponse {
+  return {
+    id: String(cost._id),
+    dayId: String(cost.dayId),
+    mode: cost.mode,
+    fromCityId: cost.fromCityId,
+    toCityId: cost.toCityId,
+    amount: cost.amount,
+    currency: cost.currency,
+  };
 }

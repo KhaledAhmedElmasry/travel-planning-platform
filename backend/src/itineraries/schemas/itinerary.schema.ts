@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
+import { TransportMode } from '../../common/enums';
 
 // Area: Itineraries
 // ITN-01: a user's private itinerary. ITN-05: its ordered days. Activities, budgets, transport,
@@ -31,6 +32,31 @@ export class ItineraryDay {
 
 export const ItineraryDaySchema = SchemaFactory.createForClass(ItineraryDay);
 
+@Schema({ _id: true, timestamps: false })
+export class TransportCost {
+  _id: Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  dayId: Types.ObjectId;
+
+  @Prop({ type: String, enum: Object.values(TransportMode), required: true })
+  mode: TransportMode;
+
+  @Prop({ type: String, required: true })
+  fromCityId: string;
+
+  @Prop({ type: String, required: true })
+  toCityId: string;
+
+  @Prop({ type: Number, required: true, min: 0 })
+  amount: number;
+
+  @Prop({ type: String, required: true })
+  currency: string;
+}
+
+export const TransportCostSchema = SchemaFactory.createForClass(TransportCost);
+
 export type ItineraryDocument = HydratedDocument<Itinerary>;
 
 @Schema({ timestamps: true })
@@ -61,6 +87,9 @@ export class Itinerary {
   // ITN-05: the days in order (day 1 first).
   @Prop({ type: [ItineraryDaySchema], default: [] })
   days: Types.DocumentArray<ItineraryDay>;
+
+  @Prop({ type: [TransportCostSchema], default: [] })
+  transportCosts: Types.DocumentArray<TransportCost>;
 
   createdAt?: Date;
   updatedAt?: Date;
