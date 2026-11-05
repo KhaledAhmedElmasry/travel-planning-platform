@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
-import { formatDate } from '../hotel-bookings/stay-dates';
+import { dateOnly, formatDate } from '../hotel-bookings/stay-dates';
 import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
 import type {
   CancellationTier,
@@ -16,10 +16,11 @@ import type {
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { HotelPoliciesDto } from './dto/hotel-policies.dto';
+import { RoomAvailabilityDto } from './dto/room-availability.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 import { pickRefundTier } from './hotel-refund-tier';
 import { Hotel, HotelDocument, HotelPhoto } from './schemas/hotel.schema';
-import { Room, RoomDocument } from './schemas/room.schema';
+import { Room, RoomDateRange, RoomDocument } from './schemas/room.schema';
 
 // Area: Hotels & Rooms
 // Business logic and database access for: HTL-01..HTL-06, HTL-08..HTL-12, HTL-15, HTL-22
@@ -169,6 +170,54 @@ export class HotelsService {
     }
   }
 
+  // --- HTL-04: add a bookable date range to a room (moderator of THIS hotel) ---
+
+  async addAvailableRange(
+    hotelId: string,
+    roomId: string,
+    actor: HotelActor,
+    dto: RoomAvailabilityDto,
+  ) {
+    const hotel = await this.findHotelOrThrow(hotelId);
+    this.assertModeratorOf(hotel, actor);
+    const room = await this.findRoomOrThrow(hotel, roomId);
+
+    const from = this.parseDay(dto.from, 'from');
+    const to = this.parseDay(dto.to, 'to');
+    if (to.getTime() < from.getTime()) {
+      throw new BadRequestException(
+        'Invalid dates: "to" must not be before "from".',
+      );
+    }
+
+    // One atomic update: the range is added only if it overlaps none of the room's bookable
+    // ranges (both ends included), so two requests at the same moment cannot both succeed.
+    const updated = await this.roomModel.findOneAndUpdate(
+      {
+        _id: room._id,
+        availableRanges: {
+          $not: { $elemMatch: { from: { $lte: to }, to: { $gte: from } } },
+        },
+      },
+      {
+        $push: {
+          availableRanges: { $each: [{ from, to }], $sort: { from: 1 } },
+        },
+      },
+      { new: true },
+    );
+    if (!updated) {
+      // Either the room was deleted a moment ago, or the range overlaps another one.
+      if (!(await this.roomModel.exists({ _id: room._id }))) {
+        throw new NotFoundException('Room not found.');
+      }
+      throw new ConflictException(
+        'The range overlaps another bookable range of the room.',
+      );
+    }
+    return this.toAvailabilityResponse(updated);
+  }
+
   // --- HTL-09, HTL-10: check-in/out times and cancellation tiers (moderator of THIS hotel) ---
 
   async updatePolicies(
@@ -259,6 +308,20 @@ export class HotelsService {
     return hotel;
   }
 
+  // The room must exist AND belong to this hotel.
+  private async findRoomOrThrow(
+    hotel: HotelDocument,
+    roomId: string,
+  ): Promise<RoomDocument> {
+    if (!isValidObjectId(roomId)) throw new NotFoundException('Room not found.');
+    const room = await this.roomModel.findOne({
+      _id: roomId,
+      hotelId: hotel._id,
+    });
+    if (!room) throw new NotFoundException('Room not found.');
+    return room;
+  }
+
   // ACC-11, ACC-13: a moderator manages exactly one hotel, and only that one.
   private assertModeratorOf(hotel: HotelDocument, actor: HotelActor) {
     if (!actor.hotelId || String(actor.hotelId) !== hotel.id) {
@@ -266,6 +329,15 @@ export class HotelsService {
         'You can only manage the hotel you are assigned to.',
       );
     }
+  }
+
+  // "2027-03-01" -> that calendar date at 00:00 UTC, or 400 if it is not a real date (2027-02-30).
+  private parseDay(text: string, field: string): Date {
+    const date = dateOnly(text);
+    if (Number.isNaN(date.getTime()) || formatDate(date) !== text) {
+      throw new BadRequestException(`${field} is not a valid date: "${text}".`);
+    }
+    return date;
   }
 
   // NEW-05: the country and city must exist, and the city must belong to the country.
@@ -297,6 +369,10 @@ export class HotelsService {
 
   private photoId(photo: HotelPhoto): string {
     return String(this.rawPhotoId(photo));
+  }
+
+  private formatRanges(ranges: RoomDateRange[]) {
+    return ranges.map((r) => ({ from: formatDate(r.from), to: formatDate(r.to) }));
   }
 
   private toResponse(hotel: HotelDocument) {
@@ -331,16 +407,20 @@ export class HotelsService {
       maxOccupancy: room.maxOccupancy,
       pricePerNight: room.pricePerNight,
       active: room.active,
-      availableRanges: room.availableRanges.map((r) => ({
-        from: formatDate(r.from),
-        to: formatDate(r.to),
-      })),
-      blockedRanges: room.blockedRanges.map((r) => ({
-        from: formatDate(r.from),
-        to: formatDate(r.to),
-      })),
+      availableRanges: this.formatRanges(room.availableRanges),
+      blockedRanges: this.formatRanges(room.blockedRanges),
       createdAt: room.get('createdAt') as Date | undefined,
       updatedAt: room.get('updatedAt') as Date | undefined,
+    };
+  }
+
+  // The room's bookable and blocked ranges (HTL-04, HTL-05, HTL-06).
+  private toAvailabilityResponse(room: RoomDocument) {
+    return {
+      roomId: room.id as string,
+      roomNumber: room.roomNumber,
+      availableRanges: this.formatRanges(room.availableRanges),
+      blockedRanges: this.formatRanges(room.blockedRanges),
     };
   }
 }
