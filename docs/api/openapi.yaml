@@ -3497,12 +3497,12 @@ paths:
         '200':
           description: The updated itinerary.
         '400':
-          description: Invalid fields or a country not in the list.
+          description: Invalid fields, a country not in the list, or an invalid visibility.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid fields or a country not in the list.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "visibility must be either private or public", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -4080,56 +4080,21 @@ paths:
     get:
       operationId: getItinerariesPublicSearch
       tags: [Itineraries]
-      summary: 'Search public itineraries (ITN-20, ITN-21)'
+      summary: 'List public itineraries (ITN-20)'
       description: |
         **Access:** everyone, including guests.
 
-        Only public itineraries are searched; hidden ones (GEN-10) and those of deactivated users
-        (ACC-12) are excluded. The keyword matches the title, a country or a city.
+        Only public itineraries are listed; hidden ones (GEN-10) are excluded. Keyword matching and
+        other filters are added by ITN-21.
       security: []
       parameters:
-        - name: keyword
-          in: query
-          description: Matches the title, country or city.
-          schema:
-            type: string
-            example: cairo
-        - name: country
-          in: query
-          description: Country code from the official dataset.
-          schema:
-            type: string
-            example: EG
-        - name: city
-          in: query
-          description: city_id from the official dataset.
-          schema:
-            type: string
-            example: cairo
-        - name: minDays
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            example: 3
-        - name: maxDays
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            example: 10
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: Each item - id, title, author name, countries, cities, number of days, start date.
+          description: Each item - id, title, countries, number of days, start date and public visibility.
           content: *paginated
         '400':
-          description: Invalid filters, or minDays greater than maxDays.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid filters, or minDays greater than maxDays.", "path": "/api/itineraries/public/search", "timestamp": "2026-11-01T10:00:00.000Z"}
+          $ref: '#/components/responses/ValidationError'
 
   /api/itineraries/public/{id}:
     get:
