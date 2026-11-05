@@ -26,6 +26,7 @@ import { Room, RoomDateRange, RoomDocument } from './schemas/room.schema';
 // Business logic and database access for: HTL-01..HTL-06, HTL-08..HTL-12, HTL-15, HTL-22
 
 export const MAX_HOTEL_PHOTOS = 5; // GEN-08
+const MAX_UPDATE_ATTEMPTS = 3;
 
 // Used when a moderator has not set the times yet (HTL-09), because a reservation always shows them.
 const DEFAULT_CHECK_IN_TIME = '14:00';
@@ -94,52 +95,70 @@ export class HotelsService {
     dto: UpdateHotelDto,
     newPhotos: NewHotelPhoto[] = [],
   ) {
-    const hotel = await this.findHotelOrThrow(hotelId);
-    this.assertModeratorOf(hotel, actor);
+    // Read, check and write with a guard that nobody changed the hotel in between (__v). If
+    // someone did, the whole step is repeated on the fresh data, so no update is lost and the
+    // 5-photo limit is always checked against the current photos.
+    for (let attempt = 0; attempt < MAX_UPDATE_ATTEMPTS; attempt++) {
+      const hotel = await this.findHotelOrThrow(hotelId);
+      this.assertModeratorOf(hotel, actor);
 
-    // If either the city or the country changes, the pair must still match.
-    if (dto.cityId !== undefined || dto.countryCode !== undefined) {
-      await this.assertCityInCountry(
-        dto.cityId ?? hotel.cityId,
-        dto.countryCode ?? hotel.countryCode,
+      // If either the city or the country changes, the pair must still match.
+      if (dto.cityId !== undefined || dto.countryCode !== undefined) {
+        await this.assertCityInCountry(
+          dto.cityId ?? hotel.cityId,
+          dto.countryCode ?? hotel.countryCode,
+        );
+      }
+
+      // Photos: remove the requested ones, add the new ones, at most 5 in total.
+      const removeIds = new Set<string>(dto.removePhotoIds ?? []);
+      const existingIds = new Set(hotel.photos.map((p) => this.photoId(p)));
+      const unknownIds = [...removeIds].filter((id) => !existingIds.has(id));
+      if (unknownIds.length > 0) {
+        throw new BadRequestException(
+          `Unknown photo id(s): ${unknownIds.join(', ')}.`,
+        );
+      }
+      const kept = hotel.photos
+        .filter((p) => !removeIds.has(this.photoId(p)))
+        .map((p) => ({
+          _id: this.rawPhotoId(p),
+          url: p.url,
+          filename: p.filename,
+        }));
+      if (kept.length + newPhotos.length > MAX_HOTEL_PHOTOS) {
+        throw new BadRequestException(
+          `A hotel can have at most ${MAX_HOTEL_PHOTOS} photos. It would have ${kept.length + newPhotos.length}.`,
+        );
+      }
+
+      // Only the fields that were sent.
+      const changes: Record<string, unknown> = {};
+      if (dto.name !== undefined) changes.name = dto.name;
+      if (dto.address !== undefined) changes.address = dto.address;
+      if (dto.cityId !== undefined) changes.cityId = dto.cityId;
+      if (dto.countryCode !== undefined) changes.countryCode = dto.countryCode;
+      if (dto.description !== undefined) changes.description = dto.description;
+      if (dto.starRating !== undefined) changes.starRating = dto.starRating;
+      if (dto.amenities !== undefined) changes.amenities = dto.amenities;
+      changes.photos = [...kept, ...newPhotos];
+
+      // Written only if the hotel is still at the version we read.
+      const updated = await this.hotelModel.findOneAndUpdate(
+        { _id: hotel._id, __v: hotel.__v },
+        { $set: changes, $inc: { __v: 1 } },
+        { new: true, runValidators: true },
       );
+      if (updated) {
+        // NOTE: files of removed photos stay on disk until the upload service can delete them.
+        return this.toResponse(updated);
+      }
+      // Someone changed the hotel since we read it: try again on the fresh data.
     }
 
-    // Photos: remove the requested ones, add the new ones, at most 5 in total.
-    const removeIds = new Set<string>(dto.removePhotoIds ?? []);
-    const existingIds = new Set(hotel.photos.map((p) => this.photoId(p)));
-    const unknownIds = [...removeIds].filter((id) => !existingIds.has(id));
-    if (unknownIds.length > 0) {
-      throw new BadRequestException(
-        `Unknown photo id(s): ${unknownIds.join(', ')}.`,
-      );
-    }
-    const kept = hotel.photos
-      .filter((p) => !removeIds.has(this.photoId(p)))
-      .map((p) => ({
-        _id: this.rawPhotoId(p),
-        url: p.url,
-        filename: p.filename,
-      }));
-    if (kept.length + newPhotos.length > MAX_HOTEL_PHOTOS) {
-      throw new BadRequestException(
-        `A hotel can have at most ${MAX_HOTEL_PHOTOS} photos. It would have ${kept.length + newPhotos.length}.`,
-      );
-    }
-
-    // Apply only the fields that were sent.
-    if (dto.name !== undefined) hotel.name = dto.name;
-    if (dto.address !== undefined) hotel.address = dto.address;
-    if (dto.cityId !== undefined) hotel.cityId = dto.cityId;
-    if (dto.countryCode !== undefined) hotel.countryCode = dto.countryCode;
-    if (dto.description !== undefined) hotel.description = dto.description;
-    if (dto.starRating !== undefined) hotel.starRating = dto.starRating;
-    if (dto.amenities !== undefined) hotel.amenities = dto.amenities;
-    hotel.set('photos', [...kept, ...newPhotos]);
-
-    // NOTE: files of removed photos stay on disk until the upload service can delete them.
-    await hotel.save();
-    return this.toResponse(hotel);
+    throw new ConflictException(
+      'The hotel was changed by someone else at the same time. Please try again.',
+    );
   }
 
   // --- HTL-03: add a room (only the moderator assigned to THIS hotel) ---
