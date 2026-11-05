@@ -311,6 +311,9 @@ export class ItinerariesService {
     );
     const activity = this.findActivity(itinerary, activityId);
     if (!activity) throw activityNotFound();
+    if (Object.values(dto).every((value) => value === undefined)) {
+      throw new BadRequestException('At least one activity field is required.');
+    }
 
     const cost = dto.cost !== undefined ? dto.cost : activity.cost;
     const currency = dto.currency ?? activity.currency;
