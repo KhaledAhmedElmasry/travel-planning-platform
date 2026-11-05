@@ -1,5 +1,4 @@
 import { Controller } from '@nestjs/common';
-import { ExchangeRatesService } from './exchange-rates.service';
 
 // Area: Itineraries
 // Requirements: ITN-18, NEW-04
@@ -11,8 +10,4 @@ import { ExchangeRatesService } from './exchange-rates.service';
 //   Handle invalid currency codes, unavailable rates and API failures (PDF section 6.5).
 //   The supported currency list is seeded at setup (GEN-12).
 @Controller('exchange-rates')
-export class ExchangeRatesController {
-  constructor(private readonly exchangeRatesService: ExchangeRatesService) {}
-
-  // TODO: add the endpoints listed above.
-}
+export class ExchangeRatesController {}

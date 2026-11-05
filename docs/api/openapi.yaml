@@ -4056,12 +4056,12 @@ paths:
         '200':
           description: The updated itinerary.
         '400':
-          description: Invalid fields or a country not in the list.
+          description: Invalid fields, a country not in the list, or an invalid visibility.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid fields or a country not in the list.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "visibility must be either private or public", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -4590,31 +4590,35 @@ paths:
     get:
       operationId: getItinerariesByIdBudgetSummary
       tags: [Itineraries]
-      summary: 'Get the budget totals in the display currency (ITN-14, ITN-18)'
+      summary: 'Get budget totals and conversion in the preferred currency (ITN-14, ITN-18)'
       description: |
         **Access:** the owner.
 
         Totals by category (food, accommodation, in-city transport, activities, where activities include
         the activity costs from ITN-10), by day, intercity transport (ITN-16) separately, and the grand
-        total (ITN-14).
+        total (ITN-14). `convertedTotal` contains the same category, day, intercity and grand totals
+        converted to the authenticated user's preferred currency (ACC-09), rounded to two decimals,
+        and the date of the rates used (ITN-18). Booking prices are not included or converted (PAY-04).
 
-        All amounts are converted to the display currency (ITN-18): the `currency` parameter, or the
-        user's preferred currency (ACC-09). The backend fetches exchange rates from FXRatesAPI once per
-        day and caches them in the database; the API key is never sent to the frontend. If the API is
-        unavailable, the last cached rates are used and their date is shown. Booking prices are never
-        converted (NEW-04).
+        Each total is an object keyed by currency; amounts in different currencies are never added
+        together in the original totals. The optional `currency` query parameter requests a supported
+        target currency; when omitted, the user's preferred currency is used.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
         - name: currency
           in: query
-          description: Display currency from the supported currency list. Defaults to the user's preferred currency.
+          description: Optional supported target currency. Defaults to the user's preferred currency.
           schema:
             type: string
             example: EUR
       responses:
         '200':
-          description: The display currency, the date of the exchange rates used, totals per category, per day and per city group, intercity transport total, and grand total.
+          description: Original totals plus converted category, day, intercity and grand totals with the FX rate date.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetSummary'
         '400':
           description: The currency code is invalid or not supported.
           content:
@@ -4631,14 +4635,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Itinerary not found, or it belongs to another user.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/budget-summary", "timestamp": "2026-11-01T10:00:00.000Z"}
-        '503':
-          description: The exchange-rate API failed and no cached rates exist for this currency yet.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 503, "error": "SERVICE_UNAVAILABLE", "message": "The exchange-rate API failed and no cached rates exist for this currency yet.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/budget-summary", "timestamp": "2026-11-01T10:00:00.000Z"}
-
   /api/itineraries/public/search:
     get:
       operationId: getItinerariesPublicSearch
@@ -4647,52 +4643,43 @@ paths:
       description: |
         **Access:** everyone, including guests.
 
-        Only public itineraries are searched; hidden ones (GEN-10) and those of deactivated users
-        (ACC-12) are excluded. The keyword matches the title, a country or a city.
+        Only public itineraries are listed; hidden ones (GEN-10) are excluded. Keyword matching is
+        case-insensitive and searches the title, country or city. Results can
+        also be filtered by duration and country or city.
       security: []
       parameters:
+        - $ref: '#/components/parameters/Page'
         - name: keyword
           in: query
-          description: Matches the title, country or city.
+          description: Case-insensitive keyword matched against title, country or city.
           schema:
             type: string
-            example: cairo
-        - name: country
-          in: query
-          description: Country code from the official dataset.
-          schema:
-            type: string
-            example: EG
-        - name: city
-          in: query
-          description: city_id from the official dataset.
-          schema:
-            type: string
-            example: cairo
         - name: minDays
           in: query
           schema:
             type: integer
             minimum: 1
-            example: 3
         - name: maxDays
           in: query
           schema:
             type: integer
             minimum: 1
-            example: 10
-        - $ref: '#/components/parameters/Page'
+        - name: country
+          in: query
+          description: Country code or country name.
+          schema:
+            type: string
+        - name: city
+          in: query
+          description: City id or city name.
+          schema:
+            type: string
       responses:
         '200':
-          description: Each item - id, title, author name, countries, cities, number of days, start date.
+          description: Each item - id, title, countries, number of days, start date and public visibility.
           content: *paginated
         '400':
-          description: Invalid filters, or minDays greater than maxDays.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid filters, or minDays greater than maxDays.", "path": "/api/itineraries/public/search", "timestamp": "2026-11-01T10:00:00.000Z"}
+          $ref: '#/components/responses/ValidationError'
 
   /api/itineraries/public/{id}:
     get:
@@ -6592,6 +6579,79 @@ components:
       type: string
       description: Daily budget categories (ITN-14).
       enum: [food, accommodation, in_city_transport, activities]
+    CurrencyTotals:
+      type: object
+      description: Amounts keyed by ISO currency code; currencies are never mixed.
+      additionalProperties:
+        type: number
+        minimum: 0
+    BudgetSummary:
+      type: object
+      required: [totalsByCategory, totalsByDay, intercityTransport, grandTotal, convertedTotal]
+      properties:
+        totalsByCategory:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/CurrencyTotals'
+        totalsByDay:
+          type: array
+          items:
+            type: object
+            required: [dayId, dayNumber, date, totals]
+            properties:
+              dayId:
+                type: string
+              dayNumber:
+                type: integer
+              date:
+                type: string
+                format: date
+              totals:
+                $ref: '#/components/schemas/CurrencyTotals'
+        intercityTransport:
+          $ref: '#/components/schemas/CurrencyTotals'
+        grandTotal:
+          $ref: '#/components/schemas/CurrencyTotals'
+        convertedTotal:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ConvertedBudgetSummary'
+          nullable: true
+          description: Converted totals in the requested or preferred currency, using rates from rateDate.
+    ConvertedBudgetSummary:
+      type: object
+      required: [currency, rateDate, totalsByCategory, totalsByDay, intercityTransport, grandTotal]
+      properties:
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        rateDate:
+          type: string
+          format: date
+          description: Date of the exchange-rate snapshot used for conversion.
+        totalsByCategory:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/CurrencyTotals'
+        totalsByDay:
+          type: array
+          items:
+            type: object
+            required: [dayId, dayNumber, date, totals]
+            properties:
+              dayId:
+                type: string
+              dayNumber:
+                type: integer
+              date:
+                type: string
+                format: date
+              totals:
+                $ref: '#/components/schemas/CurrencyTotals'
+        intercityTransport:
+          $ref: '#/components/schemas/CurrencyTotals'
+        grandTotal:
+          $ref: '#/components/schemas/CurrencyTotals'
     TransportMode:
       type: string
       enum: [flight, train, bus, car, ferry, other]

@@ -1,10 +1,14 @@
-// Area: Itineraries
-// Used by: GET /api/itineraries/:id/budget-summary (query)
-// Requirements: ITN-14, ITN-18
-//
-// TODO: define the DTO class with class-validator rules for the fields this endpoint needs,
-// exactly as documented in docs/api/openapi.yaml.
-// Target display currency (defaults to the user's preferred currency, ACC-09). Reject invalid
-// currency codes (PDF section 6.5).
+import { Transform } from 'class-transformer';
+import { IsOptional, IsString, Matches } from 'class-validator';
 
-export {};
+export class BudgetSummaryQueryDto {
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsString({ message: 'currency must be text' })
+  @Matches(/^[A-Z]{3}$/, {
+    message: 'currency must be a 3-letter uppercase code',
+  })
+  currency?: string;
+}
