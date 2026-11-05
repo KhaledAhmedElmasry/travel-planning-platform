@@ -32,6 +32,7 @@ import { CreateTransportCostDto } from './dto/create-transport-cost.dto';
 import { UpdateTransportCostDto } from './dto/update-transport-cost.dto';
 import { CreateBudgetEntryDto } from './dto/create-budget-entry.dto';
 import { UpdateBudgetEntryDto } from './dto/update-budget-entry.dto';
+import { SearchPublicItinerariesQueryDto } from './dto/search-public-itineraries-query.dto';
 import { UploadsService } from '../uploads/uploads.service';
 import {
   Itinerary,
@@ -286,8 +287,67 @@ export class ItinerariesService {
     );
   }
 
-  async searchPublic(page = 1): Promise<PaginatedList<ItinerarySummary>> {
-    const filter = { visibility: 'public', hidden: { $ne: true } };
+  async searchPublic(
+    query: SearchPublicItinerariesQueryDto = {},
+  ): Promise<PaginatedList<ItinerarySummary>> {
+    if (
+      query.minDays !== undefined &&
+      query.maxDays !== undefined &&
+      query.minDays > query.maxDays
+    ) {
+      throw new BadRequestException('minDays cannot be greater than maxDays.');
+    }
+
+    const filter: Record<string, unknown> = {
+      visibility: 'public',
+      hidden: { $ne: true },
+    };
+    const andFilters: Record<string, unknown>[] = [];
+    const keyword = query.keyword?.trim();
+    if (keyword) {
+      const regex = escapedRegex(keyword);
+      const [countryCodes, cityIds] = await Promise.all([
+        this.findReferenceIds('countries', regex, ['name', '_id']),
+        this.findReferenceIds('cities', regex, ['name', '_id']),
+      ]);
+      andFilters.push({
+        $or: [
+          { title: { $regex: regex, $options: 'i' } },
+          { countryCodes: { $in: countryCodes } },
+          { 'days.cityId': { $in: cityIds } },
+        ],
+      });
+    }
+    if (query.country?.trim()) {
+      const countryCodes = await this.findReferenceIds(
+        'countries',
+        escapedRegex(query.country.trim()),
+        ['name', '_id'],
+      );
+      andFilters.push({ countryCodes: { $in: countryCodes } });
+    }
+    if (query.city?.trim()) {
+      const cityIds = await this.findReferenceIds(
+        'cities',
+        escapedRegex(query.city.trim()),
+        ['name', '_id'],
+      );
+      andFilters.push({ 'days.cityId': { $in: cityIds } });
+    }
+    if (query.minDays !== undefined || query.maxDays !== undefined) {
+      const size: Record<string, unknown> = { $size: '$days' };
+      andFilters.push({
+        $expr: {
+          $and: [
+            { $gte: [size, query.minDays ?? 0] },
+            { $lte: [size, query.maxDays ?? Number.MAX_SAFE_INTEGER] },
+          ],
+        },
+      });
+    }
+    if (andFilters.length > 0) filter.$and = andFilters;
+
+    const page = query.page ?? 1;
     const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
     const [itineraries, total] = await Promise.all([
       this.itineraryModel
@@ -307,6 +367,89 @@ export class ItinerariesService {
       page,
       DEFAULT_PAGE_SIZE,
     );
+  }
+
+  async getPublic(
+    itineraryId: string | Types.ObjectId,
+    currency?: string,
+  ): Promise<PublicItineraryResponse> {
+    if (!isValidObjectId(itineraryId)) throw publicItineraryNotFound();
+    if (currency !== undefined) await this.assertCurrencyExists(currency);
+    const itinerary = await this.itineraryModel
+      .findOne({
+        _id: itineraryId,
+        visibility: 'public',
+        hidden: { $ne: true },
+      })
+      .exec();
+    if (!itinerary) throw publicItineraryNotFound();
+    const author = this.usersService
+      ? await this.usersService.findById(String(itinerary.userId))
+      : null;
+    if (!author) throw publicItineraryNotFound();
+    return {
+      ...this.toResponse(itinerary),
+      author: { id: String(author._id), name: author.name },
+      originalAuthor: itinerary.originalAuthorId
+        ? await this.publicAuthor(itinerary.originalAuthorId)
+        : null,
+      budget: await this.calculateBudgetSummary(itinerary, currency),
+    };
+  }
+
+  async clone(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<ItineraryResponse> {
+    if (!isValidObjectId(itineraryId)) throw publicItineraryNotFound();
+    const source = await this.itineraryModel
+      .findOne({
+        _id: itineraryId,
+        visibility: 'public',
+        hidden: { $ne: true },
+      })
+      .exec();
+    if (!source) throw publicItineraryNotFound();
+    const dayIds = new Map<string, Types.ObjectId>();
+    const days = source.days.map((day) => {
+      const id = new Types.ObjectId();
+      dayIds.set(String(day._id), id);
+      return {
+        _id: id,
+        number: day.number,
+        date: new Date(day.date),
+        cityId: day.cityId,
+        notes: day.notes,
+        activities: (day.activities ?? []).map((activity) => ({
+          ...activity.toObject(),
+          _id: new Types.ObjectId(),
+          images: (activity.images ?? []).map((image) => ({
+            ...image.toObject(),
+            _id: new Types.ObjectId(),
+          })),
+        })),
+        budgets: (day.budgets ?? []).map((budget) => ({
+          ...budget.toObject(),
+          _id: new Types.ObjectId(),
+        })),
+      };
+    });
+    const clone = await this.itineraryModel.create({
+      userId: new Types.ObjectId(userId),
+      title: source.title,
+      countryCodes: [...source.countryCodes],
+      startDate: new Date(source.startDate),
+      visibility: 'private',
+      originalItineraryId: source._id,
+      originalAuthorId: source.userId,
+      days,
+      transportCosts: source.transportCosts.map((cost) => ({
+        ...cost.toObject(),
+        _id: new Types.ObjectId(),
+        dayId: dayIds.get(String(cost.dayId)) ?? new Types.ObjectId(),
+      })),
+    });
+    return this.toResponse(clone);
   }
 
   async getOne(
@@ -719,6 +862,124 @@ export class ItinerariesService {
     }
   }
 
+  private async findReferenceIds(
+    collectionName: 'countries' | 'cities',
+    regex: string,
+    fields: string[],
+  ): Promise<string[]> {
+    const matches = await this.connection
+      .collection<{ _id: string }>(collectionName)
+      .find(
+        {
+          $or: fields.map((field) => ({
+            [field]: { $regex: regex, $options: 'i' },
+          })),
+        },
+        { projection: { _id: 1 } },
+      )
+      .toArray();
+    return matches.map((match) => match._id);
+  }
+
+  private async publicAuthor(
+    authorId: Types.ObjectId,
+  ): Promise<{ id: string; name: string } | null> {
+    const author = this.usersService
+      ? await this.usersService.findById(String(authorId))
+      : null;
+    return author ? { id: String(author._id), name: author.name } : null;
+  }
+
+  private async calculateBudgetSummary(
+    itinerary: ItineraryDocument,
+    currency?: string,
+  ): Promise<BudgetSummaryResponse> {
+    const byCategory = emptyCategoryTotals();
+    const byDay: BudgetDayTotal[] = [];
+    for (const day of itinerary.days) {
+      const totals = emptyTotals();
+      for (const budget of day.budgets ?? []) {
+        addAmount(byCategory[budget.category], budget.currency, budget.amount);
+        addAmount(totals, budget.currency, budget.amount);
+      }
+      for (const activity of day.activities ?? []) {
+        if (activity.cost !== undefined && activity.currency !== undefined) {
+          addAmount(byCategory.activities, activity.currency, activity.cost);
+          addAmount(totals, activity.currency, activity.cost);
+        }
+      }
+      for (const cost of itinerary.transportCosts.filter((item) =>
+        item.dayId.equals(day._id),
+      )) {
+        addAmount(totals, cost.currency, cost.amount);
+      }
+      byDay.push({
+        dayId: String(day._id),
+        dayNumber: day.number,
+        date: day.date.toISOString().slice(0, 10),
+        totals,
+      });
+    }
+    const intercityTransport = emptyTotals();
+    for (const cost of itinerary.transportCosts) {
+      addAmount(intercityTransport, cost.currency, cost.amount);
+    }
+    const grandTotal = sumTotals(
+      Object.values(byCategory).concat(intercityTransport),
+    );
+    if (currency && this.exchangeRatesService) {
+      const convertedCategories = {} as Record<BudgetCategory, CurrencyTotals>;
+      for (const category of Object.values(BudgetCategory)) {
+        convertedCategories[category] = (
+          await this.exchangeRatesService.convertTotals(
+            byCategory[category],
+            currency,
+          )
+        ).totals;
+      }
+      const convertedDays: BudgetDayTotal[] = [];
+      let rateDate = '';
+      for (const dayTotal of byDay) {
+        const converted = await this.exchangeRatesService.convertTotals(
+          dayTotal.totals,
+          currency,
+        );
+        rateDate ||= converted.rateDate;
+        convertedDays.push({ ...dayTotal, totals: converted.totals });
+      }
+      const convertedTransport = await this.exchangeRatesService.convertTotals(
+        intercityTransport,
+        currency,
+      );
+      const convertedGrandTotal = await this.exchangeRatesService.convertTotals(
+        grandTotal,
+        currency,
+      );
+      rateDate ||= convertedTransport.rateDate || convertedGrandTotal.rateDate;
+      return {
+        totalsByCategory: byCategory,
+        totalsByDay: byDay,
+        intercityTransport,
+        grandTotal,
+        convertedTotal: {
+          currency,
+          rateDate,
+          totalsByCategory: convertedCategories,
+          totalsByDay: convertedDays,
+          intercityTransport: convertedTransport.totals,
+          grandTotal: convertedGrandTotal.totals,
+        },
+      };
+    }
+    return {
+      totalsByCategory: byCategory,
+      totalsByDay: byDay,
+      intercityTransport,
+      grandTotal,
+      convertedTotal: null,
+    };
+  }
+
   // ITN-05 / NEW-05: the city must be in the seeded cities collection ({ _id: cityId }). Read
   // directly, as for countries above, so this module does not depend on the reference-data module.
   private async assertCityExists(cityId: string): Promise<void> {
@@ -741,6 +1002,12 @@ export class ItinerariesService {
       visibility: itinerary.visibility,
       days: itinerary.days.map((day) => toDayResponse(day, true)),
       transportCosts: itinerary.transportCosts.map(toTransportCostResponse),
+      ...(itinerary.originalItineraryId
+        ? { originalItineraryId: String(itinerary.originalItineraryId) }
+        : {}),
+      ...(itinerary.originalAuthorId
+        ? { originalAuthorId: String(itinerary.originalAuthorId) }
+        : {}),
       // ITN-09: rebuilt from the days on every response, so it is always current after an add,
       // edit, delete or reorder that went through renumberDays.
       cityGroups: computeCityGroups(itinerary.days).map((group) => ({
@@ -947,6 +1214,14 @@ export interface ItineraryResponse {
   transportCosts: TransportCostResponse[];
   createdAt?: Date;
   updatedAt?: Date;
+  originalItineraryId?: string | null;
+  originalAuthorId?: string | null;
+}
+
+export interface PublicItineraryResponse extends ItineraryResponse {
+  author: { id: string; name: string };
+  originalAuthor: { id: string; name: string } | null;
+  budget: BudgetSummaryResponse;
 }
 
 export interface TransportCostResponse {
@@ -1044,6 +1319,14 @@ function itineraryNotFound(): NotFoundException {
 
 function invalidItineraryId(): BadRequestException {
   return new BadRequestException('Invalid itinerary id.');
+}
+
+function publicItineraryNotFound(): NotFoundException {
+  return new NotFoundException('Itinerary not found, private or hidden.');
+}
+
+function escapedRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function transportCostNotFound(): NotFoundException {

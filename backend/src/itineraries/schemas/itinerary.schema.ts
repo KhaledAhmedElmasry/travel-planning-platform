@@ -43,7 +43,7 @@ export const ActivityImageSchema = SchemaFactory.createForClass(ActivityImage);
 
 // Area: Itineraries
 // ITN-01: a user's private itinerary. ITN-05: its ordered days. Activities, budgets, transport,
-// cloning and public visibility are added by their own requirements.
+// public visibility and cloning are implemented in ITN-20 and ITN-21.
 
 @Schema({ _id: true, timestamps: false })
 export class Activity {
@@ -153,6 +153,16 @@ export class Itinerary {
   // ITN-01: every newly-created itinerary is private. ITN-20 will add changing this value.
   @Prop({ enum: ['private', 'public'], default: 'private' })
   visibility: 'private' | 'public';
+
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Itinerary',
+    default: null,
+  })
+  originalItineraryId: Types.ObjectId | null;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', default: null })
+  originalAuthorId: Types.ObjectId | null;
 
   // ITN-05: the days in order (day 1 first).
   @Prop({ type: [ItineraryDaySchema], default: [] })

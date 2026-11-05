@@ -4080,15 +4080,41 @@ paths:
     get:
       operationId: getItinerariesPublicSearch
       tags: [Itineraries]
-      summary: 'List public itineraries (ITN-20)'
+      summary: 'Search public itineraries (ITN-20, ITN-21)'
       description: |
         **Access:** everyone, including guests.
 
-        Only public itineraries are listed; hidden ones (GEN-10) are excluded. Keyword matching and
-        other filters are added by ITN-21.
+        Only public itineraries are listed; hidden ones (GEN-10) are excluded. Keyword matching is
+        case-insensitive and searches the title, country or city. Results can
+        also be filtered by duration and country or city.
       security: []
       parameters:
         - $ref: '#/components/parameters/Page'
+        - name: keyword
+          in: query
+          description: Case-insensitive keyword matched against title, country or city.
+          schema:
+            type: string
+        - name: minDays
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: maxDays
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: country
+          in: query
+          description: Country code or country name.
+          schema:
+            type: string
+        - name: city
+          in: query
+          description: City id or city name.
+          schema:
+            type: string
       responses:
         '200':
           description: Each item - id, title, countries, number of days, start date and public visibility.

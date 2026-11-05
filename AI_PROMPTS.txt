@@ -588,3 +588,35 @@ in the public list, a guest can call the list, switching to Private removes the 
 and the list is paginated with the friendly empty result. Verified with npm run lint, npm run build,
 local tests and in Swagger by making an itinerary Public, finding it in the public list as a guest
 and making it Private again.
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-21
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #67 (ITN-21). Implement ITN-21 on branch
+feature/ITN-21-public-search-clone: let a guest or a registered user search public itineraries by
+keyword matching title, country or city, and filter them by duration (min and max days) and by
+country or city, through GET /api/itineraries/public/search; view a public itinerary read-only with
+author, days, activities and budget through GET /api/itineraries/public/:id; and let a registered
+user clone it through POST /api/itineraries/:id/clone. Follow the issue, docs/api/openapi.yaml (the
+query parameter names), docs/CONVENTIONS.md and the existing code patterns. Search and view need no
+login (guests allowed); clone needs login. The keyword search is case-insensitive, trimmed, escaped
+before it is used in a query, limited to Public itineraries that are not hidden, and paginated with
+10 per page. A min days larger than max days gives a clear 400. A private, hidden or missing
+itinerary gives 404 on view and clone. The clone includes all days, activities and budgets with new
+ids, belongs to the logged-in user, is Private, credits the original author, is independent of the
+original, and does not copy the hidden flag. Later changes or deletion of the original never affect
+the clone. Add local unit tests for the main rules. This is the last mandatory requirement of my area
+(demo scenario 9).
+
+How the output was used:
+Used as the base for the search query DTO, the search, public view and clone methods in
+ItinerariesService and the three routes. I checked it against the issue and openapi.yaml: the keyword
+matches title, country or city, the duration and place filters work together, guests can search and
+view, only Public and not hidden itineraries can be found, viewed or cloned, the copy is private with
+the original author credited, and the original is unchanged. Verified with npm run lint,
+npm run build, local tests and in Swagger by publishing an itinerary as one user and searching,
+viewing and cloning it as another (demo scenario 9).
