@@ -29,7 +29,10 @@ import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
 import { CreateTransportCostDto } from './dto/create-transport-cost.dto';
 import { UpdateTransportCostDto } from './dto/update-transport-cost.dto';
+import { CreateActivityDto } from './dto/create-activity.dto';
+import { UpdateActivityDto } from './dto/update-activity.dto';
 import {
+  ActivityResponse,
   DayResponse,
   ItinerariesService,
   ItineraryResponse,
@@ -190,6 +193,40 @@ export class ItinerariesController {
       );
     }
     await this.itinerariesService.deleteDay(id, dayId, user.id);
+  }
+
+  @Post('itineraries/:id/days/:dayId/activities')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  addActivity(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('dayId', ParseObjectIdPipe) dayId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateActivityDto,
+  ): Promise<ActivityResponse> {
+    return this.itinerariesService.addActivity(id, dayId, user.id, dto);
+  }
+
+  @Patch('activities/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  updateActivity(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateActivityDto,
+  ): Promise<ActivityResponse> {
+    return this.itinerariesService.updateActivity(id, user.id, dto);
+  }
+
+  @Delete('activities/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async deleteActivity(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    await this.itinerariesService.deleteActivity(id, user.id);
   }
 
   @Post('itineraries/:id/transport-costs')

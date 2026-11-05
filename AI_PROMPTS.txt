@@ -25,6 +25,34 @@ npm run build, and the focused Jest test.
 Date: 2026-11-05
 Student: Abdallah Mahmoud
 Tool: Copilot
+Related Requirement: ITN-10
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #61 (ITN-10). Implement ITN-10 on branch
+feature/ITN-10-activities: add, edit and delete activities for an itinerary day, with a required
+name, a description, an optional time and an optional cost, through POST
+/api/itineraries/:id/days/:dayId/activities, PATCH /api/activities/:id and DELETE
+/api/activities/:id. Follow the issue, docs/api/openapi.yaml (field limits and status codes),
+docs/CONVENTIONS.md and the existing code patterns. The optional cost must be non-negative and
+will be counted under Activities in the budget (ITN-14), so store it in a form ITN-14 can total.
+The time, when sent, must be a valid time. The PATCH and DELETE routes only receive the activity id,
+so the service must find the itinerary and day that contain it and check that the logged-in user owns
+it; another user's activity gives 404. Add local unit tests for the main rules. Images (ITN-12) and
+every other ITN requirement are left for their own issues.
+
+How the output was used:
+Used as the base for the activity schema, its DTOs, the activity methods in ItinerariesService and
+the three routes. I checked it against the issue and openapi.yaml: the name is required, the
+description, time and cost follow the limits in openapi.yaml, a negative cost and an invalid time give
+400, an activity is only added to a day of the user's own itinerary, and another user's activity or a
+malformed id gives 404 or 400. Verified with npm run lint, npm run build, local tests and by testing
+every valid and invalid case in Swagger.
+================================================
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
 Related Requirement: ITN-16
 
 Prompt:
