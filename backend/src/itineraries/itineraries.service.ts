@@ -45,6 +45,7 @@ import {
 } from './schemas/itinerary.schema';
 import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service';
 import { UsersService } from '../users/users.service';
+import { AccountStatus } from '../common/enums';
 
 // Area: Itineraries
 // Business logic and database access for: ITN-01..ITN-26
@@ -301,9 +302,11 @@ export class ItinerariesService {
       throw new BadRequestException('minDays cannot be greater than maxDays.');
     }
 
+    // ACC-12: public itineraries of deactivated accounts are hidden.
     const filter: Record<string, unknown> = {
       visibility: 'public',
       hidden: { $ne: true },
+      userId: { $nin: await this.deactivatedUserIds() },
     };
     const andFilters: Record<string, unknown>[] = [];
     const keyword = query.keyword?.trim();
@@ -389,7 +392,9 @@ export class ItinerariesService {
     const author = this.usersService
       ? await this.usersService.findById(String(itinerary.userId))
       : null;
-    if (!author) throw publicItineraryNotFound();
+    if (!author || author.status === AccountStatus.Deactivated) {
+      throw publicItineraryNotFound(); // ACC-12
+    }
     return {
       ...this.toResponse(itinerary),
       author: { id: String(author._id), name: author.name },
@@ -412,7 +417,9 @@ export class ItinerariesService {
         hidden: { $ne: true },
       })
       .exec();
-    if (!source) throw publicItineraryNotFound();
+    if (!source || (await this.isDeactivatedUser(source.userId))) {
+      throw publicItineraryNotFound(); // ACC-12
+    }
     const dayIds = new Map<string, Types.ObjectId>();
     const days = source.days.map((day) => {
       const id = new Types.ObjectId();
@@ -894,6 +901,23 @@ export class ItinerariesService {
       )
       .toArray();
     return matches.map((match) => match._id);
+  }
+
+  // ACC-12: ids of deactivated accounts, whose public itineraries are hidden.
+  private async deactivatedUserIds(): Promise<Types.ObjectId[]> {
+    return this.connection
+      .collection<{ _id: Types.ObjectId }>('users')
+      .distinct('_id', { status: AccountStatus.Deactivated });
+  }
+
+  private async isDeactivatedUser(userId: Types.ObjectId): Promise<boolean> {
+    const found = await this.connection
+      .collection('users')
+      .findOne(
+        { _id: userId, status: AccountStatus.Deactivated },
+        { projection: { _id: 1 } },
+      );
+    return found !== null;
   }
 
   private async publicAuthor(
