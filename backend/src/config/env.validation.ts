@@ -9,8 +9,9 @@ const REQUIRED = [
   'JWT_REFRESH_SECRET', // NEW-07
   'STRIPE_SECRET_KEY',
   'PLATFORM_CURRENCY',
-  'FXRATES_API_KEY',
 ] as const;
+// FXRATES_API_KEY (ITN-18) is optional: the free FXRatesAPI endpoint answers without a key; when
+// it is set, it is sent with every request.
 
 // PLATFORM_CURRENCY (PAY-04, NEW-04): the single currency of every flight and hotel price,
 // payment and refund. A 3-letter uppercase ISO 4217 code, e.g. USD. Read it with

@@ -610,6 +610,7 @@ export class ItinerariesService {
         convertedTotal: {
           currency: targetCurrency,
           rateDate: rateDate,
+          ...ratesStatus(convertedGrandTotal.stale, rateDate),
           totalsByCategory: convertedCategories,
           totalsByDay: convertedDays,
           intercityTransport: convertedTransport.totals,
@@ -979,6 +980,7 @@ export class ItinerariesService {
         convertedTotal: {
           currency,
           rateDate,
+          ...ratesStatus(convertedGrandTotal.stale, rateDate),
           totalsByCategory: convertedCategories,
           totalsByDay: convertedDays,
           intercityTransport: convertedTransport.totals,
@@ -1283,6 +1285,9 @@ export interface BudgetSummaryResponse {
 export interface ConvertedBudgetSummary {
   currency: string;
   rateDate: string;
+  // ITN-18: true when FXRatesAPI was unavailable and the last cached rates were used.
+  ratesStale: boolean;
+  ratesNotice: string | null;
   totalsByCategory: Record<BudgetCategory, CurrencyTotals>;
   totalsByDay: BudgetDayTotal[];
   intercityTransport: CurrencyTotals;
@@ -1455,5 +1460,18 @@ function toBudgetEntryResponse(
     amount: entry.amount,
     currency: entry.currency,
     description: entry.description ?? '',
+  };
+}
+
+// ITN-18: tells the user when the last cached rates were used because the API was unavailable.
+function ratesStatus(
+  stale: boolean,
+  rateDate: string | undefined,
+): { ratesStale: boolean; ratesNotice: string | null } {
+  return {
+    ratesStale: stale,
+    ratesNotice: stale
+      ? `Live exchange rates are unavailable right now; the last saved rates from ${rateDate} were used.`
+      : null,
   };
 }

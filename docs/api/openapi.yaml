@@ -6620,7 +6620,7 @@ components:
           description: Converted totals in the requested or preferred currency, using rates from rateDate.
     ConvertedBudgetSummary:
       type: object
-      required: [currency, rateDate, totalsByCategory, totalsByDay, intercityTransport, grandTotal]
+      required: [currency, rateDate, ratesStale, ratesNotice, totalsByCategory, totalsByDay, intercityTransport, grandTotal]
       properties:
         currency:
           type: string
@@ -6629,6 +6629,15 @@ components:
           type: string
           format: date
           description: Date of the exchange-rate snapshot used for conversion.
+        ratesStale:
+          type: boolean
+          example: false
+          description: true when FXRatesAPI was unavailable and the last cached rates (from rateDate) were used (ITN-18).
+        ratesNotice:
+          type: string
+          nullable: true
+          example: null
+          description: A message for the user when ratesStale is true, otherwise null.
         totalsByCategory:
           type: object
           additionalProperties:
