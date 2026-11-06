@@ -4,8 +4,21 @@ The project description and the official workbook (`Final_ SP1_Reviewed_Requirem
 the IDs below, but the workbook does not define them. Each definition here was **inferred from where
 the ID is referenced** and is consistent with the rest of the workbook.
 
-> Status: **Assumed, pending TA confirmation.** If the TAs provide official definitions, replace the
-> entries below and update the affected issues. The official workbook always takes priority.
+> **Resolved (Nov 2026): these ids are no longer used.** The updated project description and the
+> updated official workbook replaced every reference with an existing requirement:
+>
+> | Old id | Now | Where |
+> |---|---|---|
+> | ACC-03 | ACC-01 | `POST /api/auth/register` is ACC-01 only |
+> | BLG-11 | BLG-02, BLG-08 | dropped from `GET /api/posts` and `GET /api/tags/:tag/posts` |
+> | NEW-01 | GEN-11 | dependency of ACC-12, FLT-22, HTL-18, HTL-23 |
+> | NEW-02 | FLT-30 (FLT-05, FLT-06 themselves describe the effect on bookings) | dependency of FLT-05, FLT-06 |
+> | NEW-04 | PAY-04 | ITN-18: "Booking prices are not converted (PAY-04)" |
+> | NEW-05 | GEN-12 | dependency of FLT-02, HTL-01, ITN-01, ITN-05 |
+> | NEW-07 | ACC-19 | dependency of ACC-06 |
+>
+> The code and `docs/api/openapi.yaml` use the new ids. The definitions below are kept only as a
+> record of what was assumed before the update.
 
 | ID | Module | Actor(s) | Referenced by | Complexity |
 |---|---|---|---|---|

@@ -46,7 +46,7 @@ import { dateOnly, formatDate, stayNights, todayUtc } from './stay-dates';
 
 // Area: Payments, Holds & Booking Engine (HTL-16, HTL-17, HTL-18) and Search & My Bookings
 // (HTL-20)
-// Business logic and database access for: HTL-16, HTL-17, HTL-18, HTL-20, HTL-21, GEN-11, NEW-01
+// Business logic and database access for: HTL-16, HTL-17, HTL-18, HTL-20, HTL-21, GEN-11
 //
 // Done here (Area 1): booking one or more rooms with their guests and the 10-minute hold of all
 // of them together (HTL-16, HTL-18), the four BookingPaymentHandler methods used by the payments
@@ -60,12 +60,12 @@ import { dateOnly, formatDate, stayNights, todayUtc } from './stay-dates';
 // TODO(HTL-20; Area 6): the list and the details go here too. The details must include
 // RefundsService.findRefundForBooking() and the refund preview (HTL-21):
 // HotelBookingLifecycleService.previewCancellation(booking), the same function the cancellation
-// uses. For the Upcoming group of the list use upcomingHotelBookings() below (NEW-01).
+// uses. For the Upcoming group of the list use upcomingHotelBookings() below (GEN-11).
 
 // HTL-18: all rooms are held together for 10 minutes.
 export const HOLD_MINUTES = 10;
 
-// NEW-01 "upcoming" (ACC-12, Area 2; the Upcoming group of HTL-20, Area 6): Confirmed, with a
+// GEN-11 "upcoming" (ACC-12, Area 2; the Upcoming group of HTL-20, Area 6): Confirmed, with a
 // check-in date still in the future (UTC), i.e. a stay not yet started; it can still be cancelled
 // (HTL-21). A stay in progress is not upcoming any more and becomes Completed the day after its
 // check-out date (completeStays).
@@ -264,7 +264,7 @@ export class HotelBookingsService implements BookingPaymentHandler {
   }
 
   // ACC-12 (Area 2): deactivating an account is blocked while the user has an upcoming hotel
-  // reservation (NEW-01, see upcomingHotelBookings()).
+  // reservation (GEN-11, see upcomingHotelBookings()).
   async hasUpcomingBookings(
     userId: string,
     now = new Date(),
@@ -331,7 +331,7 @@ export class HotelBookingsService implements BookingPaymentHandler {
 
   // HTL-17, called only by the verified Stripe webhook. In one transaction: pending_payment ->
   // confirmed with a unique reference (all rooms together), and the held room-nights -> booked.
-  // A hold that has expired can never be confirmed (NEW-01): the payment is then refunded by
+  // A hold that has expired can never be confirmed (GEN-11): the payment is then refunded by
   // PaymentsService.
   async confirmPaidBooking(
     bookingId: string,

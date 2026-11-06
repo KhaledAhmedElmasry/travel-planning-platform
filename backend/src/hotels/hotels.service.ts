@@ -5,10 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
 import { dateOnly, formatDate } from '../hotel-bookings/stay-dates';
 import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
+import { platformCurrency } from '../payments/platform-currency';
 import type {
   CancellationTier,
   RefundTier,
@@ -61,6 +63,7 @@ export class HotelsService {
     @InjectModel(Hotel.name) private readonly hotelModel: Model<Hotel>,
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
     @InjectConnection() private readonly connection: Connection,
+    private readonly config: ConfigService,
   ) {}
 
   // --- HTL-01: create (admin only; the controller enforces the role) ---
@@ -371,7 +374,16 @@ export class HotelsService {
     return date;
   }
 
-  // NEW-05: the country and city must exist, and the city must belong to the country.
+  // "2027-03-01" -> that calendar date at 00:00 UTC, or 400 if it is not a real date (2027-02-30).
+  private parseDay(text: string, field: string): Date {
+    const date = dateOnly(text);
+    if (Number.isNaN(date.getTime()) || formatDate(date) !== text) {
+      throw new BadRequestException(`${field} is not a valid date: "${text}".`);
+    }
+    return date;
+  }
+
+  // GEN-12: the country and city must exist, and the city must belong to the country.
   // TODO: replace with ReferenceDataService once Area 5 exports its lookups.
   private async assertCityInCountry(cityId: string, countryCode: string) {
     const db = this.connection.db!;
@@ -440,6 +452,8 @@ export class HotelsService {
       beds: room.beds,
       maxOccupancy: room.maxOccupancy,
       pricePerNight: room.pricePerNight,
+      // PAY-04: every price is in the platform currency (integer cents).
+      currency: platformCurrency(this.config),
       active: room.active,
       availableRanges: this.formatRanges(room.availableRanges),
       blockedRanges: this.formatRanges(room.blockedRanges),

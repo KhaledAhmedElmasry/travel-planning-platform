@@ -23,7 +23,7 @@ import {
 
 // Area: Payments, Holds & Booking Engine (book + hold, cancel) and Search & My Bookings (list,
 // details)
-// Requirements: HTL-16, HTL-17, HTL-18, HTL-20, HTL-21, GEN-11, NEW-01
+// Requirements: HTL-16, HTL-17, HTL-18, HTL-20, HTL-21, GEN-11
 // Endpoints to implement (PDF section 8):
 //   POST /api/hotel-bookings               HTL-16, HTL-18   done
 //   GET  /api/hotel-bookings               HTL-20           TODO (Area 6)
@@ -35,7 +35,7 @@ import {
 //   total"); there is no separate refund-preview endpoint: use HotelBookingLifecycleService
 //   .previewCancellation(booking) (the same function cancel uses).
 //   Users see only their own reservations (ACC-11). Group the list as Upcoming / Past / Cancelled (HTL-20);
-//   Upcoming = upcomingHotelBookings() in hotel-bookings.service.ts (NEW-01).
+//   Upcoming = upcomingHotelBookings() in hotel-bookings.service.ts (GEN-11).
 //   All selected rooms are held together or not at all (HTL-18, PDF section 6.3).
 //   HTL-17 (confirmation) has no endpoint: the Stripe webhook confirms the reservation.
 //

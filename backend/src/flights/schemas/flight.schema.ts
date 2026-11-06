@@ -27,7 +27,7 @@ import { CabinClass } from '../../common/enums';
 // Never change booked or held outside seat-inventory.service.ts; FLT-05 must not lower total
 // below booked + held.
 //
-// Effect on existing flight bookings (NEW-02), in the same transaction as the flight change
+// Effect on existing flight bookings (FLT-05, FLT-06), in the same transaction as the flight change
 // (every status change filtered with status: { $in: allowedFrom(<new status>) } from
 // payments/booking-lifecycle.ts, GEN-11):
 //   FLT-05 time change: bookings keep a copy of the times (e-ticket, "before departure" check,

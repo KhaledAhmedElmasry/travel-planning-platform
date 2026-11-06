@@ -93,7 +93,7 @@ const DUPLICATE_FLIGHT =
   'The airline already has this flight number on that departure date.';
 
 // Area: Airlines & Flight Inventory
-// Business logic and database access for: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06, NEW-02
+// Business logic and database access for: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06
 // FLT-30: flights are marked Departed every minute by FlightStatusJob (flight-status.job.ts).
 @Injectable()
 export class FlightsService {
@@ -182,7 +182,7 @@ export class FlightsService {
   // FLT-05: the moderator edits the airports and local times of a Scheduled flight of their
   // airline. Send only the fields to change; the FLT-03 rules still apply. Airports cannot
   // change once the flight has any booking.
-  // NEW-02: a time change is copied to the bookings' segments in the same transaction, then the
+  // FLT-05: a time change is copied to the bookings' segments in the same transaction, then the
   // passengers with Confirmed bookings get an in-app notification (GEN-01). Fares and seat counts
   // are edited per cabin (updateCabin).
   async update(
@@ -320,7 +320,7 @@ export class FlightsService {
           );
         }
 
-        // NEW-02: the bookings keep a copy of the times (e-ticket, before-departure check,
+        // FLT-05: the bookings keep a copy of the times (e-ticket, before-departure check,
         // refund tier), so update it together with the flight.
         if (timesChange) {
           await this.bookingModel.updateMany(
@@ -348,7 +348,7 @@ export class FlightsService {
     return this.toResponse(saved);
   }
 
-  // GEN-01, NEW-02: exactly one in-app notification per affected user: the users with a
+  // GEN-01, FLT-05: exactly one in-app notification per affected user: the users with a
   // Confirmed booking on this flight, with all their booking references in one message. Runs
   // after the transaction; a failed notification is logged and never undoes the change.
   private async notifyTimeChange(
@@ -363,7 +363,7 @@ export class FlightsService {
       .select('userId reference')
       .lean()
       .exec();
-    // NEW-02: group the bookings by user, so a user with two bookings gets one notification.
+    // FLT-05: group the bookings by user, so a user with two bookings gets one notification.
     const referencesByUser = new Map<string, (string | undefined)[]>();
     for (const booking of bookings) {
       const userId = booking.userId.toString();
@@ -388,7 +388,7 @@ export class FlightsService {
     }
   }
 
-  // FLT-06, NEW-02: the moderator cancels a Scheduled flight of their airline (the frontend asks
+  // FLT-06: the moderator cancels a Scheduled flight of their airline (the frontend asks
   // for confirmation first, GEN-03). As agreed with Area 1 (flight.schema.ts), in ONE transaction:
   //   - the flight becomes Cancelled (only if still Scheduled), which also stops new seat holds
   //     and hides it from search (FLT-30, openFlightFilter);
@@ -492,7 +492,7 @@ export class FlightsService {
 
   // FLT-04, FLT-05: the moderator edits a cabin's seat count, price and baggage allowance on a
   // Scheduled flight. The seat count cannot go below the seats already booked or held. A new
-  // price only applies to new bookings; existing bookings keep their agreed price (NEW-02).
+  // price only applies to new bookings; existing bookings keep their agreed price (FLT-05).
   async updateCabin(
     user: AuthUser,
     flightId: Types.ObjectId,

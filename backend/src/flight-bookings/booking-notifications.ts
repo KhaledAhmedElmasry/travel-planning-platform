@@ -41,7 +41,7 @@ export function flightCancelledText(
   };
 }
 
-// FLT-06, NEW-02: the airline cancelled a flight of a Confirmed booking (refund 100%).
+// FLT-06: the airline cancelled a flight of a Confirmed booking (refund 100%).
 export function flightCancelledByAirlineText(
   booking: FlightBooking,
 ): NotificationText {
@@ -51,7 +51,7 @@ export function flightCancelledByAirlineText(
   };
 }
 
-// FLT-06, NEW-02: the airline cancelled a flight while the booking was still on hold (not paid).
+// FLT-06: the airline cancelled a flight while the booking was still on hold (not paid).
 export function flightHoldEndedByAirlineText(
   booking: FlightBooking,
 ): NotificationText {

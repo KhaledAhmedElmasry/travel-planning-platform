@@ -41,7 +41,7 @@ import { SeatInventoryService } from './seat-inventory.service';
 
 // Area: Payments, Holds & Booking Engine (FLT-22, FLT-23) and Search & My Bookings (FLT-19,
 // FLT-21, FLT-25)
-// Business logic and database access for: FLT-19, FLT-21, FLT-22, FLT-23, FLT-25, FLT-26, GEN-11, NEW-01
+// Business logic and database access for: FLT-19, FLT-21, FLT-22, FLT-23, FLT-25, FLT-26, GEN-11
 //
 // Done here (Area 1): the seat hold (FLT-22), the four BookingPaymentHandler methods used by the
 // payments module (PAY-01, PAY-02), confirmation with the booking reference and the e-ticket
@@ -52,12 +52,12 @@ import { SeatInventoryService } from './seat-inventory.service';
 // TODO(FLT-19, FLT-21, FLT-25; Area 6): the summary, the list and the details go here too. The
 // details must include RefundsService.findRefundForBooking() and the refund preview (FLT-26):
 // FlightBookingLifecycleService.previewCancellation(booking), the same function the cancellation
-// uses. For the Upcoming group of the list use upcomingFlightBookings() below (NEW-01).
+// uses. For the Upcoming group of the list use upcomingFlightBookings() below (GEN-11).
 
 // FLT-22: seats are held for 10 minutes.
 export const HOLD_MINUTES = 10;
 
-// NEW-01 "upcoming" (ACC-12, Area 2; the Upcoming group of FLT-25, Area 6): Confirmed, with a
+// GEN-11 "upcoming" (ACC-12, Area 2; the Upcoming group of FLT-25, Area 6): Confirmed, with a
 // flight not yet departed. A round trip whose outbound flight has flown is still upcoming (its
 // return flight is ahead); it becomes Completed when its last flight departs (completeDeparted).
 export function upcomingFlightBookings(
@@ -215,7 +215,7 @@ export class FlightBookingsService implements BookingPaymentHandler {
   }
 
   // ACC-12 (Area 2): deactivating an account is blocked while the user has an upcoming flight
-  // booking (NEW-01, see upcomingFlightBookings()).
+  // booking (GEN-11, see upcomingFlightBookings()).
   async hasUpcomingBookings(
     userId: string,
     now = new Date(),
@@ -292,7 +292,7 @@ export class FlightBookingsService implements BookingPaymentHandler {
 
   // FLT-23, called only by the verified Stripe webhook. In one transaction: pending_payment ->
   // confirmed with a unique reference, and held seats -> booked seats. A hold that has expired can
-  // never be confirmed (NEW-01): the payment is then refunded by PaymentsService.
+  // never be confirmed (GEN-11): the payment is then refunded by PaymentsService.
   async confirmPaidBooking(
     bookingId: string,
     paymentId: string,

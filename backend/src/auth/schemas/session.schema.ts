@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 // Area: Auth & Accounts
-// Refresh-token sessions (NEW-07): user, hashed token, expiry, last activity, revoked.
+// Refresh-token sessions (ACC-19): user, hashed token, expiry, last activity, revoked.
 // One document per login. The refresh token itself is never stored, only its SHA-256 hash, so a
 // database leak does not give anyone a usable session.
 
@@ -21,7 +21,7 @@ export class Session {
   @Prop({ required: true })
   tokenHash: string;
 
-  // ACC-06, NEW-07: the last authenticated request; 30 minutes without one ends the session.
+  // ACC-06: the last authenticated request; 30 minutes without one ends the session.
   @Prop({ type: Date, required: true })
   lastActivityAt: Date;
 

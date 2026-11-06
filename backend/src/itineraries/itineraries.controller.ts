@@ -78,7 +78,7 @@ import {
 //   GET    /api/itineraries/public/search                  ITN-20, ITN-21
 //   GET    /api/itineraries/public/:id                     ITN-21
 //   POST   /api/itineraries/:id/clone                      ITN-21
-//   GET    /api/itineraries/:id/hotels                     ITN-09
+//   GET    /api/itineraries/:id/hotels                     ITN-25
 //   GET    /api/itineraries/:id/flights                    ITN-26
 // Notes:
 //   Private itineraries are visible only to their owner (ACC-11): check ownership in the service.
