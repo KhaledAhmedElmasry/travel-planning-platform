@@ -225,6 +225,41 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/auth/refresh:
+    post:
+      operationId: postAuthRefresh
+      tags: [Authentication and Accounts]
+      summary: 'Refresh the session (NEW-07)'
+      description: |
+        **Access:** anyone with a `refresh_token` cookie (no access token needed; it has usually just
+        expired). Not in the PDF tables; added for NEW-07.
+
+        Issues a new `access_token` (15 minutes) and a rotated `refresh_token` as httpOnly, Secure,
+        SameSite cookies (ACC-19). The old refresh token stops working at once. Call it when another
+        endpoint answers 401, then retry that request once.
+
+        A session with no authenticated request for 30 minutes cannot be refreshed (ACC-06). Reusing a
+        rotated or revoked refresh token gives 401 and revokes the whole session. On every 401 or 403
+        both cookies are cleared and the user must log in again.
+      security: []
+      responses:
+        '204':
+          description: Session refreshed; new `access_token` and `refresh_token` cookies are set.
+        '401':
+          description: No refresh cookie, an invalid or reused token, or the session expired or was revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 401, "error": "UNAUTHORIZED", "message": "Your session has ended. Please log in again", "path": "/api/auth/refresh", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '403':
+          description: The account is suspended.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Account suspended", "path": "/api/auth/refresh", "timestamp": "2026-11-01T10:00:00.000Z"}
+
   /api/auth/forgot-password:
     post:
       operationId: postAuthForgotPassword

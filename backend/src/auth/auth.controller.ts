@@ -6,15 +6,21 @@ import {
   HttpStatus,
   Patch,
   Post,
+  Req,
   Res,
+  UnauthorizedException,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { AllowPendingPasswordChange, CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
-import { clearAuthCookies, setAuthCookies } from './auth-cookies';
+import {
+  clearAuthCookies,
+  REFRESH_COOKIE,
+  setAuthCookies,
+} from './auth-cookies';
 import {
   AccountResponse,
   AuthService,
@@ -35,8 +41,8 @@ import { NoStoreInterceptor } from './no-store.interceptor';
 //   POST  /api/auth/logout            ACC-06           done
 //   PATCH /api/auth/change-password   ACC-08           done
 //   GET   /api/auth/me                ACC-04, ACC-11   done
-// Extra endpoints may be needed (not in the PDF tables) for:
-//   refreshing the session (NEW-07)
+// Extra endpoint (not in the PDF tables):
+//   POST  /api/auth/refresh           NEW-07           done
 // Notes:
 //   Tokens live only in httpOnly cookies, never in localStorage or sessionStorage (ACC-19).
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
@@ -70,6 +76,27 @@ export class AuthController {
     const { account, tokens } = await this.authService.login(dto);
     setAuthCookies(res, tokens);
     return account;
+  }
+
+  // NEW-07: public (the access token has usually just expired). Reads only the refresh_token
+  // cookie, rotates both tokens and sets them as new cookies. On any failure both cookies are
+  // cleared, so a dead session never leaves stale cookies behind; the frontend then sends the
+  // user to login.
+  @Post('refresh')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const cookies = req.cookies as Record<string, string> | undefined;
+    const token = cookies?.[REFRESH_COOKIE];
+    try {
+      if (!token) throw new UnauthorizedException('You must be logged in');
+      setAuthCookies(res, await this.authService.refresh(token));
+    } catch (err) {
+      clearAuthCookies(res);
+      throw err;
+    }
   }
 
   // ACC-06: revokes the session on the server and clears both cookies. Its tokens stop working

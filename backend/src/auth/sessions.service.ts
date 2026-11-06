@@ -6,7 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { Model, Types } from 'mongoose';
 import { AccountStatus, Role } from '../common/enums';
 import type { AuthUser } from '../common/interfaces';
@@ -14,6 +14,7 @@ import { UsersService } from '../users/users.service';
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   AuthTokens,
+  REFRESH_TOKEN_TTL_SECONDS,
   SESSION_IDLE_SECONDS,
 } from './auth-cookies';
 import { Session } from './schemas/session.schema';
@@ -21,6 +22,7 @@ import { Session } from './schemas/session.schema';
 interface TokenPayload {
   sub: string; // user id
   sid: string; // session id
+  jti?: string; // unique per token, so a rotated refresh token never equals the old one (NEW-07)
 }
 
 const SESSION_ENDED = 'Your session has ended. Please log in again';
@@ -45,18 +47,10 @@ export class SessionsService {
   // ACC-04, NEW-07: a new session for a successful login, with its access and refresh tokens.
   async start(userId: string): Promise<AuthTokens> {
     const sessionId = new Types.ObjectId();
-    const payload: TokenPayload = { sub: userId, sid: sessionId.toString() };
-
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwt.signAsync(payload, {
-        secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        expiresIn: ACCESS_TOKEN_TTL_SECONDS,
-      }),
-      this.jwt.signAsync(payload, {
-        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: SESSION_IDLE_SECONDS,
-      }),
-    ]);
+    const { accessToken, refreshToken } = await this.signTokens(
+      userId,
+      sessionId.toString(),
+    );
 
     const now = new Date();
     await this.sessionModel.create({
@@ -68,6 +62,71 @@ export class SessionsService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  // NEW-07: exchange a refresh token for a new access token and a rotated refresh token.
+  // 401 (the controller then clears the cookies) when the token is invalid, the session is revoked,
+  // or it has been idle for 30 minutes. A refresh token that was already rotated away means it was
+  // copied: the whole session is revoked, so neither copy works any more.
+  async refresh(refreshToken: string): Promise<AuthTokens> {
+    let payload: TokenPayload;
+    try {
+      payload = await this.jwt.verifyAsync<TokenPayload>(refreshToken, {
+        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException(SESSION_ENDED);
+    }
+
+    const session = Types.ObjectId.isValid(payload.sid)
+      ? await this.sessionModel.findById(payload.sid).exec()
+      : null;
+    const now = new Date();
+    if (
+      !session ||
+      session.revokedAt ||
+      session.expiresAt <= now ||
+      session.userId.toString() !== payload.sub
+    ) {
+      throw new UnauthorizedException(SESSION_ENDED);
+    }
+
+    const oldHash = hashToken(refreshToken);
+    if (session.tokenHash !== oldHash) {
+      await this.revoke(payload.sid); // reuse of a rotated token: end the session
+      throw new UnauthorizedException(SESSION_ENDED);
+    }
+
+    const user = await this.usersService.findById(payload.sub);
+    if (!user || user.status === AccountStatus.Deactivated) {
+      await this.revoke(payload.sid);
+      throw new UnauthorizedException(SESSION_ENDED);
+    }
+    if (user.status === AccountStatus.Suspended) {
+      await this.revoke(payload.sid);
+      throw new ForbiddenException(ACCOUNT_SUSPENDED);
+    }
+
+    const tokens = await this.signTokens(payload.sub, payload.sid);
+    // Atomic rotation: only succeeds if the old token is still the current one, so two refreshes
+    // with the same token at the same moment cannot both win.
+    const result = await this.sessionModel
+      .updateOne(
+        { _id: session._id, tokenHash: oldHash, revokedAt: null },
+        {
+          $set: {
+            tokenHash: hashToken(tokens.refreshToken),
+            lastActivityAt: now,
+            expiresAt: new Date(now.getTime() + SESSION_IDLE_SECONDS * 1000),
+          },
+        },
+      )
+      .exec();
+    if (result.modifiedCount !== 1) {
+      await this.revoke(payload.sid);
+      throw new UnauthorizedException(SESSION_ENDED);
+    }
+    return tokens;
   }
 
   // ACC-06: logout revokes the session on the server, so its tokens stop working at once.
@@ -184,6 +243,32 @@ export class SessionsService {
         },
       )
       .exec();
+  }
+
+  // A new access token (15 minutes) and refresh token (24-hour cap) for a session. Each has its
+  // own jti, so a rotated refresh token is always different from the one it replaces.
+  private async signTokens(
+    userId: string,
+    sessionId: string,
+  ): Promise<AuthTokens> {
+    const payload = { sub: userId, sid: sessionId };
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwt.signAsync(
+        { ...payload, jti: randomUUID() },
+        {
+          secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+          expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+        },
+      ),
+      this.jwt.signAsync(
+        { ...payload, jti: randomUUID() },
+        {
+          secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
+          expiresIn: REFRESH_TOKEN_TTL_SECONDS,
+        },
+      ),
+    ]);
+    return { accessToken, refreshToken };
   }
 }
 
