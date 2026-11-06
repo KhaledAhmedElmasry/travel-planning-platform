@@ -4643,7 +4643,8 @@ paths:
       description: |
         **Access:** everyone, including guests.
 
-        Only public itineraries are listed; hidden ones (GEN-10) are excluded. Keyword matching is
+        Only public itineraries are listed; hidden ones (GEN-10) and those of deactivated accounts
+        (ACC-12) are excluded. Keyword matching is
         case-insensitive and searches the title, country or city. Results can
         also be filtered by duration and country or city.
       security: []
@@ -4689,7 +4690,8 @@ paths:
       description: |
         **Access:** everyone, including guests.
 
-        Read-only view with the author, days, activities and budget. Private itineraries give 404.
+        Read-only view with the author, days, activities and budget. Private and hidden itineraries, and
+        those of deactivated accounts (ACC-12), give 404.
       security: []
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -4727,7 +4729,8 @@ paths:
 
         Creates an independent private copy for the current user with all days, activities, budget entries
         and transport costs. The copy credits the original author. Later changes to either itinerary do
-        not affect the other.
+        not affect the other. The itinerary of a deactivated account (ACC-12) cannot be cloned (404);
+        clones made earlier stay with their new owners.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
