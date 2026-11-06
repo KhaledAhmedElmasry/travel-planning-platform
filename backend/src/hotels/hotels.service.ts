@@ -5,10 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
 import { formatDate } from '../hotel-bookings/stay-dates';
 import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
+import { platformCurrency } from '../payments/platform-currency';
 import type {
   CancellationTier,
   RefundTier,
@@ -59,6 +61,7 @@ export class HotelsService {
     @InjectModel(Hotel.name) private readonly hotelModel: Model<Hotel>,
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
     @InjectConnection() private readonly connection: Connection,
+    private readonly config: ConfigService,
   ) {}
 
   // --- HTL-01: create (admin only; the controller enforces the role) ---
@@ -341,6 +344,8 @@ export class HotelsService {
       beds: room.beds,
       maxOccupancy: room.maxOccupancy,
       pricePerNight: room.pricePerNight,
+      // PAY-04: every price is in the platform currency (integer cents).
+      currency: platformCurrency(this.config),
       active: room.active,
       availableRanges: room.availableRanges.map((r) => ({
         from: formatDate(r.from),
