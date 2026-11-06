@@ -1,15 +1,15 @@
 import type { CookieOptions, Response } from 'express';
 
 // Area: Auth & Accounts
-// The two auth cookies (ACC-19, NEW-07). Tokens are never sent in a response body, so JavaScript
+// The two auth cookies (ACC-19). Tokens are never sent in a response body, so JavaScript
 // in the browser can never read them.
 
 export const ACCESS_COOKIE = 'access_token';
 export const REFRESH_COOKIE = 'refresh_token';
 
-// The access token is short-lived (NEW-07).
+// The access token is short-lived (ACC-19).
 export const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
-// A session with no activity for 30 minutes expires (ACC-06, NEW-07).
+// A session with no activity for 30 minutes expires (ACC-06).
 export const SESSION_IDLE_SECONDS = 30 * 60;
 
 export interface AuthTokens {

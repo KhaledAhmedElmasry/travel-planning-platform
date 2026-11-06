@@ -16,7 +16,7 @@ import {
 } from './schemas/reference-data.schema';
 
 // Area: Reference Data & Seeding
-// Requirements: GEN-12, NEW-05, FLT-02
+// Requirements: GEN-12, FLT-02
 //
 // ReferenceDataService is exported: import ReferenceDataModule in another module to use its
 // lookups (e.g. reject an unknown currency, country, city or airport).

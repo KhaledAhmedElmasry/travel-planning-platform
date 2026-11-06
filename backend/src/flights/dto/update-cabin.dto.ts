@@ -7,7 +7,7 @@ import { IsInt, IsNumber, IsOptional, IsPositive, Min } from 'class-validator';
 //
 // Send only the fields to change. The cabin class cannot change. The seat count cannot go below
 // the seats already booked or held (checked in FlightsService). A new price does not change
-// existing bookings, which keep their agreed price (NEW-02).
+// existing bookings, which keep their agreed price (FLT-05).
 
 export class UpdateCabinDto {
   @IsOptional()

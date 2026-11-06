@@ -3,7 +3,7 @@ import { CabinClass, PassengerType } from '../../common/enums';
 // Area: Payments, Holds & Booking Engine
 // The contract between the seat hold (FLT-22, Area 1) and the booking summary (FLT-19, FLT-21,
 // FLT-12, Area 6). Area 6 computes the summary; the hold reserves the seats and stores exactly
-// these values on the booking as the prices agreed at booking time (NEW-02).
+// these values on the booking as the prices agreed at booking time (FLT-05).
 // All amounts are integer cents of the platform currency (PAY-04).
 
 export interface QuotedAirport {

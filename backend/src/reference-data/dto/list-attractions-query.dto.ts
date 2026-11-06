@@ -4,7 +4,7 @@ import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 
 // Area: Reference Data & Seeding
 // Used by: GET /api/attractions (query), filtered by city (e.g. cairo)
-// Requirements: NEW-05, GEN-12, GEN-05
+// Requirements: GEN-12, GEN-05
 
 export class ListAttractionsQueryDto extends PaginationQueryDto {
   // city_id from the official cities dataset, e.g. cairo (any letter case).

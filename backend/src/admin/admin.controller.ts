@@ -32,7 +32,7 @@ import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 // Deactivating / reactivating a provider notifies its moderator (GEN-01) and writes an audit
 // entry (GEN-07).
 // Notes:
-//   Admin only. Suspending an account or resetting its password revokes its sessions (NEW-07).
+//   Admin only. Suspending an account or resetting its password revokes its sessions (ACC-19).
 //   Admin accounts are seeded, never registered (ACC-18).
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:

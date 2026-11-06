@@ -19,7 +19,7 @@ import { UpdateFlightDto } from './dto/update-flight.dto';
 import { FlightsService } from './flights.service';
 
 // Area: Airlines & Flight Inventory
-// Requirements: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06, NEW-02
+// Requirements: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06
 // Endpoints to implement (PDF section 8):
 //   POST  /api/flights                          FLT-03   (done)
 //   GET   /api/flights/:id                      FLT-17   (done, in flight-details.controller.ts)
@@ -32,7 +32,7 @@ import { FlightsService } from './flights.service';
 // Notes:
 //   Flight search is in flight-search.controller.ts. It is listed first in
 //   flights.module.ts so /flights/search is not matched as /flights/:id.
-//   POST /api/flights/:id/cancel (FLT-06, NEW-02): the bookings of the flight are changed by
+//   POST /api/flights/:id/cancel (FLT-06): the bookings of the flight are changed by
 //   FlightBookingLifecycleService (Area 1); see "Effect on existing flight bookings" in
 //   schemas/flight.schema.ts.
 @Controller('flights')

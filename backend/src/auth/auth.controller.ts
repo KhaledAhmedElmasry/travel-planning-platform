@@ -26,15 +26,15 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
 // Area: Auth & Accounts
-// Requirements: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19, NEW-07
+// Requirements: ACC-01, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19
 // Endpoints to implement (PDF section 8):
-//   POST  /api/auth/register          ACC-01, ACC-03   done
+//   POST  /api/auth/register          ACC-01   done
 //   POST  /api/auth/login             ACC-04, ACC-05   done
 //   POST  /api/auth/logout            ACC-06           done
 //   PATCH /api/auth/change-password   ACC-08           done
 //   GET   /api/auth/me                ACC-04, ACC-11   done
 // Extra endpoints may be needed (not in the PDF tables) for:
-//   refreshing the session (NEW-07)
+//   refreshing the session (ACC-19)
 // Notes:
 //   Tokens live only in httpOnly cookies, never in localStorage or sessionStorage (ACC-19).
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
@@ -48,14 +48,14 @@ import { RegisterDto } from './dto/register.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // ACC-01, ACC-03: public, guests register without logging in. A role in the body is stripped.
+  // ACC-01: public, guests register without logging in. A role in the body is stripped.
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   register(@Body() dto: RegisterDto): Promise<RegisterResponse> {
     return this.authService.register(dto);
   }
 
-  // ACC-04: public. Sets the access_token and refresh_token httpOnly cookies (ACC-19, NEW-07)
+  // ACC-04: public. Sets the access_token and refresh_token httpOnly cookies (ACC-19)
   // and returns the account; the frontend opens the home page of the returned role.
   @Post('login')
   @HttpCode(HttpStatus.OK)

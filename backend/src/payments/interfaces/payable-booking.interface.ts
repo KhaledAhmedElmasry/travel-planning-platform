@@ -11,10 +11,10 @@ export interface PayableBooking {
   id: string;
   userId: string;
   status: BookingStatus;
-  // Booking total in integer cents of the platform currency (PAY-04, NEW-04).
+  // Booking total in integer cents of the platform currency (PAY-04).
   totalAmount: number;
   currency: string;
-  // End of the 10-minute seat/room hold (FLT-22, HTL-18, NEW-01).
+  // End of the 10-minute seat/room hold (FLT-22, HTL-18, GEN-11).
   holdExpiresAt: Date;
   // When the user accepted the provider policies (PAY-02); payment is refused without it.
   policiesAcceptedAt?: Date | null;

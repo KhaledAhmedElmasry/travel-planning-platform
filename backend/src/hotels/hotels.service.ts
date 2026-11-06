@@ -282,7 +282,7 @@ export class HotelsService {
     }
   }
 
-  // NEW-05: the country and city must exist, and the city must belong to the country.
+  // GEN-12: the country and city must exist, and the city must belong to the country.
   // TODO: replace with ReferenceDataService once Area 5 exports its lookups.
   private async assertCityInCountry(cityId: string, countryCode: string) {
     const db = this.connection.db!;
