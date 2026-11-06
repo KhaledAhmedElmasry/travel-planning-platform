@@ -7,7 +7,8 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, isValidObjectId, Model } from 'mongoose';
 import { RoomInventoryService } from '../hotel-bookings/room-inventory.service';
-import { formatDate } from '../hotel-bookings/stay-dates';
+import { HotelBooking } from '../hotel-bookings/schemas/hotel-booking.schema';
+import { dateOnly, formatDate, todayUtc } from '../hotel-bookings/stay-dates';
 import { assertManagesHotel } from '../common/guards/ownership';
 import type { AuthUser } from '../common/interfaces';
 import {
@@ -16,6 +17,7 @@ import {
 } from './dto/update-room-availability.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import {
+  addRange,
   formatRanges,
   NightRange,
   overlaps,
@@ -26,12 +28,16 @@ import { Hotel } from './schemas/hotel.schema';
 import { Room, RoomDocument } from './schemas/room.schema';
 
 // Area: Hotels & Rooms
-// Business logic for: HTL-05 (edit a room, remove bookable nights)
+// Business logic for: HTL-05 (edit a room, remove bookable nights) and HTL-06 (block and
+// unblock nights, deactivate and delete a room)
 //
 // Every change that depends on reservations runs in ONE transaction that first reads the room
 // and then writes it. Area 1's hold writes the same room document in its own transaction
 // (hotel-bookings.service.ts, lastReservedAt), so a room change and a hold saved at the same
 // moment conflict: MongoDB aborts one of them, it runs again and sees the other one.
+
+// "From today on" (HTL-06 deactivation): every night up to this date.
+const LAST_NIGHT = dateOnly('9999-12-31');
 
 @Injectable()
 export class RoomsService {
@@ -42,7 +48,7 @@ export class RoomsService {
     private readonly inventory: RoomInventoryService,
   ) {}
 
-  // --- HTL-05: edit beds, maximum occupancy and price per night ---
+  // --- HTL-05: edit beds, maximum occupancy and price per night; HTL-06: deactivate ---
 
   async updateRoom(
     hotelId: string,
@@ -51,32 +57,77 @@ export class RoomsService {
     dto: UpdateRoomDto,
   ) {
     await this.assertModeratorOfHotel(hotelId, actor);
-    if (!isValidObjectId(roomId))
-      throw new NotFoundException('Room not found.');
 
     const changes: Partial<Room> = {};
     if (dto.beds !== undefined) changes.beds = dto.beds;
     if (dto.maxOccupancy !== undefined) changes.maxOccupancy = dto.maxOccupancy;
     if (dto.pricePerNight !== undefined)
       changes.pricePerNight = dto.pricePerNight;
+    if (dto.active !== undefined) changes.active = dto.active;
     if (Object.keys(changes).length === 0) {
       throw new BadRequestException(
-        'Send at least one field to change: beds, maxOccupancy or pricePerNight.',
+        'Send at least one field to change: beds, maxOccupancy, pricePerNight or active.',
       );
     }
 
-    // Reservations store the price they were booked at, so a new price only applies to new
-    // reservations (HTL-05).
-    const updated = await this.roomModel.findOneAndUpdate(
-      { _id: roomId, hotelId },
-      { $set: changes },
-      { new: true, runValidators: true },
-    );
-    if (!updated) throw new NotFoundException('Room not found.');
-    return this.toRoomResponse(updated);
+    let result: RoomDocument | null = null;
+    await this.connection.transaction(async (session) => {
+      const room = await this.findRoomOrThrow(hotelId, roomId, session);
+      // HTL-06: a room with a Confirmed reservation or a hold being paid from today on stays
+      // active, so those guests keep their room.
+      if (dto.active === false && room.active !== false) {
+        await this.assertNoReservations(
+          room,
+          { from: todayUtc(), to: LAST_NIGHT },
+          'The room cannot be deactivated because it has Confirmed or Pending Payment reservations',
+        );
+      }
+      // Reservations store the price they were booked at, so a new price only applies to new
+      // reservations (HTL-05).
+      result = await this.roomModel.findOneAndUpdate(
+        { _id: room._id },
+        { $set: changes },
+        { new: true, runValidators: true, session },
+      );
+      if (!result) throw new NotFoundException('Room not found.');
+    });
+    return this.toRoomResponse(result!);
   }
 
-  // --- HTL-05: remove bookable nights ---
+  // --- HTL-06: delete a room that has never been reserved ---
+
+  async deleteRoom(
+    hotelId: string,
+    roomId: string,
+    actor: AuthUser,
+  ): Promise<void> {
+    await this.assertModeratorOfHotel(hotelId, actor);
+
+    await this.connection.transaction(async (session) => {
+      const room = await this.findRoomOrThrow(hotelId, roomId, session);
+      // Area 1 sets lastReservedAt on every hold, and every reservation lists its rooms. Either
+      // one means the room has been reserved, so its reservations still need it.
+      const reserved =
+        room.lastReservedAt != null ||
+        (await this.connection
+          .model<HotelBooking>(HotelBooking.name)
+          .exists({ 'rooms.roomId': room._id })
+          .session(session)) !== null;
+      // lastReservedAt: null in the filter as well, so a hold saved a moment ago stops the delete.
+      const deleted = reserved
+        ? { deletedCount: 0 }
+        : await this.roomModel
+            .deleteOne({ _id: room._id, lastReservedAt: null })
+            .session(session);
+      if (deleted.deletedCount !== 1) {
+        throw new ConflictException(
+          'The room has been reserved before and cannot be deleted. Deactivate it instead.',
+        );
+      }
+    });
+  }
+
+  // --- HTL-05: remove bookable nights; HTL-06: block and unblock nights ---
 
   async updateAvailability(
     hotelId: string,
@@ -93,6 +144,12 @@ export class RoomsService {
       switch (dto.action) {
         case RoomAvailabilityAction.Remove:
           result = await this.removeNights(room, range, session);
+          break;
+        case RoomAvailabilityAction.Block:
+          result = await this.blockNights(room, range, session);
+          break;
+        case RoomAvailabilityAction.Unblock:
+          result = await this.unblockNights(room, range, session);
           break;
       }
     });
@@ -120,6 +177,43 @@ export class RoomsService {
     return this.saveRanges(
       room,
       { availableRanges: subtractRange(room.availableRanges, range) },
+      session,
+    );
+  }
+
+  // HTL-06: blocked nights cannot be booked. Refused if a Confirmed reservation or a hold that
+  // is still being paid has one of these nights. Overlapping or touching blocks are joined.
+  private async blockNights(
+    room: RoomDocument,
+    range: NightRange,
+    session: ClientSession,
+  ): Promise<RoomDocument> {
+    await this.assertNoReservations(
+      room,
+      range,
+      'These nights have Confirmed or Pending Payment reservations, so nothing was blocked',
+    );
+    return this.saveRanges(
+      room,
+      { blockedRanges: addRange(room.blockedRanges, range) },
+      session,
+    );
+  }
+
+  // HTL-06: removes the block from these nights, splitting a block in two when needed.
+  private async unblockNights(
+    room: RoomDocument,
+    range: NightRange,
+    session: ClientSession,
+  ): Promise<RoomDocument> {
+    if (!room.blockedRanges.some((r) => overlaps(r, range))) {
+      throw new BadRequestException(
+        'None of these nights are blocked, so nothing was unblocked.',
+      );
+    }
+    return this.saveRanges(
+      room,
+      { blockedRanges: subtractRange(room.blockedRanges, range) },
       session,
     );
   }

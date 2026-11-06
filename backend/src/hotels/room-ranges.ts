@@ -57,6 +57,24 @@ export function subtractRange(
   return sortRanges(result);
 }
 
+// The ranges plus add, joined with every range it overlaps or touches, so the result never has
+// two ranges that overlap (e.g. 1-5 and 6-9 become 1-9).
+export function addRange(ranges: NightRange[], add: NightRange): NightRange[] {
+  let from = add.from;
+  let to = add.to;
+  const rest: NightRange[] = [];
+  for (const r of ranges) {
+    const touches = r.from <= addDays(to, 1) && addDays(from, -1) <= r.to;
+    if (touches) {
+      if (r.from < from) from = r.from;
+      if (r.to > to) to = r.to;
+    } else {
+      rest.push({ from: r.from, to: r.to });
+    }
+  }
+  return sortRanges([...rest, { from, to }]);
+}
+
 export function sortRanges(ranges: NightRange[]): NightRange[] {
   return [...ranges].sort((a, b) => a.from.getTime() - b.from.getTime());
 }

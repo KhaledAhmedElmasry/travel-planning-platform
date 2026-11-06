@@ -2703,7 +2703,7 @@ paths:
     patch:
       operationId: patchHotelsByIdRoomsByRoomId
       tags: [Hotels and Rooms]
-      summary: 'Edit or deactivate a room (HTL-05)'
+      summary: 'Edit or deactivate a room (HTL-05, HTL-06)'
       description: |
         **Access:** the hotel moderator assigned to this hotel.
 
@@ -2732,7 +2732,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Send at least one field to change: beds, maxOccupancy or pricePerNight.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Send at least one field to change: beds, maxOccupancy, pricePerNight or active.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2750,12 +2750,12 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel or room not found.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
-          description: The room cannot be deactivated because it has Confirmed or Pending Payment reservations.
+          description: The room cannot be deactivated because it has Confirmed or Pending Payment reservations from today on. The message lists the nights.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The room cannot be deactivated because it has Confirmed or Pending Payment reservations.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The room cannot be deactivated because it has Confirmed or Pending Payment reservations: 2027-03-25, 2027-03-26.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
     delete:
       operationId: deleteHotelsByIdRoomsByRoomId
       tags: [Hotels and Rooms]
@@ -2764,7 +2764,9 @@ paths:
         **Access:** the hotel moderator assigned to this hotel. The frontend asks for confirmation
         first (GEN-03).
 
-        Only rooms that have never been reserved can be deleted; otherwise deactivate the room instead.
+        Only rooms that have never been reserved can be deleted: no hold or reservation of any status,
+        past or future, has ever included the room. Otherwise deactivate the room instead
+        (`PATCH /api/hotels/{id}/rooms/{roomId}` with `active: false`).
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -2794,7 +2796,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The room has been reserved before and cannot be deleted.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The room has been reserved before and cannot be deleted. Deactivate it instead.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/hotels/{id}/rooms/available:
     get:
@@ -2906,9 +2908,11 @@ paths:
         - `remove`: removes bookable nights (HTL-05). A bookable range that contains the nights is
           split in two. Rejected (409) for nights that have a Confirmed reservation or a hold that is
           still being paid (Pending Payment), and (400) if none of the nights are bookable.
-        - `block`: blocks nights so they cannot be booked (HTL-06). Rejected if the range overlaps any
-          Confirmed or Pending Payment reservation.
-        - `unblock`: removes a block again.
+        - `block`: blocks nights so they cannot be booked (HTL-06). Rejected (409) if the range overlaps
+          any Confirmed or Pending Payment reservation. Blocks that overlap or touch are joined into
+          one range. The bookable ranges do not change.
+        - `unblock`: removes a block again, splitting a block in two when needed. Rejected (400) if none
+          of the nights are blocked.
 
         `from` and `to` are the first and last night (both inclusive).
       security: *auth
@@ -2928,7 +2932,7 @@ paths:
             application/json:
               example: {"roomId": "665f1c2a9b1e8a0012345681", "roomNumber": "101", "availableRanges": [{"from": "2027-03-01", "to": "2027-03-23"}, {"from": "2027-03-27", "to": "2027-03-31"}], "blockedRanges": []}
         '400':
-          description: Invalid fields or dates (to before from), or none of the nights are bookable.
+          description: Invalid fields or dates (to before from), or none of the nights are bookable (remove) or blocked (unblock).
           content:
             application/json:
               schema:

@@ -1,6 +1,6 @@
-import { IsInt, IsOptional, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, Min } from 'class-validator';
 
-// PATCH /api/hotels/:id/rooms/:roomId (HTL-05)
+// PATCH /api/hotels/:id/rooms/:roomId (HTL-05, HTL-06)
 // Send only the fields to change. The room number and type stay as they were created (HTL-03).
 export class UpdateRoomDto {
   @IsOptional()
@@ -19,4 +19,10 @@ export class UpdateRoomDto {
   @IsInt()
   @Min(1)
   pricePerNight?: number;
+
+  // HTL-06: false deactivates the room (it cannot be booked and is left out of search), true
+  // activates it again.
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
 }
