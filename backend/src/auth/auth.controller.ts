@@ -30,9 +30,15 @@ import {
   RegisterResponse,
 } from './auth.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { NoStoreInterceptor } from './no-store.interceptor';
+import {
+  PasswordResetService,
+  RESET_REQUESTED,
+} from './password-reset.service';
 
 // Area: Auth & Accounts
 // Requirements: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19, NEW-07
@@ -49,15 +55,18 @@ import { NoStoreInterceptor } from './no-store.interceptor';
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
 //   GET  /api/auth/verify-email      ACC-02 (Optional)   done
-//   POST /api/auth/forgot-password   ACC-07 (Optional)
-//   POST /api/auth/reset-password    ACC-07 (Optional)
+//   POST /api/auth/forgot-password   ACC-07 (Optional)   done
+//   POST /api/auth/reset-password    ACC-07 (Optional)   done
 //
 // DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe and error filter are registered in main.ts.
 // ACC-19: account data is never cached by the browser or a proxy.
 @UseInterceptors(NoStoreInterceptor)
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly passwordReset: PasswordResetService,
+  ) {}
 
   // ACC-01, ACC-03: public, guests register without logging in. A role in the body is stripped.
   @Post('register')
@@ -75,6 +84,26 @@ export class AuthController {
   ): Promise<{ message: string }> {
     await this.authService.verifyEmail(typeof token === 'string' ? token : '');
     return { message: 'Email verified. You can now book flights and hotels' };
+  }
+
+  // ACC-07 (bonus): public. Always the same answer, so nobody can find out which emails exist.
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    await this.passwordReset.requestReset(dto.email);
+    return { message: RESET_REQUESTED };
+  }
+
+  // ACC-07 (bonus): public, with the token from the reset link. Revokes every session.
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    await this.passwordReset.resetPassword(dto.token, dto.newPassword);
+    return { message: 'Password changed. Log in with your new password' };
   }
 
   // ACC-04: public. Sets the access_token and refresh_token httpOnly cookies (ACC-19, NEW-07)

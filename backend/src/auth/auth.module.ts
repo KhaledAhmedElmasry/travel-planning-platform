@@ -8,6 +8,7 @@ import { AdminUsersController } from './admin-users.controller';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { EmailVerificationService } from './email-verification.service';
+import { PasswordResetService } from './password-reset.service';
 import { EmailToken, EmailTokenSchema } from './schemas/email-token.schema';
 import { Session, SessionSchema } from './schemas/session.schema';
 import { SessionsService } from './sessions.service';
@@ -30,6 +31,7 @@ import { SessionsService } from './sessions.service';
     AuthService,
     SessionsService,
     EmailVerificationService,
+    PasswordResetService,
     JwtAuthGuard,
     RolesGuard,
   ],
