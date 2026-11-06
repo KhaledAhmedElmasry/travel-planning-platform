@@ -631,19 +631,21 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 409, "error": "CONFLICT", "message": "The account is not suspended.", "path": "/api/admin/accounts/665f1c2a9b1e8a00123400a1/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
 
-  /api/admin/airlines/{id}/deactivate:
+  /api/admin/providers/{type}/{id}/deactivate:
     patch:
-      operationId: patchAdminAirlinesByIdDeactivate
+      operationId: patchAdminProvidersByTypeByIdDeactivate
       tags: [Administration]
-      summary: 'Deactivate an airline (ACC-15)'
+      summary: 'Deactivate a hotel or airline (ACC-15)'
       description: |
-        **Access:** admin.
+        **Access:** admin. `type` is `hotel` or `airline`.
 
-        Deactivates an airline. Its flights are hidden from search and cannot be booked; existing confirmed
-        bookings remain valid. The assigned moderator receives an in-app notification (GEN-01) and the action
-        is written to the audit log (GEN-07).
+        A deactivated hotel or airline is hidden from search and cannot be booked; its existing Confirmed
+        bookings remain valid. The assigned moderator receives an in-app notification (GEN-01) and the action is
+        written to the audit log (GEN-07). Deactivating a provider is separate from suspending its
+        moderator account (`PATCH /api/admin/accounts/{id}/suspend`).
       security: *auth
       parameters:
+        - $ref: '#/components/parameters/ProviderTypePath'
         - $ref: '#/components/parameters/Id'
       requestBody:
         required: false
@@ -653,7 +655,7 @@ paths:
               $ref: '#/components/schemas/AdminActionRequest'
       responses:
         '200':
-          description: Airline deactivated. Returns status.
+          description: Provider deactivated. Returns its new status.
           content:
             application/json:
               schema:
@@ -669,7 +671,12 @@ paths:
                     type: string
                     example: 'Airline deactivated successfully.'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: '`type` is not hotel or airline, or the body is invalid.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Validation failed (enum string is expected)", "path": "/api/admin/providers/train/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -678,34 +685,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
-          description: Airline not found.
+          description: No hotel or airline with this id.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Airline not found.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Airline not found.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
-          description: The airline is already deactivated.
+          description: The provider is already deactivated.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The airline is already deactivated.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The airline is already deactivated.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
 
-  /api/admin/airlines/{id}/reactivate:
+  /api/admin/providers/{type}/{id}/reactivate:
     patch:
-      operationId: patchAdminAirlinesByIdReactivate
+      operationId: patchAdminProvidersByTypeByIdReactivate
       tags: [Administration]
-      summary: 'Reactivate an airline (ACC-15)'
+      summary: 'Reactivate a hotel or airline (ACC-15)'
       description: |
-        **Access:** admin.
+        **Access:** admin. `type` is `hotel` or `airline`.
 
-        Reactivates a deactivated airline. The assigned moderator receives an in-app notification (GEN-01)
-        and the action is written to the audit log (GEN-07).
+        Reactivates a deactivated hotel or airline, so it can be found and booked again. The assigned moderator receives an in-app notification (GEN-01) and the action is
+        written to the audit log (GEN-07). Deactivating a provider is separate from suspending its
+        moderator account (`PATCH /api/admin/accounts/{id}/suspend`).
       security: *auth
       parameters:
+        - $ref: '#/components/parameters/ProviderTypePath'
         - $ref: '#/components/parameters/Id'
       requestBody:
         required: false
@@ -715,7 +724,7 @@ paths:
               $ref: '#/components/schemas/AdminActionRequest'
       responses:
         '200':
-          description: Airline reactivated. Returns status.
+          description: Provider reactivated. Returns its new status.
           content:
             application/json:
               schema:
@@ -731,7 +740,12 @@ paths:
                     type: string
                     example: 'Airline reactivated successfully.'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: '`type` is not hotel or airline, or the body is invalid.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Validation failed (enum string is expected)", "path": "/api/admin/providers/train/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -740,146 +754,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
-          description: Airline not found.
+          description: No hotel or airline with this id.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Airline not found.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Airline not found.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
-          description: The airline is not deactivated.
+          description: The provider is not deactivated.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The airline is not deactivated.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-
-  /api/admin/hotels/{id}/deactivate:
-    patch:
-      operationId: patchAdminHotelsByIdDeactivate
-      tags: [Administration]
-      summary: 'Deactivate a hotel (ACC-15)'
-      description: |
-        **Access:** admin.
-
-        Deactivates a hotel. Its rooms are hidden from search and cannot be booked; existing confirmed
-        reservations remain valid. The assigned moderator receives an in-app notification (GEN-01) and the
-        action is written to the audit log (GEN-07).
-      security: *auth
-      parameters:
-        - $ref: '#/components/parameters/Id'
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AdminActionRequest'
-      responses:
-        '200':
-          description: Hotel deactivated. Returns status.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    example: '665f1c2a9b1e8a00123400d4'
-                  active:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: 'Hotel deactivated successfully.'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: Not an admin.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-        '404':
-          description: Hotel not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel not found.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-        '409':
-          description: The hotel is already deactivated.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The hotel is already deactivated.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-
-  /api/admin/hotels/{id}/reactivate:
-    patch:
-      operationId: patchAdminHotelsByIdReactivate
-      tags: [Administration]
-      summary: 'Reactivate a hotel (ACC-15)'
-      description: |
-        **Access:** admin.
-
-        Reactivates a deactivated hotel. The assigned moderator receives an in-app notification (GEN-01)
-        and the action is written to the audit log (GEN-07).
-      security: *auth
-      parameters:
-        - $ref: '#/components/parameters/Id'
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AdminActionRequest'
-      responses:
-        '200':
-          description: Hotel reactivated. Returns status.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    example: '665f1c2a9b1e8a00123400d4'
-                  active:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: 'Hotel reactivated successfully.'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: Not an admin.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-        '404':
-          description: Hotel not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel not found.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-        '409':
-          description: The hotel is not deactivated.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The hotel is not deactivated.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The airline is not deactivated.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/admin/bookings:
     get:
@@ -5757,6 +5646,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/ContentType'
+    ProviderTypePath:
+      name: type
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ProviderType'
     Page:
       name: page
       in: query
@@ -6659,6 +6554,10 @@ components:
       type: string
       description: Content that can be reported, hidden or deleted (GEN-09, GEN-10).
       enum: [post, comment, review, itinerary]
+    ProviderType:
+      type: string
+      description: A provider an admin can deactivate or reactivate (ACC-15).
+      enum: [hotel, airline]
     ReportStatus:
       type: string
       enum: [open, dismissed, content_hidden, content_deleted]

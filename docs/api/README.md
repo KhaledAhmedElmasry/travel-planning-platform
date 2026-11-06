@@ -70,7 +70,6 @@ endpoint to `openapi.yaml` in the same PR:
 | GEN-01 | Notifications: list, unread count, mark as read, mark all as read |
 | GEN-09 | A user reports content |
 | GEN-10 | An admin hides content directly (deleting already exists) |
-| ACC-15 | An admin deactivates and reactivates a hotel or airline |
 | BON-01, BON-02 (bonus) | Admin analytics; favourites |
 
 ## Shared Formats
