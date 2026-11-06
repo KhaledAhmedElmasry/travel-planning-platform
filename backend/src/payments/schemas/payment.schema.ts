@@ -33,7 +33,7 @@ export class Payment {
   @Prop({ required: true, unique: true })
   stripePaymentIntentId: string;
 
-  // Integer cents of the platform currency (PAY-04, NEW-04).
+  // Integer cents of the platform currency (PAY-04).
   @Prop({ required: true, min: 1, validate: Number.isInteger })
   amount: number;
 

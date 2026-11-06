@@ -31,7 +31,7 @@ export const ACCOUNT_SUSPENDED = 'Account suspended';
 const ACTIVITY_WRITE_INTERVAL_MS = 60 * 1000;
 
 // Area: Auth & Accounts
-// Token-based sessions (NEW-07) and the check behind JwtAuthGuard (ACC-04, ACC-19).
+// Token-based sessions (ACC-19) and the check behind JwtAuthGuard (ACC-04, ACC-19).
 // Exported by AuthModule, which is global, so the guard works in every module.
 @Injectable()
 export class SessionsService {
@@ -42,7 +42,7 @@ export class SessionsService {
     private readonly usersService: UsersService,
   ) {}
 
-  // ACC-04, NEW-07: a new session for a successful login, with its access and refresh tokens.
+  // ACC-04, ACC-19: a new session for a successful login, with its access and refresh tokens.
   async start(userId: string): Promise<AuthTokens> {
     const sessionId = new Types.ObjectId();
     const payload: TokenPayload = { sub: userId, sid: sessionId.toString() };

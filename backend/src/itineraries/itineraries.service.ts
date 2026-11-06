@@ -865,7 +865,7 @@ export class ItinerariesService {
     return itinerary;
   }
 
-  // NEW-05: every submitted country must be present in the predefined country data.
+  // GEN-12: every submitted country must be present in the predefined country data.
   private async assertCountriesExist(countryCodes: string[]): Promise<void> {
     const count = await this.connection
       .collection<{ _id: string }>('countries')
@@ -995,7 +995,7 @@ export class ItinerariesService {
     };
   }
 
-  // ITN-05 / NEW-05: the city must be in the seeded cities collection ({ _id: cityId }). Read
+  // ITN-05 / GEN-12: the city must be in the seeded cities collection ({ _id: cityId }). Read
   // directly, as for countries above, so this module does not depend on the reference-data module.
   private async assertCityExists(cityId: string): Promise<void> {
     const count = await this.connection

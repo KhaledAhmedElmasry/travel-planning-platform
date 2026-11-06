@@ -3,7 +3,7 @@ import { IsOptional, IsString, Matches } from 'class-validator';
 
 // Area: Airlines & Flight Inventory
 // Used by: PATCH /api/flights/:id (body)
-// Requirements: FLT-05, GEN-06, NEW-02
+// Requirements: FLT-05, GEN-06
 //
 // Send only the fields to change. The FLT-03 rules still apply (checked in FlightsService).
 // Airports cannot change once the flight has any booking. Fares and seat counts are edited per

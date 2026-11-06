@@ -32,7 +32,7 @@ import { STRIPE_CLIENT } from './stripe.provider';
 //     left before departure (AirlinesService.getRefundTier, FLT-09, Area 5).
 //   - HotelBookingLifecycleService.cancel (HTL-21, done), with the hotel tier for the days left
 //     before check-in, on the full total (HotelsService.getRefundTier, HTL-10, Area 7).
-//   - FlightBookingLifecycleService.finishFlightCancellation (FLT-06, NEW-02, done; called by
+//   - FlightBookingLifecycleService.finishFlightCancellation (FLT-06, done; called by
 //     Area 5 when the airline cancels a flight): 100% for each Confirmed booking.
 //   Those modules need forwardRef to PaymentsModule (see payments.module.ts).
 // Booking details (FLT-25, HTL-20) show the refund with findRefundForBooking().

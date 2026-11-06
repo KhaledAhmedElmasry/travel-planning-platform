@@ -216,7 +216,7 @@ export class AdminService {
       );
     }
 
-    // Revoke all active sessions of this user (NEW-07, ACC-15, ACC-16)
+    // Revoke all active sessions of this user (ACC-19, ACC-15, ACC-16)
     await this.sessionsService.revokeAllForUser(updatedUser._id);
 
     // In-app notification to affected user (GEN-01)

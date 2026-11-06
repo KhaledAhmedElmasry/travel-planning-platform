@@ -2,7 +2,7 @@
 //
 // Loads the official reference datasets in ./seed-data (countries, cities, airports,
 // attractions), the supported currencies and the admin account.
-// Related: PDF section 5.1, GEN-12, FLT-02, NEW-05, ACC-18.
+// Related: PDF section 5.1, GEN-12, FLT-02, ACC-18.
 //
 // Safe to run more than once: reference data is upserted by its official id, and the admin
 // account is only created if its email does not exist yet (an existing password is never reset).
@@ -145,7 +145,7 @@ async function seed() {
     name: CURRENCY_NAMES[code] ?? code,
   }));
 
-  // Reject inconsistent data before writing anything (NEW-05).
+  // Reject inconsistent data before writing anything (GEN-12).
   const countryIds = new Set(countries.map((c) => c._id));
   const cityById = new Map(cities.map((c) => [c._id, c]));
   const problems = [

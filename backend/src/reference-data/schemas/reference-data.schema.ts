@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
 // Area: Reference Data & Seeding
-// Requirements: GEN-12, NEW-05, FLT-02 (PDF section 5.1)
+// Requirements: GEN-12, FLT-02 (PDF section 5.1)
 //
 // The read-only reference data loaded by database/seed.ts (npm run seed). The official ids from
 // the datasets are the document _id values (EG, cairo, CAI, att-1, USD), and the collection and
@@ -52,7 +52,7 @@ export class City {
   @Prop({ required: true, trim: true })
   name: string;
 
-  // The country this city belongs to (NEW-05).
+  // The country this city belongs to (GEN-12).
   @Prop({ required: true, uppercase: true, trim: true, index: true })
   countryCode: string;
 }

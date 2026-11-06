@@ -40,7 +40,7 @@ export class FlightStatusJob {
 
   // FLT-30: every minute, Scheduled flights whose departure time has passed become Departed.
   // One update for all of them; Cancelled flights never change. Safe to run again or in parallel.
-  // The bookings of a departed flight are completed by Area 1's job (GEN-11, NEW-01).
+  // The bookings of a departed flight are completed by Area 1's job (GEN-11).
   @Cron(CronExpression.EVERY_MINUTE, { name: 'flight-departed-status' })
   async markDeparted(): Promise<number> {
     const now = new Date();

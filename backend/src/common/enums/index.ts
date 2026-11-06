@@ -10,7 +10,7 @@ export enum Role {
   HotelModerator = 'hotel_moderator',
 }
 
-// Account status, openapi.yaml "AccountStatus" (ACC-03, ACC-12, ACC-15, ACC-16).
+// Account status, openapi.yaml "AccountStatus" (ACC-01, ACC-12, ACC-15, ACC-16).
 export enum AccountStatus {
   Active = 'active',
   Suspended = 'suspended',

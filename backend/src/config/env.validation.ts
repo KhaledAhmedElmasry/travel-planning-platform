@@ -5,14 +5,14 @@
 // checked when a webhook arrives.
 const REQUIRED = [
   'MONGODB_URI',
-  'JWT_ACCESS_SECRET', // ACC-04, NEW-07
-  'JWT_REFRESH_SECRET', // NEW-07
+  'JWT_ACCESS_SECRET', // ACC-04, ACC-19
+  'JWT_REFRESH_SECRET', // ACC-19
   'STRIPE_SECRET_KEY',
   'PLATFORM_CURRENCY',
   'FXRATES_API_KEY',
 ] as const;
 
-// PLATFORM_CURRENCY (PAY-04, NEW-04): the single currency of every flight and hotel price,
+// PLATFORM_CURRENCY (PAY-04): the single currency of every flight and hotel price,
 // payment and refund. A 3-letter uppercase ISO 4217 code, e.g. USD. Read it with
 // config.getOrThrow<string>('PLATFORM_CURRENCY') and return it with every price.
 const CURRENCY_CODE = /^[A-Z]{3}$/;

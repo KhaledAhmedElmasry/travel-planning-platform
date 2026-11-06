@@ -1,5 +1,5 @@
 // Area: Flight Search & Booking
-// Requirements: FLT-11, FLT-12, FLT-15, GEN-04, GEN-05, GEN-06, PAY-04, NEW-04.
+// Requirements: FLT-11, FLT-12, FLT-15, GEN-04, GEN-05, GEN-06, PAY-04.
 //
 // GET /api/flights/search (everyone, including guests):
 //   - only Scheduled flights that have not departed (FLT-30, openFlightFilter) of ACTIVE airlines
