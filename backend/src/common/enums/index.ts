@@ -56,6 +56,13 @@ export enum ContentType {
   Itinerary = 'itinerary',
 }
 
+// A provider an admin can deactivate or reactivate (ACC-15), the :type of
+// /api/admin/providers/:type/:id/deactivate|reactivate, openapi.yaml "ProviderType".
+export enum ProviderType {
+  Hotel = 'hotel',
+  Airline = 'airline',
+}
+
 // Report lifecycle status (GEN-09, GEN-10), openapi.yaml "ReportStatus".
 export enum ReportStatus {
   Open = 'open',
