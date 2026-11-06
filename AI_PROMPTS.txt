@@ -1332,3 +1332,30 @@ the server-side idle expiry decides, so an active user is not cut off 30 minutes
 Verified with npm run lint, npm run build, local tests (including checks that fail when the
 rotation, the reuse revoke or the unique token id is removed), and in Swagger.
 ================================================
+
+================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-02 (bonus)
+
+Prompt:
+After all mandatory Area 2 requirements were done, I asked the assistant to implement the bonus
+GitHub issue #101 (ACC-02): send a verification link by email after registration and block
+booking until the email is verified, following GET /api/auth/verify-email in
+docs/api/openapi.yaml. Because MailService (GEN-01-B) is still empty, I chose to log the link in
+development for now, and to add the booking block through JwtAuthGuard with a decorator on the
+two booking routes.
+
+How the output was used:
+Used as the base for the EmailToken schema, EmailVerificationService, GET /api/auth/verify-email,
+the emailVerified field, the @RequireVerifiedEmail() decorator and its check in JwtAuthGuard, and
+one decorator line on POST /api/flight-bookings/hold and POST /api/hotel-bookings. I checked it:
+registration creates a one-time link valid for 24 hours and stores only its SHA-256 hash; the link
+is logged only in development and never in production; it works once (atomic update, so two
+clicks cannot both succeed); expired, wrong and empty tokens give 400; an unverified account gets
+403 on the two booking routes but can use everything else; accounts created before ACC-02 and the
+seeded admin count as verified. openapi.yaml is updated (emailVerified, the 200 body, the new
+403). Verified with npm run lint, npm run build, local tests (including checks that fail when the
+booking block, the one-time use or the rule for older accounts is removed), and in Swagger.
+================================================

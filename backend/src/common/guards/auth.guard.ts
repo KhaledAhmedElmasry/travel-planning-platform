@@ -9,7 +9,10 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ACCESS_COOKIE } from '../../auth/auth-cookies';
 import { SessionsService } from '../../auth/sessions.service';
-import { ALLOW_PENDING_PASSWORD_CHANGE_KEY } from '../decorators';
+import {
+  ALLOW_PENDING_PASSWORD_CHANGE_KEY,
+  REQUIRE_VERIFIED_EMAIL_KEY,
+} from '../decorators';
 import type { AuthUser } from '../interfaces';
 
 // Authentication guard: reads the access token from the httpOnly cookie.
@@ -47,6 +50,19 @@ export class JwtAuthGuard implements CanActivate {
       if (!allowed) {
         throw new ForbiddenException(
           'You must change your temporary password before continuing',
+        );
+      }
+    }
+
+    // ACC-02 (bonus): booking needs a verified email address.
+    if (!user.emailVerified) {
+      const required = this.reflector.getAllAndOverride<boolean | undefined>(
+        REQUIRE_VERIFIED_EMAIL_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (required) {
+        throw new ForbiddenException(
+          'Verify your email address before booking. Open the link we sent you',
         );
       }
     }

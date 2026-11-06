@@ -229,6 +229,13 @@ export class UsersService {
       .exec();
   }
 
+  // ACC-02 (bonus): the link from the verification email was opened.
+  async markEmailVerified(userId: Types.ObjectId): Promise<void> {
+    await this.userModel
+      .updateOne({ _id: userId }, { $set: { emailVerified: true } })
+      .exec();
+  }
+
   findById(id: string): Promise<UserDocument | null> {
     if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
     return this.userModel.findById(id).exec();
@@ -251,6 +258,7 @@ export class UsersService {
       email: data.email,
       passwordHash: data.passwordHash,
       termsAcceptedAt: data.termsAcceptedAt,
+      emailVerified: false, // ACC-02
       role: Role.User,
       status: AccountStatus.Active,
       preferredCurrency: this.config.getOrThrow<string>('PLATFORM_CURRENCY'),

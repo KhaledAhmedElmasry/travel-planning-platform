@@ -135,6 +135,8 @@ paths:
         **Access:** guests (the user opens the link sent by email after registration).
 
         Marks the email as verified. Booking is blocked until the email is verified (ACC-02).
+        Registration sends the link; it works once, for 24 hours. Until email sending (GEN-01-B)
+        exists, the link is printed in the server log in development.
       security: []
       parameters:
         - name: token
@@ -146,6 +148,14 @@ paths:
       responses:
         '200':
           description: Email verified.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Email verified. You can now book flights and hotels
         '400':
           description: The token is invalid, expired or already used.
           content:
@@ -2221,7 +2231,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not a registered user.
+          description: Not a registered user, or [Bonus] the email is not verified yet (ACC-02).
           content:
             application/json:
               schema:
@@ -3304,7 +3314,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not a registered user.
+          description: Not a registered user, or [Bonus] the email is not verified yet (ACC-02).
           content:
             application/json:
               schema:
@@ -6003,6 +6013,10 @@ components:
           type: boolean
           example: false
           description: true after an admin reset (ACC-07a) or for a new moderator (ACC-13).
+        emailVerified:
+          type: boolean
+          example: true
+          description: '[Bonus] false for a new account until it opens the verification link; booking is blocked until then (ACC-02). Accounts created before ACC-02 are verified.'
 
     Me:
       description: The account of the current session plus its status (ACC-04).

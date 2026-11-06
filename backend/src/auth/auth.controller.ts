@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Patch,
   Post,
+  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -47,7 +48,7 @@ import { NoStoreInterceptor } from './no-store.interceptor';
 //   Tokens live only in httpOnly cookies, never in localStorage or sessionStorage (ACC-19).
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
-//   GET  /api/auth/verify-email      ACC-02 (Optional)
+//   GET  /api/auth/verify-email      ACC-02 (Optional)   done
 //   POST /api/auth/forgot-password   ACC-07 (Optional)
 //   POST /api/auth/reset-password    ACC-07 (Optional)
 //
@@ -63,6 +64,17 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   register(@Body() dto: RegisterDto): Promise<RegisterResponse> {
     return this.authService.register(dto);
+  }
+
+  // ACC-02 (bonus): public, opened from the verification email. 400 for an invalid, expired or
+  // already used token.
+  @Get('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(
+    @Query('token') token: string,
+  ): Promise<{ message: string }> {
+    await this.authService.verifyEmail(typeof token === 'string' ? token : '');
+    return { message: 'Email verified. You can now book flights and hotels' };
   }
 
   // ACC-04: public. Sets the access_token and refresh_token httpOnly cookies (ACC-19, NEW-07)

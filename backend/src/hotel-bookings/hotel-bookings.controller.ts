@@ -7,7 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentUser } from '../common/decorators';
+import { CurrentUser, RequireVerifiedEmail } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
 import { RegisteredUserGuard } from '../payments/registered-user.guard';
@@ -53,6 +53,7 @@ export class HotelBookingsController {
   // HTL-16, HTL-18: book one or more rooms and hold them for 10 minutes (pending_payment).
   @Post()
   @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  @RequireVerifiedEmail() // ACC-02 (bonus): booking needs a verified email
   book(
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateHotelBookingDto,

@@ -14,4 +14,6 @@ export interface AuthUser {
   hotelId: string | null;
   // ACC-07a, ACC-13: true while the account still has a temporary password.
   mustChangePassword: boolean;
+  // ACC-02 (bonus): false only for a new account that has not opened its verification link.
+  emailVerified: boolean;
 }
