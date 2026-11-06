@@ -25,7 +25,7 @@ import {
 
 // Area: Payments, Holds & Booking Engine (hold, cancel, e-ticket) and Search & My Bookings
 // (summary, list, details)
-// Requirements: FLT-19, FLT-21, FLT-22, FLT-23, FLT-25, FLT-26, GEN-11, NEW-01
+// Requirements: FLT-19, FLT-21, FLT-22, FLT-23, FLT-25, FLT-26, GEN-11
 // Endpoints to implement (PDF section 8):
 //   POST /api/flight-bookings/hold            FLT-22           done
 //   POST /api/flight-bookings                 FLT-19, FLT-21   TODO (Area 6)
@@ -39,7 +39,7 @@ import {
 //   there is no separate refund-preview endpoint: use FlightBookingLifecycleService
 //   .previewCancellation(booking) (the same function cancel uses).
 //   Users see only their own bookings (ACC-11). Group the list as Upcoming / Past / Cancelled (FLT-25);
-//   Upcoming = upcomingFlightBookings() in flight-bookings.service.ts (NEW-01).
+//   Upcoming = upcomingFlightBookings() in flight-bookings.service.ts (GEN-11).
 //   The e-ticket is a downloadable PDF made with pdfkit (FLT-23).
 //
 //   Hold, e-ticket and cancel need a login (401, JwtAuthGuard) and the role `user` (403 for admins

@@ -22,7 +22,7 @@ info:
     - **Lists:** every list returns pages of 10 items in the `PaginatedList` format; request another
       page with `?page=2` (GEN-05). No results is an empty page, not an error (GEN-04).
     - **Money:** flight and hotel prices, booking totals, payments and refunds are integers in cents of
-      the platform currency, e.g. `25000` = 250.00 USD (PAY-04, NEW-04). Itinerary budget amounts are
+      the platform currency, e.g. `25000` = 250.00 USD (PAY-04). Itinerary budget amounts are
       decimal numbers in any currency (ITN-14).
     - **Dates and times:** dates are `YYYY-MM-DD`. Flight times are entered in each airport's local
       time as `YYYY-MM-DDTHH:mm`, stored in UTC and shown in the airport's local time zone
@@ -75,7 +75,7 @@ tags:
   - name: Notifications
     description: In-app notifications for users (GEN-01)
   - name: Reference Data
-    description: Extra read-only endpoints, not in the PDF tables (GEN-12, NEW-05)
+    description: Extra read-only endpoints, not in the PDF tables (GEN-12)
   - name: Health
     description: Not a requirement. Checks that the server and the database connection work.
 
@@ -89,7 +89,7 @@ paths:
     post:
       operationId: postAuthRegister
       tags: [Authentication and Accounts]
-      summary: 'Register a new account (ACC-01, ACC-03)'
+      summary: 'Register a new account (ACC-01)'
       description: |
         **Access:** guests.
 
@@ -163,7 +163,7 @@ paths:
         **Access:** guests. Works for every role.
 
         On success the response sets two httpOnly, Secure, SameSite cookies: `access_token` (short-lived)
-        and `refresh_token` (ACC-19, NEW-07). Tokens are never returned in the body or stored in
+        and `refresh_token` (ACC-19). Tokens are never returned in the body or stored in
         localStorage/sessionStorage. The frontend uses the returned role to open the role's home page.
 
         After 5 consecutive failed attempts the account is locked for 15 minutes; a successful login
@@ -217,7 +217,7 @@ paths:
         **Access:** logged-in accounts.
 
         Clears both auth cookies and revokes the refresh token on the server. Separately, a session with
-        no authenticated request for 30 minutes expires and needs a new login (ACC-06, NEW-07).
+        no authenticated request for 30 minutes expires and needs a new login (ACC-06).
       security: *auth
       responses:
         '204':
@@ -284,7 +284,7 @@ paths:
         **Access:** admin.
 
         Sets a temporary password for a registered user or a moderator and revokes all sessions of the
-        account (NEW-07). The account must set a new password that meets the password rules at its next
+        account (ACC-19). The account must set a new password that meets the password rules at its next
         login (mustChangePassword). The action is written to the audit log (GEN-07).
       security: *auth
       parameters:
@@ -351,7 +351,7 @@ paths:
     get:
       operationId: getAuthMe
       tags: [Authentication and Accounts]
-      summary: 'Get the logged-in account (ACC-04, ACC-11)'
+      summary: 'Get the logged-in account (ACC-04, ACC-19)'
       description: |
         **Access:** logged-in accounts.
 
@@ -390,7 +390,7 @@ paths:
 
         Edits name, phone number and preferred currency. Nothing is saved unless all sent fields pass
         validation. The preferred currency must be in the supported currency list (GEN-12) and is
-        used only to display itinerary budgets (ITN-18, NEW-04).
+        used only to display itinerary budgets (ITN-18, PAY-04).
       security: *auth
       requestBody:
         required: true
@@ -538,7 +538,7 @@ paths:
       description: |
         **Access:** admin. Admin accounts cannot be suspended.
 
-        A suspended account cannot log in and all its sessions are revoked (NEW-07). Its existing
+        A suspended account cannot log in and all its sessions are revoked (ACC-19). Its existing
         bookings remain valid, and its content stays visible unless hidden through GEN-10 (ACC-16).
         The account gets an in-app notification (GEN-01) and the action is written to the audit log
         (GEN-07).
@@ -631,19 +631,21 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 409, "error": "CONFLICT", "message": "The account is not suspended.", "path": "/api/admin/accounts/665f1c2a9b1e8a00123400a1/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
 
-  /api/admin/airlines/{id}/deactivate:
+  /api/admin/providers/{type}/{id}/deactivate:
     patch:
-      operationId: patchAdminAirlinesByIdDeactivate
+      operationId: patchAdminProvidersByTypeByIdDeactivate
       tags: [Administration]
-      summary: 'Deactivate an airline (ACC-15)'
+      summary: 'Deactivate a hotel or airline (ACC-15)'
       description: |
-        **Access:** admin.
+        **Access:** admin. `type` is `hotel` or `airline`.
 
-        Deactivates an airline. Its flights are hidden from search and cannot be booked; existing confirmed
-        bookings remain valid. The assigned moderator receives an in-app notification (GEN-01) and the action
-        is written to the audit log (GEN-07).
+        A deactivated hotel or airline is hidden from search and cannot be booked; its existing Confirmed
+        bookings remain valid. The assigned moderator receives an in-app notification (GEN-01) and the action is
+        written to the audit log (GEN-07). Deactivating a provider is separate from suspending its
+        moderator account (`PATCH /api/admin/accounts/{id}/suspend`).
       security: *auth
       parameters:
+        - $ref: '#/components/parameters/ProviderTypePath'
         - $ref: '#/components/parameters/Id'
       requestBody:
         required: false
@@ -653,7 +655,7 @@ paths:
               $ref: '#/components/schemas/AdminActionRequest'
       responses:
         '200':
-          description: Airline deactivated. Returns status.
+          description: Provider deactivated. Returns its new status.
           content:
             application/json:
               schema:
@@ -669,7 +671,12 @@ paths:
                     type: string
                     example: 'Airline deactivated successfully.'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: '`type` is not hotel or airline, or the body is invalid.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Validation failed (enum string is expected)", "path": "/api/admin/providers/train/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -678,34 +685,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
-          description: Airline not found.
+          description: No hotel or airline with this id.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Airline not found.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Airline not found.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
-          description: The airline is already deactivated.
+          description: The provider is already deactivated.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The airline is already deactivated.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The airline is already deactivated.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
 
-  /api/admin/airlines/{id}/reactivate:
+  /api/admin/providers/{type}/{id}/reactivate:
     patch:
-      operationId: patchAdminAirlinesByIdReactivate
+      operationId: patchAdminProvidersByTypeByIdReactivate
       tags: [Administration]
-      summary: 'Reactivate an airline (ACC-15)'
+      summary: 'Reactivate a hotel or airline (ACC-15)'
       description: |
-        **Access:** admin.
+        **Access:** admin. `type` is `hotel` or `airline`.
 
-        Reactivates a deactivated airline. The assigned moderator receives an in-app notification (GEN-01)
-        and the action is written to the audit log (GEN-07).
+        Reactivates a deactivated hotel or airline, so it can be found and booked again. The assigned moderator receives an in-app notification (GEN-01) and the action is
+        written to the audit log (GEN-07). Deactivating a provider is separate from suspending its
+        moderator account (`PATCH /api/admin/accounts/{id}/suspend`).
       security: *auth
       parameters:
+        - $ref: '#/components/parameters/ProviderTypePath'
         - $ref: '#/components/parameters/Id'
       requestBody:
         required: false
@@ -715,7 +724,7 @@ paths:
               $ref: '#/components/schemas/AdminActionRequest'
       responses:
         '200':
-          description: Airline reactivated. Returns status.
+          description: Provider reactivated. Returns its new status.
           content:
             application/json:
               schema:
@@ -731,7 +740,12 @@ paths:
                     type: string
                     example: 'Airline reactivated successfully.'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: '`type` is not hotel or airline, or the body is invalid.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Validation failed (enum string is expected)", "path": "/api/admin/providers/train/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -740,146 +754,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
-          description: Airline not found.
+          description: No hotel or airline with this id.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Airline not found.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Airline not found.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
-          description: The airline is not deactivated.
+          description: The provider is not deactivated.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The airline is not deactivated.", "path": "/api/admin/airlines/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-
-  /api/admin/hotels/{id}/deactivate:
-    patch:
-      operationId: patchAdminHotelsByIdDeactivate
-      tags: [Administration]
-      summary: 'Deactivate a hotel (ACC-15)'
-      description: |
-        **Access:** admin.
-
-        Deactivates a hotel. Its rooms are hidden from search and cannot be booked; existing confirmed
-        reservations remain valid. The assigned moderator receives an in-app notification (GEN-01) and the
-        action is written to the audit log (GEN-07).
-      security: *auth
-      parameters:
-        - $ref: '#/components/parameters/Id'
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AdminActionRequest'
-      responses:
-        '200':
-          description: Hotel deactivated. Returns status.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    example: '665f1c2a9b1e8a00123400d4'
-                  active:
-                    type: boolean
-                    example: false
-                  message:
-                    type: string
-                    example: 'Hotel deactivated successfully.'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: Not an admin.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-        '404':
-          description: Hotel not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel not found.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-        '409':
-          description: The hotel is already deactivated.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The hotel is already deactivated.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/deactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-
-  /api/admin/hotels/{id}/reactivate:
-    patch:
-      operationId: patchAdminHotelsByIdReactivate
-      tags: [Administration]
-      summary: 'Reactivate a hotel (ACC-15)'
-      description: |
-        **Access:** admin.
-
-        Reactivates a deactivated hotel. The assigned moderator receives an in-app notification (GEN-01)
-        and the action is written to the audit log (GEN-07).
-      security: *auth
-      parameters:
-        - $ref: '#/components/parameters/Id'
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AdminActionRequest'
-      responses:
-        '200':
-          description: Hotel reactivated. Returns status.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    example: '665f1c2a9b1e8a00123400d4'
-                  active:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: 'Hotel reactivated successfully.'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: Not an admin.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-        '404':
-          description: Hotel not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel not found.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
-        '409':
-          description: The hotel is not deactivated.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The hotel is not deactivated.", "path": "/api/admin/hotels/665f1c2a9b1e8a00123400d4/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The airline is not deactivated.", "path": "/api/admin/providers/airline/665f1c2a9b1e8a00123400c3/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/admin/bookings:
     get:
@@ -1470,7 +1359,7 @@ paths:
     get:
       operationId: getAirports
       tags: ['Airlines, Flights, and Flight Inventory']
-      summary: 'List airports (FLT-02, FLT-03, FLT-11)'
+      summary: 'List airports (FLT-02)'
       description: |
         **Access:** everyone, including guests.
 
@@ -1507,7 +1396,7 @@ paths:
                 $ref: '#/components/schemas/PaginatedList'
               example: {"items": [{"iataCode": "CAI", "name": "Cairo International Airport", "cityId": "cairo", "cityName": "Cairo", "countryCode": "EG", "timeZone": "Africa/Cairo"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
-          description: Invalid query, or the city or country is not in the reference data (NEW-05).
+          description: Invalid query, or the city or country is not in the reference data (GEN-12).
           content:
             application/json:
               schema:
@@ -1754,7 +1643,7 @@ paths:
 
         Time changes apply to existing bookings in the same transaction, and every user with a Confirmed
         booking gets exactly one in-app notification per change, listing all their bookings on the
-        flight (GEN-01, NEW-02). Existing bookings keep the price agreed at booking time. Fares and seat counts are edited per cabin with
+        flight (GEN-01, FLT-05). Existing bookings keep the price agreed at booking time. Fares and seat counts are edited per cabin with
         `PATCH /api/flights/{id}/cabins/{cabinId}`.
       security: *auth
       parameters:
@@ -1814,7 +1703,7 @@ paths:
         The flight becomes `cancelled` and is hidden from search. All its Confirmed bookings become
         Cancelled with a 100% refund (PAY-03). Pending Payment bookings expire and their held seats are
         released. Passengers get an in-app notification (GEN-01). A round-trip booking is cancelled as
-        a whole when either of its flights is cancelled (NEW-02).
+        a whole when either of its flights is cancelled (FLT-06).
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -1910,7 +1799,7 @@ paths:
 
         Edits the seat count, fare and free baggage allowance of a cabin on a `scheduled` flight. The
         seat count cannot be reduced below the seats already booked or held. Fare changes do not affect
-        existing bookings, which keep their agreed price (NEW-02).
+        existing bookings, which keep their agreed price (FLT-05).
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -2150,11 +2039,11 @@ paths:
         Send the same body as `POST /api/flight-bookings` after the user has reviewed the summary.
         The seats are reserved atomically and only if enough remain, so concurrent requests can never
         book more seats than available. The booking is created with status `pending_payment` and a
-        10-minute hold (`holdExpiresAt`). The prices agreed now are stored on the booking (NEW-02).
+        10-minute hold (`holdExpiresAt`). The prices agreed now are stored on the booking (FLT-05).
 
         Next steps: `GET /api/bookings/flight/{id}/policies`, accept them, then `POST /api/payments`.
         If the payment does not succeed within the hold, the booking becomes `expired` and the seats
-        are released (NEW-01).
+        are released (GEN-11).
       security: *auth
       requestBody:
         required: true
@@ -2523,7 +2412,7 @@ paths:
         **Access:** admin.
 
         Creates an active hotel. The city and country come from the predefined lists, and the city must
-        belong to the country (NEW-05). Photos follow the shared upload rule: JPG or PNG, at most 5 MB
+        belong to the country (GEN-12). Photos follow the shared upload rule: JPG or PNG, at most 5 MB
         each, up to 5 per hotel (GEN-08). The check-in/check-out times and cancellation tiers are set by
         the hotel moderator with `PUT /api/hotels/{id}/policies`. A hotel moderator is then created with
         `POST /api/admin/moderators` (ACC-13).
@@ -2780,6 +2669,10 @@ paths:
       responses:
         '201':
           description: Room created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -3111,7 +3004,7 @@ paths:
     put:
       operationId: putHotelsByIdPolicies
       tags: [Hotels and Rooms]
-      summary: 'Set check-in/check-out times and cancellation tiers (HTL-08, HTL-10)'
+      summary: 'Set check-in/check-out times and cancellation tiers (HTL-09, HTL-10)'
       description: |
         **Access:** the hotel moderator assigned to this hotel.
 
@@ -3120,9 +3013,6 @@ paths:
         days-before-check-in threshold and a refund percentage from 0 to 100, applied with the same rule
         as FLT-09: the tier with the highest threshold not exceeding the days remaining; 0% if none
         applies.
-
-        Note: the PDF table lists HTL-08 and HTL-10 for this endpoint. HTL-08 is the room status view
-        (`GET /api/hotels/{id}/availability`); the check-in/check-out times are HTL-09.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -3237,7 +3127,7 @@ paths:
 
         Next steps: `GET /api/bookings/hotel/{id}/policies`, accept them, then `POST /api/payments`.
         If the payment does not succeed within the hold, the reservation becomes `expired` and the rooms
-        are released (NEW-01).
+        are released (GEN-11).
       security: *auth
       requestBody:
         required: true
@@ -3406,7 +3296,7 @@ paths:
       description: |
         **Access:** the user who made the reservation.
 
-        A Confirmed reservation becomes Completed once its check-out date has passed (NEW-01). The user
+        A Confirmed reservation becomes Completed once its check-out date has passed (GEN-11). The user
         can submit one rating (1-5) with an optional review of up to 1000 characters per Completed
         reservation, regardless of the number of rooms. The hotel's average rating is recalculated.
       security: *auth
@@ -3956,7 +3846,7 @@ paths:
       description: |
         **Access:** registered users (role `user`).
 
-        Creates an itinerary with a title, one or more countries from the predefined list (NEW-05) and a
+        Creates an itinerary with a title, one or more countries from the predefined list (GEN-12) and a
         start date. It is private by default (ITN-20). Days are added with
         `POST /api/itineraries/{id}/days`.
       security: *auth
@@ -4643,7 +4533,8 @@ paths:
       description: |
         **Access:** everyone, including guests.
 
-        Only public itineraries are listed; hidden ones (GEN-10) are excluded. Keyword matching is
+        Only public itineraries are listed; hidden ones (GEN-10) and those of deactivated accounts
+        (ACC-12) are excluded. Keyword matching is
         case-insensitive and searches the title, country or city. Results can
         also be filtered by duration and country or city.
       security: []
@@ -4689,7 +4580,8 @@ paths:
       description: |
         **Access:** everyone, including guests.
 
-        Read-only view with the author, days, activities and budget. Private itineraries give 404.
+        Read-only view with the author, days, activities and budget. Private and hidden itineraries, and
+        those of deactivated accounts (ACC-12), give 404.
       security: []
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -4727,7 +4619,8 @@ paths:
 
         Creates an independent private copy for the current user with all days, activities, budget entries
         and transport costs. The copy credits the original author. Later changes to either itinerary do
-        not affect the other.
+        not affect the other. The itinerary of a deactivated account (ACC-12) cannot be cloned (404);
+        clones made earlier stay with their new owners.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -4755,16 +4648,13 @@ paths:
     get:
       operationId: getItinerariesByIdHotels
       tags: [Itineraries]
-      summary: 'Find hotels for a city group of the itinerary (ITN-09)'
+      summary: 'Find hotels for a city group of the itinerary (ITN-25)'
       description: |
         **Access:** the owner.
 
         Reuses the hotel search (HTL-11) for one city group: the group's city, check-in on the date of
         the group's first day and check-out on the day after its last day. The user enters the guests and
         the number of rooms.
-
-        Note: the PDF table lists ITN-09 (city groups) for this endpoint; the hotel search for a group is
-        ITN-25.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -5010,14 +4900,14 @@ paths:
     get:
       operationId: getPosts
       tags: [Blog]
-      summary: 'Browse and search published posts (BLG-02, BLG-09, BLG-11)'
+      summary: 'Browse and search published posts (BLG-02, BLG-09)'
       description: |
         **Access:** everyone, including guests.
 
         - Without `keyword`: published posts, newest first (BLG-02).
         - With `keyword`: matches the title, tags or author name, ordered by interaction score
           (likes + comments) descending, newest first on ties (BLG-09).
-        - `tag`: only posts with this tag, case-insensitive (BLG-02, BLG-11).
+        - `tag`: only posts with this tag, case-insensitive (BLG-02).
         - No match gives an empty list, shown as "no results" (GEN-04).
       security: []
       parameters:
@@ -5421,7 +5311,7 @@ paths:
     get:
       operationId: getTagsByTagPosts
       tags: [Blog]
-      summary: 'List published posts with a tag (BLG-08, BLG-11)'
+      summary: 'List published posts with a tag (BLG-08)'
       description: |
         **Access:** everyone, including guests.
 
@@ -5554,13 +5444,13 @@ paths:
     get:
       operationId: getCountries
       tags: [Reference Data]
-      summary: 'List the countries (NEW-05)'
+      summary: 'List the countries (GEN-12)'
       description: |
         **Access:** everyone, including guests.
 
         The predefined, read-only country list loaded at setup from the official dataset (GEN-12),
         sorted by name. Countries are keyed by their official `code` (e.g. `EG`); hotels and
-        itineraries accept only codes from this list (NEW-05). Extra endpoint, not in PDF section 8.
+        itineraries accept only codes from this list (GEN-12). Extra endpoint, not in PDF section 8.
       security: []
       parameters:
         - name: search
@@ -5586,13 +5476,13 @@ paths:
     get:
       operationId: getCities
       tags: [Reference Data]
-      summary: 'List the cities (NEW-05)'
+      summary: 'List the cities (GEN-12)'
       description: |
         **Access:** everyone, including guests.
 
         The predefined, read-only city list loaded at setup from the official dataset (GEN-12),
         sorted by name. Cities are keyed by their official `cityId` (e.g. `cairo`) and belong to one
-        country (NEW-05). Extra endpoint, not in PDF section 8.
+        country (GEN-12). Extra endpoint, not in PDF section 8.
       security: []
       parameters:
         - name: country
@@ -5629,7 +5519,7 @@ paths:
     get:
       operationId: getAttractions
       tags: [Reference Data]
-      summary: 'List the attractions (NEW-05)'
+      summary: 'List the attractions (GEN-12)'
       description: |
         **Access:** everyone, including guests.
 
@@ -5757,6 +5647,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/ContentType'
+    ProviderTypePath:
+      name: type
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ProviderType'
     Page:
       name: page
       in: query
@@ -5921,7 +5817,7 @@ components:
 
     AccountProfile:
       type: object
-      description: The new account returned by registration (ACC-01, ACC-03). No password fields.
+      description: The new account returned by registration (ACC-01). No password fields.
       properties:
         id:
           type: string
@@ -6531,7 +6427,7 @@ components:
         - pending_payment -> confirmed: the payment succeeded (FLT-23, HTL-17);
         - pending_payment -> expired: the 10-minute hold ended unpaid (FLT-22, HTL-18);
         - confirmed -> completed: flights when the last flight has departed, hotels the day after the
-          check-out date (NEW-01; a completed stay can be reviewed, HTL-23);
+          check-out date (GEN-11; a completed stay can be reviewed, HTL-23);
         - confirmed -> cancelled: cancelled by the user (FLT-26, HTL-21) or the provider (FLT-06).
         completed, expired and cancelled are final. Each change is done by a job every minute or
         by the action itself, and is refused if the booking is not in the required status.
@@ -6539,7 +6435,7 @@ components:
     BookingGroup:
       type: string
       description: |
-        How a user's bookings are grouped (FLT-25, HTL-20). `upcoming` (NEW-01): Confirmed with a flight
+        How a user's bookings are grouped (FLT-25, HTL-20). `upcoming` (GEN-11): Confirmed with a flight
         not yet departed (a round trip until its return flight departs), or a stay not yet started.
       enum: [upcoming, past, cancelled]
     CabinClass:
@@ -6620,7 +6516,7 @@ components:
           description: Converted totals in the requested or preferred currency, using rates from rateDate.
     ConvertedBudgetSummary:
       type: object
-      required: [currency, rateDate, totalsByCategory, totalsByDay, intercityTransport, grandTotal]
+      required: [currency, rateDate, ratesStale, ratesNotice, totalsByCategory, totalsByDay, intercityTransport, grandTotal]
       properties:
         currency:
           type: string
@@ -6629,6 +6525,15 @@ components:
           type: string
           format: date
           description: Date of the exchange-rate snapshot used for conversion.
+        ratesStale:
+          type: boolean
+          example: false
+          description: true when FXRatesAPI was unavailable and the last cached rates (from rateDate) were used (ITN-18).
+        ratesNotice:
+          type: string
+          nullable: true
+          example: null
+          description: A message for the user when ratesStale is true, otherwise null.
         totalsByCategory:
           type: object
           additionalProperties:
@@ -6659,6 +6564,10 @@ components:
       type: string
       description: Content that can be reported, hidden or deleted (GEN-09, GEN-10).
       enum: [post, comment, review, itinerary]
+    ProviderType:
+      type: string
+      description: A provider an admin can deactivate or reactivate (ACC-15).
+      enum: [hotel, airline]
     ReportStatus:
       type: string
       enum: [open, dismissed, content_hidden, content_deleted]
@@ -7222,7 +7131,7 @@ components:
         cityId:
           type: string
           example: cairo
-          description: city_id from the official cities dataset (NEW-05).
+          description: city_id from the official cities dataset (GEN-12).
         countryCode:
           type: string
           pattern: '^[A-Z]{2}$'
@@ -7324,6 +7233,71 @@ components:
           minimum: 1
           example: 12000
           description: In cents of the platform currency (greater than 0).
+
+    Room:
+      type: object
+      description: A room of a hotel (HTL-03). Prices are integer cents of the platform currency (PAY-04).
+      properties:
+        id:
+          type: string
+          example: '665f1c2a9b1e8a00123400e5'
+        hotelId:
+          type: string
+          example: '665f1c2a9b1e8a00123400d4'
+        roomNumber:
+          type: string
+          example: '101'
+        type:
+          type: string
+          example: Deluxe double
+        beds:
+          type: integer
+          example: 2
+        maxOccupancy:
+          type: integer
+          example: 3
+        pricePerNight:
+          type: integer
+          example: 12000
+          description: In cents of the platform currency.
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: USD
+          description: The platform currency (PAY-04).
+        active:
+          type: boolean
+          example: true
+        availableRanges:
+          type: array
+          description: Bookable date ranges (HTL-04), both ends included.
+          items:
+            type: object
+            properties:
+              from:
+                type: string
+                format: date
+              to:
+                type: string
+                format: date
+        blockedRanges:
+          type: array
+          description: Blocked date ranges (HTL-06), both ends included.
+          items:
+            type: object
+            properties:
+              from:
+                type: string
+                format: date
+              to:
+                type: string
+                format: date
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     UpdateRoomRequest:
       type: object
@@ -7538,7 +7512,7 @@ components:
           type: array
           minItems: 1
           uniqueItems: true
-          description: Countries from the predefined list (NEW-05).
+          description: Countries from the predefined list (GEN-12).
           items:
             type: string
             pattern: '^[A-Z]{2}$'
@@ -7577,7 +7551,7 @@ components:
         cityId:
           type: string
           example: cairo
-          description: city_id from the predefined city list (NEW-05).
+          description: city_id from the predefined city list (GEN-12).
         notes:
           type: string
           maxLength: 1000

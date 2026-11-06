@@ -39,7 +39,7 @@ import { UsersModule } from './users/users.module';
       }),
     }),
 
-    // Scheduled jobs (@Cron), e.g. the flight hold expiry every minute (FLT-22, NEW-01).
+    // Scheduled jobs (@Cron), e.g. the flight hold expiry every minute (FLT-22, GEN-11).
     // Register it here only, once for the whole app.
     ScheduleModule.forRoot(),
 

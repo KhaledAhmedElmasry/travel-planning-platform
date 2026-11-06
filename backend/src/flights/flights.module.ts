@@ -23,7 +23,7 @@ import { Flight, FlightSchema } from './schemas/flight.schema';
   imports: [
     MongooseModule.forFeature([
       { name: Flight.name, schema: FlightSchema },
-      // FLT-05, NEW-02: the bookings' copy of the flight times (Area 1's schema, read and
+      // FLT-05: the bookings' copy of the flight times (Area 1's schema, read and
       // updated here only for that).
       { name: FlightBooking.name, schema: FlightBookingSchema },
       // FLT-11, FLT-17: read-only, the airline of each flight (active, name, policies).
@@ -31,7 +31,7 @@ import { Flight, FlightSchema } from './schemas/flight.schema';
     ]),
     AirlinesModule, // the moderator's airline (FLT-03)
     ReferenceDataModule, // the airport lookup (FLT-02)
-    // FlightBookingLifecycleService (Area 1): the bookings of a cancelled flight (FLT-06, NEW-02).
+    // FlightBookingLifecycleService (Area 1): the bookings of a cancelled flight (FLT-06).
     // FlightBookingsModule does not import FlightsModule, so no forwardRef is needed.
     FlightBookingsModule,
   ],

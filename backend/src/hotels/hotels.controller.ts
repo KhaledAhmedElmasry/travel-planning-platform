@@ -42,7 +42,7 @@ import { HotelsService, MAX_HOTEL_PHOTOS } from './hotels.service';
 //   POST   /api/hotels/:id/rooms/:roomId/availability   HTL-04
 //   PATCH  /api/hotels/:id/rooms/:roomId/availability   HTL-05, HTL-06
 //   GET    /api/hotels/:id/availability                 HTL-08
-//   PUT    /api/hotels/:id/policies                     HTL-08, HTL-10
+//   PUT    /api/hotels/:id/policies                     HTL-09, HTL-10
 //   GET    /api/hotels/:id/reservations                 HTL-22
 // Notes:
 //   The policies endpoint (PUT /api/hotels/:id/policies) also sets check-in / check-out times (HTL-09).

@@ -28,7 +28,7 @@ export interface ProfileResponse {
 // Read straight from the collection, so this does not depend on the reference-data module.
 const CURRENCIES_COLLECTION = 'currencies';
 
-// What registration (ACC-01, ACC-03) stores. Role, status and the security counters are never
+// What registration (ACC-01) stores. Role, status and the security counters are never
 // taken from the request.
 export interface NewRegisteredUser {
   name: string;
@@ -39,14 +39,14 @@ export interface NewRegisteredUser {
 
 // Area: Auth & Accounts
 // Business logic and database access for: ACC-09, ACC-11, ACC-12
-// Also used by AuthService for registration (ACC-01, ACC-03).
+// Also used by AuthService for registration (ACC-01).
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectConnection() private readonly connection: Connection,
     private readonly config: ConfigService,
-    // ACC-12: the agreed "upcoming booking" rules (NEW-01) live in the booking services, so
+    // ACC-12: the agreed "upcoming booking" rules (GEN-11) live in the booking services, so
     // deactivation and My Bookings always agree on what is upcoming.
     private readonly flightBookings: FlightBookingsService,
     private readonly hotelBookings: HotelBookingsService,
@@ -102,7 +102,7 @@ export class UsersService {
     return toProfile(updated);
   }
 
-  // ACC-12: whether the user still has an upcoming Confirmed booking (NEW-01): a flight with a leg
+  // ACC-12: whether the user still has an upcoming Confirmed booking (GEN-11): a flight with a leg
   // that has not departed yet, or a stay that has not started yet (a stay that starts today is no
   // longer upcoming). The rules are the ones My Bookings uses, in the two booking services.
   async hasUpcomingBookings(
@@ -242,7 +242,7 @@ export class UsersService {
     return found !== null;
   }
 
-  // ACC-03: a new account is always a Registered User with status Active. The preferred currency
+  // ACC-01: a new account is always a Registered User with status Active. The preferred currency
   // starts as the platform currency and can be changed later (ACC-09).
   // Throws MongoDB error 11000 if the email is already registered (unique index).
   createRegisteredUser(data: NewRegisteredUser): Promise<UserDocument> {

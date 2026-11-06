@@ -2,7 +2,7 @@
 //
 // Loads the official reference datasets in ./seed-data (countries, cities, airports,
 // attractions), the supported currencies and the admin account.
-// Related: PDF section 5.1, GEN-12, FLT-02, NEW-05, ACC-18.
+// Related: PDF section 5.1, GEN-12, FLT-02, ACC-18.
 //
 // Safe to run more than once: reference data is upserted by its official id, and the admin
 // account is only created if its email does not exist yet (an existing password is never reset).
@@ -19,22 +19,12 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import * as bcrypt from 'bcryptjs';
+import { IANAZone } from 'luxon';
 import { connect, connection, disconnect } from 'mongoose';
 
 const DATA_DIR = join(__dirname, 'seed-data');
 const ENV_FILE = join(__dirname, '..', '..', '.env');
 if (existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
-
-// airports.csv has no time-zone column, but FLT-02 requires an IANA time zone per airport.
-const AIRPORT_TIME_ZONES: Record<string, string> = {
-  CAI: 'Africa/Cairo',
-  DXB: 'Asia/Dubai',
-  LHR: 'Europe/London',
-  JFK: 'America/New_York',
-  CDG: 'Europe/Paris',
-  HND: 'Asia/Tokyo',
-  RUH: 'Asia/Riyadh',
-};
 
 const CURRENCY_NAMES: Record<string, string> = {
   USD: 'US Dollar',
@@ -126,7 +116,8 @@ async function seed() {
     name: r.name,
     cityId: r.city_id,
     countryCode: r.country_code,
-    timeZone: AIRPORT_TIME_ZONES[r.iata_code],
+    // FLT-02: the official airports.csv gives each airport's IANA time zone.
+    timeZone: r.time_zone,
   }));
   const attractions = readCsv('attractions.csv').map((r) => ({
     _id: r.attraction_id,
@@ -145,7 +136,7 @@ async function seed() {
     name: CURRENCY_NAMES[code] ?? code,
   }));
 
-  // Reject inconsistent data before writing anything (NEW-05).
+  // Reject inconsistent data before writing anything (GEN-12).
   const countryIds = new Set(countries.map((c) => c._id));
   const cityById = new Map(cities.map((c) => [c._id, c]));
   const problems = [
@@ -153,8 +144,11 @@ async function seed() {
       .filter((c) => !countryIds.has(c.countryCode))
       .map((c) => `city ${c._id}: unknown country ${c.countryCode}`),
     ...airports
-      .filter((a) => !a.timeZone)
-      .map((a) => `airport ${a._id}: no time zone in AIRPORT_TIME_ZONES`),
+      .filter((a) => !a.timeZone || !IANAZone.isValidZone(a.timeZone))
+      .map(
+        (a) =>
+          `airport ${a._id}: missing or unknown IANA time zone "${a.timeZone}"`,
+      ),
     ...airports
       .filter((a) => !cityById.has(a.cityId))
       .map((a) => `airport ${a._id}: unknown city ${a.cityId}`),

@@ -31,7 +31,7 @@ import { RefundResponse, RefundsService } from './refunds.service';
 import { RegisteredUserGuard } from './registered-user.guard';
 
 // Area: Payments & Refunds
-// Requirements: PAY-01, PAY-02, PAY-03, PAY-04, NEW-04
+// Requirements: PAY-01, PAY-02, PAY-03, PAY-04
 // Endpoints to implement (PDF section 8):
 //   GET  /api/bookings/:type/:id/policies          PAY-02   done
 //   POST /api/bookings/:type/:id/accept-policies   PAY-02   done

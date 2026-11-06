@@ -55,7 +55,6 @@ An endpoint that is not implemented yet returns `404 Cannot ...` in "Try it out"
 | Refund before cancelling | Shown in the booking details (`GET /api/flight-bookings/{id}`, `GET /api/hotel-bookings/{id}`), FLT-26 and HTL-21. |
 | Images | Airline logo and hotel photos are sent with the create/edit forms (`multipart/form-data`); activity and post images have their own endpoints (GEN-08). |
 | Payments from Swagger | `paymentMethodId: pm_card_visa` (test mode) lets the backend confirm a payment without card data. |
-| PDF corrections | `PUT /api/hotels/{id}/policies` is HTL-09 + HTL-10 (the PDF says HTL-08); `GET /api/itineraries/{id}/hotels` also covers ITN-25. |
 
 ## Requirements Without an Endpoint in the PDF Tables
 
@@ -65,12 +64,11 @@ endpoint to `openapi.yaml` in the same PR:
 
 | Requirement | Feature that may need an extra endpoint |
 |---|---|
-| NEW-07 | Refresh the session |
-| NEW-05, GEN-12, ACC-09 | Countries, cities, attractions and supported currencies lists |
+| ACC-19 | Refresh the session |
+| GEN-12, ACC-09 | Countries, cities, attractions and supported currencies lists |
 | GEN-01 | Notifications: list, unread count, mark as read, mark all as read |
 | GEN-09 | A user reports content |
 | GEN-10 | An admin hides content directly (deleting already exists) |
-| ACC-15 | An admin deactivates and reactivates a hotel or airline |
 | BON-01, BON-02 (bonus) | Admin analytics; favourites |
 
 ## Shared Formats

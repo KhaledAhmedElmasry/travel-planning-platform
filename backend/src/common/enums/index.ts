@@ -10,7 +10,7 @@ export enum Role {
   HotelModerator = 'hotel_moderator',
 }
 
-// Account status, openapi.yaml "AccountStatus" (ACC-03, ACC-12, ACC-15, ACC-16).
+// Account status, openapi.yaml "AccountStatus" (ACC-01, ACC-12, ACC-15, ACC-16).
 export enum AccountStatus {
   Active = 'active',
   Suspended = 'suspended',
@@ -54,6 +54,13 @@ export enum ContentType {
   Comment = 'comment',
   Review = 'review',
   Itinerary = 'itinerary',
+}
+
+// A provider an admin can deactivate or reactivate (ACC-15), the :type of
+// /api/admin/providers/:type/:id/deactivate|reactivate, openapi.yaml "ProviderType".
+export enum ProviderType {
+  Hotel = 'hotel',
+  Airline = 'airline',
 }
 
 // Report lifecycle status (GEN-09, GEN-10), openapi.yaml "ReportStatus".

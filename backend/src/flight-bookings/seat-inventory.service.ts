@@ -42,7 +42,7 @@ export class SeatInventoryService {
     return result.modifiedCount === 1;
   }
 
-  // Hold expired (FLT-22, NEW-01): held -= seats.
+  // Hold expired (FLT-22, GEN-11): held -= seats.
   releaseHeld(
     flightId: string,
     cabinClass: CabinClass,

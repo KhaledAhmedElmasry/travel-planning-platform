@@ -3,12 +3,13 @@ import {
   Controller,
   Get,
   Param,
+  ParseEnumPipe,
   Patch,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser, Roles } from '../common/decorators';
-import { Role } from '../common/enums';
+import { ProviderType, Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
@@ -25,12 +26,13 @@ import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 //   PATCH /api/admin/accounts/:id/suspend       ACC-15, ACC-16
 //   PATCH /api/admin/accounts/:id/reactivate    ACC-15, ACC-16
 //   POST  /api/admin/users/:id/reset-password   ACC-07a
+//   PATCH /api/admin/providers/:type/:id/deactivate   ACC-15   (:type = hotel | airline)
+//   PATCH /api/admin/providers/:type/:id/reactivate   ACC-15
 //   GET   /api/admin/bookings                   ACC-17
-// Extra endpoints:
-//   deactivating / reactivating a hotel or airline (ACC-15). Notify affected parties (GEN-01) and
-//   write an audit entry (GEN-07).
+// Deactivating / reactivating a provider notifies its moderator (GEN-01) and writes an audit
+// entry (GEN-07).
 // Notes:
-//   Admin only. Suspending an account or resetting its password revokes its sessions (NEW-07).
+//   Admin only. Suspending an account or resetting its password revokes its sessions (ACC-19).
 //   Admin accounts are seeded, never registered (ACC-18).
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
@@ -67,44 +69,31 @@ export class AdminController {
     return this.adminService.reactivateAccount(admin, id, dto);
   }
 
-  // ACC-15: Deactivate an airline
-  @Patch('airlines/:id/deactivate')
-  deactivateAirline(
+  // ACC-15: deactivate a hotel or airline (:type is hotel or airline). It is hidden from search
+  // and cannot be booked; its existing Confirmed bookings stay valid.
+  @Patch('providers/:type/:id/deactivate')
+  deactivateProvider(
     @CurrentUser() admin: AuthUser,
+    @Param('type', new ParseEnumPipe(ProviderType)) type: ProviderType,
     @Param('id') id: string,
     @Body() dto?: AdminActionDto,
   ) {
-    return this.adminService.deactivateAirline(admin, id, dto);
+    return type === ProviderType.Airline
+      ? this.adminService.deactivateAirline(admin, id, dto)
+      : this.adminService.deactivateHotel(admin, id, dto);
   }
 
-  // ACC-15: Reactivate an airline
-  @Patch('airlines/:id/reactivate')
-  reactivateAirline(
+  // ACC-15: reactivate a deactivated hotel or airline.
+  @Patch('providers/:type/:id/reactivate')
+  reactivateProvider(
     @CurrentUser() admin: AuthUser,
+    @Param('type', new ParseEnumPipe(ProviderType)) type: ProviderType,
     @Param('id') id: string,
     @Body() dto?: AdminActionDto,
   ) {
-    return this.adminService.reactivateAirline(admin, id, dto);
-  }
-
-  // ACC-15: Deactivate a hotel
-  @Patch('hotels/:id/deactivate')
-  deactivateHotel(
-    @CurrentUser() admin: AuthUser,
-    @Param('id') id: string,
-    @Body() dto?: AdminActionDto,
-  ) {
-    return this.adminService.deactivateHotel(admin, id, dto);
-  }
-
-  // ACC-15: Reactivate a hotel
-  @Patch('hotels/:id/reactivate')
-  reactivateHotel(
-    @CurrentUser() admin: AuthUser,
-    @Param('id') id: string,
-    @Body() dto?: AdminActionDto,
-  ) {
-    return this.adminService.reactivateHotel(admin, id, dto);
+    return type === ProviderType.Airline
+      ? this.adminService.reactivateAirline(admin, id, dto)
+      : this.adminService.reactivateHotel(admin, id, dto);
   }
 
   // ACC-17: View a read-only list of all flight and hotel bookings

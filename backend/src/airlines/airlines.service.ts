@@ -168,7 +168,7 @@ export class AirlinesService {
 
   // FLT-08: the airline's moderator sets the price per extra bag (> 0) and the maximum number of
   // extra bags per passenger (>= 0) for all its flights. New bookings use the new policy; existing
-  // bookings keep the baggage fees they already agreed to (NEW-02).
+  // bookings keep the baggage fees they already agreed to (FLT-05).
   async setBaggagePolicy(
     user: AuthUser,
     id: Types.ObjectId,
