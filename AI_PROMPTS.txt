@@ -1279,3 +1279,24 @@ view, only Public and not hidden itineraries can be found, viewed or cloned, the
 the original author credited, and the original is unchanged. Verified with npm run lint,
 npm run build, local tests and in Swagger by publishing an itinerary as one user and searching,
 viewing and cloning it as another (demo scenario 9).
+================================================
+Date: 2026-11-06
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: BLG-04, BLG-06, BLG-07, BLG-09
+
+Prompt:
+Implement the Blog batch BLG-04, BLG-06, BLG-07 and BLG-09 on
+feature/BLG-04-06-07-09-blog-management-Alamy. Preserve BLG-01, BLG-03, BLG-05 and BLG-08;
+follow the OpenAPI and repository conventions; implement owner-only post/comment edits and deletes,
+transactional likes with a unique post/user index, and published post search with pagination,
+tag filtering and author-name matching. Reuse the existing upload cleanup adapter for post image
+deletion, keep image upload out of scope, add tests, synchronize OpenAPI, and report actual checks.
+
+How the output was used:
+Used Codex to inspect the existing Blog, authentication, pagination, media and API contracts and to
+implement the four requirements. A follow-up review identified the post-image cleanup retry gap and
+the comment-creation/post-deletion race; the changes add a durable cleanup record, transactional
+comment creation, and focused rollback/retry tests. Jest passed (3 suites, 35 tests), as did the
+backend build, lint, OpenAPI YAML parsing and diff check. Search ordering/exclusion tests inspect the
+Mongo aggregation pipeline; no live MongoDB or Swagger verification has been performed.

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -21,10 +22,18 @@ import type { AuthUser } from '../common/interfaces';
 import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { BrowsePostsByTagDto } from './dto/browse-posts-by-tag.dto';
 import { ListMyPostsQueryDto } from './dto/list-my-posts-query.dto';
-import type { CreatedPostResponse, MyPostSummary } from './blog.service';
+import { ListPostsQueryDto } from './dto/list-posts-query.dto';
+import type {
+  CommentResponse,
+  CreatedPostResponse,
+  LikeCountResponse,
+  MyPostSummary,
+  PostSummary,
+} from './blog.service';
 import type { PaginatedList } from '../common/dto/pagination.dto';
 
 // Area: Community & Cross-cutting
@@ -89,6 +98,13 @@ export class BlogController {
     return this.blogService.createPost(user.id, dto);
   }
 
+  @Get('posts')
+  listPosts(
+    @Query() query: ListPostsQueryDto,
+  ): Promise<PaginatedList<PostSummary>> {
+    return this.blogService.listPublished(query);
+  }
+
   @Patch('posts/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User)
@@ -98,6 +114,61 @@ export class BlogController {
     @Body() dto: UpdatePostDto,
   ): Promise<CreatedPostResponse> {
     return this.blogService.updatePost(id, user.id, dto);
+  }
+
+  @Delete('posts/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  deletePost(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    return this.blogService.deletePost(id, user.id);
+  }
+
+  @HttpPost('posts/:id/like')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  likePost(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<LikeCountResponse> {
+    return this.blogService.likePost(id, user.id);
+  }
+
+  @Delete('posts/:id/like')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  unlikePost(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<LikeCountResponse> {
+    return this.blogService.unlikePost(id, user.id);
+  }
+
+  @Patch('comments/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  updateComment(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateCommentDto,
+  ): Promise<CommentResponse> {
+    return this.blogService.updateComment(id, user.id, dto);
+  }
+
+  @Delete('comments/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  deleteComment(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    return this.blogService.deleteComment(id, user.id);
   }
 
   @Get('tags/:tag/posts')

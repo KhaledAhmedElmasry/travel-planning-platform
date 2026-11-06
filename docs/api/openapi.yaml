@@ -5020,6 +5020,12 @@ paths:
       responses:
         '204':
           description: Post deleted.
+        '400':
+          description: The post id is not a valid ObjectId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5036,6 +5042,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Post not found.", "path": "/api/posts/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '500':
+          description: The post and related records are deleted; image cleanup remains pending and can be retried by repeating the delete request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 500, "error": "INTERNAL_SERVER_ERROR", "message": "Post is deleted; image cleanup remains pending. Retry the delete request.", "path": "/api/posts/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/posts/mine:
     get:
@@ -5131,13 +5144,12 @@ paths:
       responses:
         '200':
           description: The updated comment.
-        '400':
-          description: The comment is empty or longer than 500 characters.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "The comment is empty or longer than 500 characters.", "path": "/api/comments/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+                $ref: '#/components/schemas/CommentResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5166,6 +5178,12 @@ paths:
       responses:
         '204':
           description: Comment deleted.
+        '400':
+          description: The comment id is not a valid ObjectId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5182,6 +5200,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Comment not found.", "path": "/api/comments/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '500':
+          description: Parent post comment count was inconsistent; the transaction was rolled back.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/posts/{id}/like:
     post:
@@ -5196,8 +5220,25 @@ paths:
       responses:
         '201':
           description: Liked. Returns the new like count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LikeCountResponse'
+        '400':
+          description: The post id is not a valid ObjectId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Authenticated account is not a registered user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/posts/665f1c2a9b1e8a00123400a1/like", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Post not found or not published.
           content:
@@ -5224,8 +5265,25 @@ paths:
       responses:
         '200':
           description: Like removed. Returns the new like count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LikeCountResponse'
+        '400':
+          description: The post id is not a valid ObjectId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Authenticated account is not a registered user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/posts/665f1c2a9b1e8a00123400a1/like", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Post not found, or the user has not liked it.
           content:
@@ -5233,6 +5291,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Post not found, or the user has not liked it.", "path": "/api/posts/665f1c2a9b1e8a00123400a1/like", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '500':
+          description: The stored like count could not be updated consistently.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/posts/{id}/images:
     post:
@@ -7853,6 +7917,44 @@ components:
           minLength: 1
           maxLength: 500
           example: Thanks, this helped me plan my trip!
+
+    CommentResponse:
+      type: object
+      required: [id, author, text, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          example: '665f1c2a9b1e8a00123400a1'
+        author:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+              example: '665f1c2a9b1e8a0012345678'
+            name:
+              type: string
+              example: Mona Hassan
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: Thanks, this helped me plan my trip!
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    LikeCountResponse:
+      type: object
+      required: [likeCount]
+      properties:
+        likeCount:
+          type: integer
+          minimum: 0
+          example: 12
 
     AttachItineraryRequest:
       type: object
