@@ -2707,10 +2707,12 @@ paths:
       description: |
         **Access:** the hotel moderator assigned to this hotel.
 
-        Edits beds, maximum occupancy and price per night (HTL-05). Price changes do not affect existing
-        reservations. Setting `active` to false deactivates the room (HTL-06): this is rejected if the
-        room has a Confirmed or Pending Payment reservation from today on, and deactivated rooms are
-        excluded from search. Bookable dates are edited with the availability endpoints.
+        Edits beds, maximum occupancy and price per night (HTL-05). Send only the fields to change,
+        at least one. The room number and type cannot be changed here. Price changes do not affect
+        existing reservations: each reservation keeps the price it was booked at. Setting `active` to
+        false deactivates the room (HTL-06): this is rejected if the room has a Confirmed or Pending
+        Payment reservation from today on, and deactivated rooms are excluded from search. Bookable
+        dates are edited with the availability endpoints.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -2723,9 +2725,14 @@ paths:
               $ref: '#/components/schemas/UpdateRoomRequest'
       responses:
         '200':
-          description: The updated room.
+          description: The updated room - id, hotel id, room number, type, beds, maximum occupancy, price per night, active, bookable ranges and blocked ranges.
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid fields (each a whole number of at least 1), or no field to change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Send at least one field to change: beds, maxOccupancy or pricePerNight.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2896,8 +2903,9 @@ paths:
       description: |
         **Access:** the hotel moderator assigned to this hotel.
 
-        - `remove`: removes bookable nights (HTL-05). Rejected for nights that have a Confirmed
-          reservation.
+        - `remove`: removes bookable nights (HTL-05). A bookable range that contains the nights is
+          split in two. Rejected (409) for nights that have a Confirmed reservation or a hold that is
+          still being paid (Pending Payment), and (400) if none of the nights are bookable.
         - `block`: blocks nights so they cannot be booked (HTL-06). Rejected if the range overlaps any
           Confirmed or Pending Payment reservation.
         - `unblock`: removes a block again.
@@ -2916,8 +2924,16 @@ paths:
       responses:
         '200':
           description: The room's bookable ranges and blocked ranges.
+          content:
+            application/json:
+              example: {"roomId": "665f1c2a9b1e8a0012345681", "roomNumber": "101", "availableRanges": [{"from": "2027-03-01", "to": "2027-03-23"}, {"from": "2027-03-27", "to": "2027-03-31"}], "blockedRanges": []}
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid fields or dates (to before from), or none of the nights are bookable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "None of these nights are bookable, so nothing was removed.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2940,7 +2956,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The nights overlap reservations, as described above.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "These nights have reservations, so nothing was removed: 2027-03-25, 2027-03-26.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/hotels/{id}/availability:
     get:

@@ -1303,3 +1303,29 @@ Asked the assistant to resolve the merge conflicts after merging develop into fe
 How the output was used:
 Reviewed the resolved files against the expected routes and methods, and confirmed build, tests and lint pass.
 ================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: HTL-05
+
+Prompt:
+I want to finish GitHub issue #36 (HTL-05) on its own branch feature/HTL-05-edit-room. Let the
+moderator assigned to a hotel edit a room's beds, maximum occupancy and price per night through
+PATCH /api/hotels/:id/rooms/:roomId, and remove bookable nights through
+PATCH /api/hotels/:id/rooms/:roomId/availability with action remove. Follow the issue,
+docs/api/openapi.yaml, docs/CONVENTIONS.md, the room schema agreed with Area 1 and the ownership
+helper. Only the fields sent change and at least one must be sent. Price changes must not affect
+existing reservations. Removing nights splits a bookable range when needed, both ends of a range
+are included, and it is refused for nights that have a Confirmed reservation or a hold that is
+still being paid, using Area 1's RoomInventoryService. The check and the write must be safe when a
+hold is saved at the same moment. Give clear 400, 401, 403, 404 and 409 errors, keep the code in
+separate files so it does not conflict with the open HTL-04 pull request, and add local tests.
+
+How the output was used:
+Used as the base for UpdateRoomDto, UpdateRoomAvailabilityDto, the range helpers, RoomsService and
+RoomsController. I checked it against the issue and openapi.yaml: only the moderator of the hotel
+can change its rooms, the room number and type stay the same, prices on existing reservations are
+untouched because Area 1 stores them on the reservation, removing nights in the middle of a range
+leaves two ranges, and nights with reservations cannot be removed. The change runs in one
+transaction that reads and writes the room, so it conflicts with a hold saved at the same moment
+and one of them runs again. Verified with npm run lint, npm run build, local tests and in Swagger.
