@@ -4,6 +4,7 @@ import {
   ArrayUnique,
   IsArray,
   IsDateString,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -51,4 +52,10 @@ export class UpdateItineraryDto {
     message: 'startDate must be a date (YYYY-MM-DD)',
   })
   startDate?: string;
+
+  @IsOptional()
+  @IsIn(['private', 'public'], {
+    message: 'visibility must be either private or public',
+  })
+  visibility?: 'private' | 'public';
 }

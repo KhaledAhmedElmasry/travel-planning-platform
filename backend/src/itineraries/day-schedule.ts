@@ -58,6 +58,7 @@ export interface CityGroup {
   // Dates of the first and last day, as ISO calendar dates (YYYY-MM-DD).
   startDate: string;
   endDate: string;
+  budgetSubtotal?: Record<string, number>;
 }
 
 // ITN-09: groups consecutive days with the same city, in array order. Only neighbours are

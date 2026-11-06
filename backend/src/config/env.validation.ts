@@ -9,6 +9,7 @@ const REQUIRED = [
   'JWT_REFRESH_SECRET', // NEW-07
   'STRIPE_SECRET_KEY',
   'PLATFORM_CURRENCY',
+  'FXRATES_API_KEY',
 ] as const;
 
 // PLATFORM_CURRENCY (PAY-04, NEW-04): the single currency of every flight and hotel price,

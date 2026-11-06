@@ -97,6 +97,26 @@ testing every valid and invalid case in Swagger.
 ================================================
 
 ================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-18
+
+Prompt:
+Implement ITN-18 on feature/ITN-18-exchange-rates: convert itinerary budget entries, activity
+costs and intercity transport to the user's supported preferred currency in the budget summary,
+using backend-only FXRatesAPI access, a daily MongoDB cache, cached fallback behavior, clear
+currency/API errors, the rate date, environment validation, OpenAPI documentation and mocked
+local unit tests. Booking prices remain in the platform currency.
+
+How the output was used:
+Added the daily exchange-rate cache schema and service, backend-only API integration, preferred
+currency validation and conversion details to the budget summary, environment configuration,
+OpenAPI response documentation and unit tests covering cache hit/miss and API failure fallback
+cases. Verified with npm run lint, npm run build and npm test -- --runInBand.
+================================================
+
+================================================
 Date: YYYY-MM-DD
 Student: <Full name>
 Tool: <ChatGPT / Claude / Copilot / Gemini / ...>
@@ -1056,8 +1076,29 @@ same city are grouped, the group shows its city and its day numbers, and the gro
 after adding a day and after editing a city. Verified with npm run lint, npm run build, a local unit
 test of the grouping example and in Swagger.
 =========================================
-=======
 ==================================================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-12
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #62 (ITN-12). Implement ITN-12 on branch
+feature/ITN-12-activity-images: attach images to and remove images from an activity through POST
+/api/activities/:id/images and DELETE /api/activities/:id/images/:imageId. Follow the issue,
+docs/api/openapi.yaml (the multipart request and status codes), docs/CONVENTIONS.md and the existing
+code patterns. Use the shared media-upload rule (GEN-08) from Area 4 and do not write own upload
+rules. If it is not merged yet, use a clearly marked placeholder that I can replace. Only the owner
+can change an activity's images; another user's activity or an image that is not on it gives 404.
+Deleting an activity (ITN-10) or a day (ITN-07) must not leave orphaned image files. Add local unit
+tests for the main rules. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the image schema on the activity, the attach and remove methods and the two
+routes. I checked it against the issue and openapi.yaml: the upload goes through the shared rule
+(allowed types, size and number of images), removing an image removes it from the activity, and
+another user's activity gives 404. Verified with npm run lint, npm run build, local tests and in
+Swagger with a wrong file type, a file that is too large and another user's activity.================================================
 Date: 2026-11-03
 Student: [Abdallah Mahmoud]
 Tool: Codex
@@ -1143,4 +1184,122 @@ existing tag browsing route, and focused unit tests. Reviewed the implementation
 OpenAPI contract, shared pagination helpers, Post/User schemas and project conventions. The full
 backend test command passed (4 suites, 23 tests), the Nest build and lint passed, and the OpenAPI YAML
 parsed successfully. Manual Swagger and live MongoDB testing have not yet been performed.
+================================================
+
+================================================
+Date: 2026-11-05
+Student: [Abdallah Mahmoud]
+Tool: Codex
+Related Requirement: ITN-14
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #63 (ITN-14). Implement ITN-14 on branch
+feature/ITN-14-budget-entries: add, edit and delete non-negative budget entries for each day across
+food, accommodation, in-city transport and activities, each in a selected currency, through POST
+/api/itineraries/:id/days/:dayId/budgets, PATCH /api/budgets/:id and DELETE /api/budgets/:id, and
+show the itinerary's total budget broken down by category and by day through GET
+/api/itineraries/:id/budget-summary. Follow the issue, docs/api/openapi.yaml, docs/CONVENTIONS.md
+and the existing code patterns. The totals include the budget entries, the activity costs from
+ITN-10 (counted under Activities) and the intercity transport entries from ITN-16. Reject negative
+amounts and unknown categories with a clear 400, and check the currency against the supported
+currency list (GEN-12). The PATCH and DELETE routes only receive the budget id, so the service must
+find the itinerary and day that contain it and check ownership; another user's entry gives 404.
+Compute the totals on the fly from the stored entries so that deleting or reordering a day (ITN-07,
+ITN-08) recalculates them automatically, and add the budget subtotal to each city group returned by
+GET /api/itineraries/:id (ITN-09). Without conversion, never add amounts of different currencies
+together: return the totals per currency and leave a marked extension point for the converted total
+(ITN-18). Add local unit tests for the main rules. Every other ITN requirement is left for its own
+issue.
+
+How the output was used:
+Used as the base for the budget entry schema, its DTOs, the budget methods in ItinerariesService,
+the budget summary and the budget routes. I checked it against the issue and openapi.yaml: amounts
+cannot be negative, only the four categories are accepted, the currency must be a supported one, the
+totals by category and by day include budget entries, activity costs and transport entries, each city
+group shows its subtotal, and another user's entry gives 404. Verified with npm run lint,
+npm run build, local tests and in Swagger, including a day delete and a reorder.
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-20
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #66 (ITN-20). Implement ITN-20 on branch
+feature/ITN-20-visibility: the owner sets an itinerary's visibility to Public or Private through
+PATCH /api/itineraries/:id, and public itineraries are listed in the shared search through GET
+/api/itineraries/public/search without keyword filtering, declared before the /:id route so
+"public" is not read as an id. Follow the issue, docs/api/openapi.yaml, docs/CONVENTIONS.md and the
+existing code patterns. New itineraries stay Private, an invalid value gives a clear 400, and
+another user's itinerary gives 404. Setting Private removes the itinerary from the search
+immediately, and deleting an itinerary (ITN-01) removes it too. The public list needs no login (guests
+can search), returns only Public itineraries that are not hidden (the hidden flag belongs to Area 3
+and must not be renamed), never shows private data, and uses paginate and emptyPaginatedList with 10
+per page. Add local unit tests for the main rules. Keyword search, filters, public view and cloning
+(ITN-21) are left for their own issue.
+
+How the output was used:
+Used as the base for the visibility field in the update DTO, the visibility check in
+ItinerariesService and the public list route. I checked it against the issue and openapi.yaml: only
+the owner can change visibility, the default is Private, private and hidden itineraries never appear
+in the public list, a guest can call the list, switching to Private removes the itinerary at once,
+and the list is paginated with the friendly empty result. Verified with npm run lint, npm run build,
+local tests and in Swagger by making an itinerary Public, finding it in the public list as a guest
+and making it Private again.
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-21
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #67 (ITN-21). Implement ITN-21 on branch
+feature/ITN-21-public-search-clone: let a guest or a registered user search public itineraries by
+keyword matching title, country or city, and filter them by duration (min and max days) and by
+country or city, through GET /api/itineraries/public/search; view a public itinerary read-only with
+author, days, activities and budget through GET /api/itineraries/public/:id; and let a registered
+user clone it through POST /api/itineraries/:id/clone. Follow the issue, docs/api/openapi.yaml (the
+query parameter names), docs/CONVENTIONS.md and the existing code patterns. Search and view need no
+login (guests allowed); clone needs login. The keyword search is case-insensitive, trimmed, escaped
+before it is used in a query, limited to Public itineraries that are not hidden, and paginated with
+10 per page. A min days larger than max days gives a clear 400. A private, hidden or missing
+itinerary gives 404 on view and clone. The clone includes all days, activities and budgets with new
+ids, belongs to the logged-in user, is Private, credits the original author, is independent of the
+original, and does not copy the hidden flag. Later changes or deletion of the original never affect
+the clone. Add local unit tests for the main rules. This is the last mandatory requirement of my area
+(demo scenario 9).
+
+How the output was used:
+Used as the base for the search query DTO, the search, public view and clone methods in
+ItinerariesService and the three routes. I checked it against the issue and openapi.yaml: the keyword
+matches title, country or city, the duration and place filters work together, guests can search and
+view, only Public and not hidden itineraries can be found, viewed or cloned, the copy is private with
+the original author credited, and the original is unchanged. Verified with npm run lint,
+npm run build, local tests and in Swagger by publishing an itinerary as one user and searching,
+viewing and cloning it as another (demo scenario 9).
+================================================
+Date: 2026-11-04
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-04
+Prompt:
+Asked for POST /api/hotels/:id/rooms/:roomId/availability: add a bookable date range to a room, with
+inclusive dates, validation of real calendar dates, and a rule that the room's ranges must not overlap.
+How the output was used:
+Reviewed the generated DTO, service method and controller route. The overlap check is one atomic
+findOneAndUpdate so concurrent requests cannot both succeed. Fixed lint formatting, ran build and tests,
+and tested every case in Swagger (screenshots attached to the PR).
+================================================
+================================================
+Date: 2026-11-04
+Student: Salaheldin Mahmoud
+Tool: ChatGPT
+Related Requirement: HTL-04
+Prompt:
+Asked the assistant to resolve the merge conflicts after merging develop into feature/HTL-04-room-availability
+(hotels.service.ts, hotels.controller.ts, AI_PROMPTS.txt) and to report build, test and lint status.
+How the output was used:
+Reviewed the resolved files against the expected routes and methods, and confirmed build, tests and lint pass.
 ================================================

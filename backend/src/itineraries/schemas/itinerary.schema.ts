@@ -2,9 +2,48 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 import { TransportMode } from '../../common/enums';
 
+export enum BudgetCategory {
+  Food = 'food',
+  Accommodation = 'accommodation',
+  InCityTransport = 'in_city_transport',
+  Activities = 'activities',
+}
+
+@Schema({ _id: true, timestamps: false })
+export class BudgetEntry {
+  _id: Types.ObjectId;
+
+  @Prop({ type: String, enum: Object.values(BudgetCategory), required: true })
+  category: BudgetCategory;
+
+  @Prop({ type: Number, required: true, min: 0 })
+  amount: number;
+
+  @Prop({ type: String, required: true, uppercase: true })
+  currency: string;
+
+  @Prop({ type: String, default: '', maxlength: 200 })
+  description: string;
+}
+
+export const BudgetEntrySchema = SchemaFactory.createForClass(BudgetEntry);
+
+@Schema({ _id: true, timestamps: false })
+export class ActivityImage {
+  _id: Types.ObjectId;
+
+  @Prop({ type: String, required: true })
+  url: string;
+
+  @Prop({ type: String, required: true })
+  storageKey: string;
+}
+
+export const ActivityImageSchema = SchemaFactory.createForClass(ActivityImage);
+
 // Area: Itineraries
 // ITN-01: a user's private itinerary. ITN-05: its ordered days. Activities, budgets, transport,
-// cloning and public visibility are added by their own requirements.
+// public visibility and cloning are implemented in ITN-20 and ITN-21.
 
 @Schema({ _id: true, timestamps: false })
 export class Activity {
@@ -24,6 +63,9 @@ export class Activity {
 
   @Prop({ type: String, match: /^[A-Z]{3}$/ })
   currency?: string;
+
+  @Prop({ type: [ActivityImageSchema], default: [] })
+  images?: Types.DocumentArray<ActivityImage>;
 }
 
 export const ActivitySchema = SchemaFactory.createForClass(Activity);
@@ -53,6 +95,9 @@ export class ItineraryDay {
 
   @Prop({ type: [ActivitySchema], default: [] })
   activities: Types.DocumentArray<Activity>;
+
+  @Prop({ type: [BudgetEntrySchema], default: [] })
+  budgets: Types.DocumentArray<BudgetEntry>;
 }
 
 export const ItineraryDaySchema = SchemaFactory.createForClass(ItineraryDay);
@@ -108,6 +153,16 @@ export class Itinerary {
   // ITN-01: every newly-created itinerary is private. ITN-20 will add changing this value.
   @Prop({ enum: ['private', 'public'], default: 'private' })
   visibility: 'private' | 'public';
+
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Itinerary',
+    default: null,
+  })
+  originalItineraryId: Types.ObjectId | null;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', default: null })
+  originalAuthorId: Types.ObjectId | null;
 
   // ITN-05: the days in order (day 1 first).
   @Prop({ type: [ItineraryDaySchema], default: [] })

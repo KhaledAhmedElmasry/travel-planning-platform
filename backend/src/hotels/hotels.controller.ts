@@ -4,6 +4,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -17,6 +18,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { HotelPoliciesDto } from './dto/hotel-policies.dto';
+import { RoomAvailabilityDto } from './dto/room-availability.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 import {
   deleteHotelPhotos,
@@ -110,5 +113,30 @@ export class HotelsController {
     @Body() dto: CreateRoomDto,
   ) {
     return this.hotelsService.createRoom(id, user, dto);
+  }
+
+  // HTL-04: the moderator of this hotel adds a bookable date range to one of its rooms.
+  @Post(':id/rooms/:roomId/availability')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  addAvailability(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('roomId', ParseObjectIdPipe) roomId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RoomAvailabilityDto,
+  ) {
+    return this.hotelsService.addAvailableRange(id, roomId, user, dto);
+  }
+
+  // HTL-09, HTL-10: the moderator of this hotel sets check-in/out times and cancellation tiers.
+  @Put(':id/policies')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  updatePolicies(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: HotelPoliciesDto,
+  ) {
+    return this.hotelsService.updatePolicies(id, user, dto);
   }
 }

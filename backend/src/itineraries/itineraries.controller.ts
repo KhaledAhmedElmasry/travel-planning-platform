@@ -11,7 +11,10 @@ import {
   Post,
   Query,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { CurrentUser, Roles } from '../common/decorators';
@@ -24,6 +27,7 @@ import { CreateDayDto } from './dto/create-day.dto';
 import { DeleteDayQueryDto } from './dto/delete-day-query.dto';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { ListItinerariesQueryDto } from './dto/list-itineraries-query.dto';
+import { SearchPublicItinerariesQueryDto } from './dto/search-public-itineraries-query.dto';
 import { ReorderDaysDto } from './dto/reorder-days.dto';
 import { UpdateDayDto } from './dto/update-day.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
@@ -31,13 +35,20 @@ import { CreateTransportCostDto } from './dto/create-transport-cost.dto';
 import { UpdateTransportCostDto } from './dto/update-transport-cost.dto';
 import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
+import { CreateBudgetEntryDto } from './dto/create-budget-entry.dto';
+import { UpdateBudgetEntryDto } from './dto/update-budget-entry.dto';
+import { BudgetSummaryQueryDto } from './dto/budget-summary-query.dto';
 import {
   ActivityResponse,
+  ActivityImageResponse,
   DayResponse,
   ItinerariesService,
   ItineraryResponse,
   ItinerarySummary,
+  PublicItineraryResponse,
   TransportCostResponse,
+  BudgetEntryResponse,
+  BudgetSummaryResponse,
 } from './itineraries.service';
 
 // Area: Itineraries
@@ -104,6 +115,22 @@ export class ItinerariesController {
     return this.itinerariesService.list(user.id, query.page);
   }
 
+  // ITN-20: guests can browse public, non-hidden itineraries. Keep this before /:id.
+  @Get('itineraries/public/search')
+  searchPublic(
+    @Query() query: SearchPublicItinerariesQueryDto,
+  ): Promise<PaginatedList<ItinerarySummary>> {
+    return this.itinerariesService.searchPublic(query);
+  }
+
+  @Get('itineraries/public/:id')
+  getPublic(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Query('currency') currency?: string,
+  ): Promise<PublicItineraryResponse> {
+    return this.itinerariesService.getPublic(id, currency);
+  }
+
   // ITN-03 / ACC-11: ownership is checked by the service; invalid ids are rejected at the edge.
   @Get('itineraries/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -113,6 +140,16 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
   ): Promise<ItineraryResponse> {
     return this.itinerariesService.getOne(id, user.id);
+  }
+
+  @Post('itineraries/:id/clone')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  clone(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<ItineraryResponse> {
+    return this.itinerariesService.clone(id, user.id);
   }
 
   // ITN-01: ownership is enforced in the service so another user's itinerary is indistinguishable
@@ -227,6 +264,80 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
     await this.itinerariesService.deleteActivity(id, user.id);
+  }
+
+  @Post('activities/:id/images')
+  @UseInterceptors(FileInterceptor('image'))
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  attachActivityImage(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ): Promise<ActivityImageResponse> {
+    if (!file) throw new BadRequestException('image is required');
+    return this.itinerariesService.attachActivityImage(id, user.id, file);
+  }
+
+  @Delete('activities/:id/images/:imageId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async removeActivityImage(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('imageId', ParseObjectIdPipe) imageId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    await this.itinerariesService.removeActivityImage(id, imageId, user.id);
+  }
+
+  @Post('itineraries/:id/days/:dayId/budgets')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  addBudgetEntry(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('dayId', ParseObjectIdPipe) dayId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateBudgetEntryDto,
+  ): Promise<BudgetEntryResponse> {
+    return this.itinerariesService.addBudgetEntry(id, dayId, user.id, dto);
+  }
+
+  @Patch('budgets/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  updateBudgetEntry(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateBudgetEntryDto,
+  ): Promise<BudgetEntryResponse> {
+    return this.itinerariesService.updateBudgetEntry(id, user.id, dto);
+  }
+
+  @Delete('budgets/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async deleteBudgetEntry(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    await this.itinerariesService.deleteBudgetEntry(id, user.id);
+  }
+
+  @Get('itineraries/:id/budget-summary')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  getBudgetSummary(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Query() query: BudgetSummaryQueryDto,
+  ): Promise<BudgetSummaryResponse> {
+    return this.itinerariesService.getBudgetSummary(
+      id,
+      user.id,
+      query.currency,
+    );
   }
 
   @Post('itineraries/:id/transport-costs')

@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import express from 'express';
 import { readFileSync } from 'fs';
 import { load } from 'js-yaml';
 import { join } from 'path';
@@ -22,6 +23,7 @@ async function bootstrap() {
 
   // Reads the httpOnly auth cookies (access_token, refresh_token) into req.cookies (ACC-19).
   app.use(cookieParser());
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
   // GEN-02: Global validation pipe — validates every @Body() and @Query() using
   // class-validator decorators on DTOs. Strips unknown fields (whitelist) and
