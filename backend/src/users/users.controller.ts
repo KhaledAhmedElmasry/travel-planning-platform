@@ -8,6 +8,7 @@ import {
   Patch,
   Res,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { clearAuthCookies } from '../auth/auth-cookies';
@@ -19,6 +20,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ProfileResponse, UsersService } from './users.service';
+import { NoStoreInterceptor } from '../auth/no-store.interceptor';
 
 // Area: Auth & Accounts
 // Requirements: ACC-09, ACC-11, ACC-12
@@ -31,6 +33,8 @@ import { ProfileResponse, UsersService } from './users.service';
 //   Preferred currency must come from the supported currency list (ACC-09, GEN-12).
 //
 // DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
+// ACC-19: account data is never cached by the browser or a proxy.
+@UseInterceptors(NoStoreInterceptor)
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {

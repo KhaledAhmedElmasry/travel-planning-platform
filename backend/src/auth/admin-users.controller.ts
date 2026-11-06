@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
@@ -17,6 +18,7 @@ import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { AuthService, ResetPasswordResponse } from './auth.service';
+import { NoStoreInterceptor } from './no-store.interceptor';
 
 // Area: Auth & Accounts
 // Requirements: ACC-07a, GEN-07
@@ -27,6 +29,8 @@ import { AuthService, ResetPasswordResponse } from './auth.service';
 //   that lives here, and so it does not conflict with the admin endpoints of Area 3. The URL is
 //   exactly the one in openapi.yaml.
 //   Records a "reset_password" entry in the audit log (GEN-07).
+// ACC-19: account data is never cached by the browser or a proxy.
+@UseInterceptors(NoStoreInterceptor)
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.Admin)

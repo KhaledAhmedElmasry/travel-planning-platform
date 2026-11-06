@@ -1279,3 +1279,29 @@ view, only Public and not hidden itineraries can be found, viewed or cloned, the
 the original author credited, and the original is unchanged. Verified with npm run lint,
 npm run build, local tests and in Swagger by publishing an itinerary as one user and searching,
 viewing and cloning it as another (demo scenario 9).
+
+================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-19
+
+Prompt:
+I asked the assistant to implement GitHub issue #96 (ACC-19): authentication tokens and user
+credentials are never stored in localStorage, sessionStorage or any other JavaScript-accessible
+storage; access and refresh tokens are issued as httpOnly, Secure, SameSite cookies, and the
+frontend gets the current user from /auth/me. Most of this was built in ACC-04 and ACC-06, so I
+asked it to audit the whole backend for anything that still leaks a token, a password or a
+password hash, and to close the remaining gaps.
+
+How the output was used:
+Used the audit results and the NoStoreInterceptor. The audit found no leak: outside auth/ and
+users/ nothing reads passwordHash or a token, validation errors return only field names and
+messages (never the typed value), the error filter logs only the method and URL, and nothing uses
+localStorage or sessionStorage. The remaining gap was HTTP caching, so every response of the auth,
+admin password reset and users controllers now has Cache-Control: no-store. I also added the
+ACC-19 rules for the Milestone 2 frontend to frontend/README.md (credentials: 'include', user only
+in memory from /auth/me, 401 handling, logout, CORS note). Verified with npm run lint, npm run
+build, local tests (the header on success and error responses, and on all three controllers,
+including checks that fail when the interceptor is removed), and in Swagger / DevTools.
+================================================

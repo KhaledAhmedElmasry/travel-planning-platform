@@ -8,6 +8,7 @@ import {
   Post,
   Res,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { AllowPendingPasswordChange, CurrentUser } from '../common/decorators';
@@ -24,6 +25,7 @@ import {
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { NoStoreInterceptor } from './no-store.interceptor';
 
 // Area: Auth & Accounts
 // Requirements: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19, NEW-07
@@ -44,6 +46,8 @@ import { RegisterDto } from './dto/register.dto';
 //   POST /api/auth/reset-password    ACC-07 (Optional)
 //
 // DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe and error filter are registered in main.ts.
+// ACC-19: account data is never cached by the browser or a proxy.
+@UseInterceptors(NoStoreInterceptor)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
