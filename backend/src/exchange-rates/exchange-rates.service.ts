@@ -11,7 +11,12 @@ import {
 export class ExchangeRatesService {
   private readonly baseCurrency = 'USD';
   private readonly apiUrl = 'https://api.fxratesapi.com/latest';
-  private dailySnapshot?: RateSnapshot & { fetchedDate: string };
+  // Today's rates kept in memory. A stale snapshot (old cached rates used because the API failed)
+  // is kept only until retryAt, then the API is tried again.
+  private dailySnapshot?: RateSnapshot & {
+    fetchedDate: string;
+    retryAt?: number;
+  };
 
   constructor(
     @InjectModel(ExchangeRate.name)
@@ -46,29 +51,35 @@ export class ExchangeRatesService {
     return {
       currency: targetCurrency,
       rateDate: snapshot.rateDate,
+      stale: snapshot.stale,
       totals: converted,
     };
   }
 
   private async getRates(): Promise<RateSnapshot> {
     const today = new Date().toISOString().slice(0, 10);
-    if (this.dailySnapshot?.fetchedDate === today) {
+    if (
+      this.dailySnapshot?.fetchedDate === today &&
+      (!this.dailySnapshot.stale ||
+        Date.now() < (this.dailySnapshot.retryAt ?? 0))
+    ) {
       return this.dailySnapshot;
     }
     const cachedToday = await this.exchangeRateModel
       .findOne({ baseCurrency: this.baseCurrency, fetchedDate: today })
       .exec();
     if (cachedToday) {
-      const snapshot = toSnapshot(cachedToday);
+      const snapshot = toSnapshot(cachedToday, false);
       this.dailySnapshot = { ...snapshot, fetchedDate: today };
       return snapshot;
     }
 
     try {
+      // FXRATES_API_KEY is optional: the free FXRatesAPI endpoint also answers without a key.
+      const apiKey = this.config.get<string>('FXRATES_API_KEY');
+      const keyParam = apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : '';
       const response = await fetch(
-        `${this.apiUrl}?base=${this.baseCurrency}&api_key=${encodeURIComponent(
-          this.config.getOrThrow<string>('FXRATES_API_KEY'),
-        )}`,
+        `${this.apiUrl}?base=${this.baseCurrency}${keyParam}`,
         { signal: AbortSignal.timeout(10_000) },
       );
       if (!response.ok)
@@ -78,7 +89,8 @@ export class ExchangeRatesService {
         rates?: Record<string, unknown>;
       };
       const rates = parseRates(body.rates);
-      const rateDate = isDate(body.date) ? body.date : today;
+      // FXRatesAPI sends a timestamp such as 2026-11-06T13:37:00.000Z; keep its date part.
+      const rateDate = dateOf(body.date) ?? today;
       const cached = await this.exchangeRateModel
         .findOneAndUpdate(
           { baseCurrency: this.baseCurrency, fetchedDate: today },
@@ -95,16 +107,30 @@ export class ExchangeRatesService {
         .exec();
       if (!cached)
         throw new Error('The exchange-rate cache could not be saved.');
-      this.dailySnapshot = { rateDate, rates, fetchedDate: today };
-      return { rateDate, rates };
+      this.dailySnapshot = {
+        rateDate,
+        rates,
+        stale: false,
+        fetchedDate: today,
+      };
+      return { rateDate, rates, stale: false };
     } catch {
       const lastCached = await this.exchangeRateModel
         .findOne({ baseCurrency: this.baseCurrency })
         .sort({ rateDate: -1 })
         .exec();
       if (lastCached) {
-        const snapshot = toSnapshot(lastCached);
-        this.dailySnapshot = { ...snapshot, fetchedDate: today };
+        // ITN-18: the API is unavailable, so the last cached rates are used. They are stale unless
+        // they were already fetched today.
+        const snapshot = toSnapshot(
+          lastCached,
+          lastCached.fetchedDate !== today,
+        );
+        this.dailySnapshot = {
+          ...snapshot,
+          fetchedDate: today,
+          retryAt: Date.now() + STALE_RETRY_MS,
+        };
         return snapshot;
       }
       throw new ServiceUnavailableException(
@@ -114,15 +140,21 @@ export class ExchangeRatesService {
   }
 }
 
+// After a failed API call, how long the old cached rates are reused before trying the API again.
+const STALE_RETRY_MS = 15 * 60 * 1000;
+
 export interface ConvertedTotals {
   currency: string;
   rateDate: string;
+  // true when FXRatesAPI was unavailable and older cached rates were used (ITN-18).
+  stale: boolean;
   totals: Record<string, number>;
 }
 
 interface RateSnapshot {
   rateDate: string;
   rates: Record<string, number>;
+  stale: boolean;
 }
 
 function parseRates(
@@ -139,15 +171,21 @@ function parseRates(
   return rates;
 }
 
-function toSnapshot(document: ExchangeRateDocument): RateSnapshot {
+function toSnapshot(
+  document: ExchangeRateDocument,
+  stale: boolean,
+): RateSnapshot {
   return {
     rateDate: document.rateDate,
     rates: Object.fromEntries(document.rates.entries()),
+    stale,
   };
 }
 
-function isDate(value: string | undefined): value is string {
-  return value !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(value);
+// The YYYY-MM-DD part of "2026-11-06" or "2026-11-06T13:37:00.000Z", else undefined.
+function dateOf(value: string | undefined): string | undefined {
+  const match = value === undefined ? null : /^(\d{4}-\d{2}-\d{2})/.exec(value);
+  return match ? match[1] : undefined;
 }
 
 function roundCurrency(value: number): number {
