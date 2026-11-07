@@ -20,6 +20,9 @@ coverage/
 *.spec.ts
 *.e2e-spec.ts
 *.test.ts
+!backend/src/blog/blog.public-pages.spec.ts
+!backend/src/blog/dto/public-pages-query.dto.spec.ts
+!backend/src/itineraries/itineraries.public-author.spec.ts
 
 # Uploaded images (GEN-08) — created at runtime
 backend/uploads/

@@ -375,6 +375,41 @@ export class ItinerariesService {
     );
   }
 
+  /** Public itineraries owned by an active author, for the BLG-12 author page. */
+  async listPublicByAuthor(
+    authorId: string | Types.ObjectId,
+    page = 1,
+  ): Promise<PaginatedList<ItinerarySummary>> {
+    const deactivatedUserIds = await this.deactivatedUserIds();
+    const filter = {
+      userId: {
+        $eq: new Types.ObjectId(authorId),
+        $nin: deactivatedUserIds,
+      },
+      visibility: 'public',
+      hidden: { $ne: true },
+    };
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [itineraries, total] = await Promise.all([
+      this.itineraryModel
+        .find(filter)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.itineraryModel.countDocuments(filter).exec(),
+    ]);
+
+    return total === 0
+      ? emptyPaginatedList(page, DEFAULT_PAGE_SIZE)
+      : paginate(
+          itineraries.map((itinerary) => this.toSummary(itinerary)),
+          total,
+          page,
+          DEFAULT_PAGE_SIZE,
+        );
+  }
+
   async getPublic(
     itineraryId: string | Types.ObjectId,
     currency?: string,

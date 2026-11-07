@@ -4939,7 +4939,8 @@ paths:
         (and admins). Liking, commenting and reporting require login (ACC-10).
 
         Comments are shown in chronological order, 10 per page (`commentsPage`). Comments of deactivated
-        users are shown as "Deleted user" (ACC-12).
+        users are shown as "Deleted user" (ACC-12). Hidden comments are visible only to their author
+        and admins (GEN-10).
       security: []
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -4955,6 +4956,25 @@ paths:
           description: |
             Title, author (id and name), date, body, tags, images, like count, likedByMe (when logged in),
             status, and one page of comments (author name, text, date) with the comment total.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostDetailResponse'
+              example:
+                id: '665f1c2a9b1e8a0012340001'
+                title: Cairo in a weekend
+                body: A practical two-day guide...
+                author: { id: '665f1c2a9b1e8a0012345678', name: Mona Hassan }
+                date: '2026-11-01T10:00:00.000Z'
+                tags: [egypt, cairo]
+                images: [{ id: image-1, url: 'http://localhost:3000/uploads/image-1.jpg' }]
+                likeCount: 3
+                likedByMe: true
+                status: published
+                comments: [{ id: '665f1c2a9b1e8a0012340002', author: { id: '665f1c2a9b1e8a0012345679', name: 'Omar Ali' }, text: 'Great guide!', date: '2026-11-01T11:00:00.000Z' }]
+                commentCount: 14
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '404':
           description: Post not found, or a draft or hidden post of another user.
           content:
@@ -5429,6 +5449,26 @@ paths:
       responses:
         '200':
           description: The author's name and join date, a page of published posts, and a page of public itineraries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicAuthorPageResponse'
+              example:
+                author: { id: '665f1c2a9b1e8a0012345678', name: Mona Hassan, createdAt: '2026-10-10T09:00:00.000Z' }
+                posts:
+                  items: []
+                  page: 1
+                  pageSize: 10
+                  total: 0
+                  totalPages: 0
+                itineraries:
+                  items: []
+                  page: 1
+                  pageSize: 10
+                  total: 0
+                  totalPages: 0
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '404':
           description: Author not found or deactivated.
           content:
@@ -7946,6 +7986,168 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    PostDetailResponse:
+      type: object
+      required: [id, title, body, author, date, tags, images, likeCount, status, comments, commentCount]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        author:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        date:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+        images:
+          type: array
+          description: Public image references. Internal storage keys are never returned.
+          items:
+            type: object
+            required: [id, url]
+            properties:
+              id:
+                type: string
+              url:
+                type: string
+        likeCount:
+          type: integer
+          minimum: 0
+        likedByMe:
+          type: boolean
+          description: Present only when the request carries a valid authenticated session.
+        status:
+          $ref: '#/components/schemas/PostStatus'
+        comments:
+          type: array
+          description: The requested page of visible comments, oldest first, with at most 10 entries. Hidden comments are visible only to their author and admins.
+          items:
+            $ref: '#/components/schemas/PostDetailComment'
+        commentCount:
+          type: integer
+          minimum: 0
+          description: Total visible comments, independent of commentsPage.
+
+    PostDetailComment:
+      type: object
+      required: [id, author, text, date]
+      properties:
+        id:
+          type: string
+        author:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+              description: Deactivated or deleted comment authors are displayed as "Deleted user".
+        text:
+          type: string
+        date:
+          type: string
+          format: date-time
+
+    PostSummary:
+      type: object
+      required: [id, title, author, date, excerpt, tags, likeCount, commentCount]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        author:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        date:
+          type: string
+          format: date-time
+        excerpt:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        likeCount:
+          type: integer
+          minimum: 0
+        commentCount:
+          type: integer
+          minimum: 0
+
+    ItinerarySummary:
+      type: object
+      required: [id, title, countryCodes, startDate, numberOfDays, visibility]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        countryCodes:
+          type: array
+          items:
+            type: string
+        startDate:
+          type: string
+          format: date
+        numberOfDays:
+          type: integer
+        visibility:
+          type: string
+          enum: [public]
+
+    PublicAuthorPageResponse:
+      type: object
+      required: [author, posts, itineraries]
+      properties:
+        author:
+          type: object
+          required: [id, name, createdAt]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+        posts:
+          allOf:
+            - $ref: '#/components/schemas/PaginatedList'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PostSummary'
+        itineraries:
+          allOf:
+            - $ref: '#/components/schemas/PaginatedList'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ItinerarySummary'
 
     LikeCountResponse:
       type: object

@@ -20,7 +20,8 @@ import {
   PaginatedList,
   paginate,
 } from '../common/dto/pagination.dto';
-import { AccountStatus } from '../common/enums';
+import { AccountStatus, Role } from '../common/enums';
+import type { AuthUser } from '../common/interfaces';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { Post, PostDocument, PostStatus } from './schemas/post.schema';
@@ -30,6 +31,11 @@ import {
   PostDeletionCleanup,
   PostDeletionCleanupDocument,
 } from './schemas/post-deletion-cleanup.schema';
+import { UsersService } from '../users/users.service';
+import {
+  ItinerariesService,
+  ItinerarySummary,
+} from '../itineraries/itineraries.service';
 
 export interface MyPostSummary {
   id: string;
@@ -77,6 +83,34 @@ export interface CommentResponse {
   updatedAt: Date;
 }
 
+export interface PostDetailComment {
+  id: string;
+  author: { id: string; name: string };
+  text: string;
+  date: Date;
+}
+
+export interface PostDetailResponse {
+  id: string;
+  title: string;
+  body: string;
+  author: { id: string; name: string };
+  date: Date;
+  tags: string[];
+  images: { id: string; url: string }[];
+  likeCount: number;
+  likedByMe?: boolean;
+  status: PostStatus;
+  comments: PostDetailComment[];
+  commentCount: number;
+}
+
+export interface PublicAuthorPageResponse {
+  author: { id: string; name: string; createdAt: Date };
+  posts: PaginatedList<PostSummary>;
+  itineraries: PaginatedList<ItinerarySummary>;
+}
+
 interface PostListAggregation {
   items: PostSummary[];
   metadata: { total: number }[];
@@ -98,7 +132,157 @@ export class BlogService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectConnection() private readonly connection: Connection,
     private readonly uploadsService: UploadsService,
+    private readonly usersService: UsersService,
+    private readonly itinerariesService: ItinerariesService,
   ) {}
+
+  async getPostDetail(
+    postId: Types.ObjectId,
+    commentsPage = 1,
+    viewer?: AuthUser,
+  ): Promise<PostDetailResponse> {
+    const post = await this.postModel.findById(postId).exec();
+    if (!post) {
+      throw new NotFoundException(
+        'Post not found, or a draft or hidden post of another user.',
+      );
+    }
+
+    const author = await this.usersService.findById(post.author.toString());
+    if (!author || author.status === AccountStatus.Deactivated) {
+      throw new NotFoundException('Post not found.');
+    }
+
+    const isOwner = viewer?.id === post.author.toString();
+    const isAdmin = viewer?.role === Role.Admin;
+    if (
+      (post.status !== PostStatus.Published || post.hidden) &&
+      !isOwner &&
+      !isAdmin
+    ) {
+      throw new NotFoundException(
+        'Post not found, or a draft or hidden post of another user.',
+      );
+    }
+
+    const commentFilter: Record<string, unknown> = { post: postId };
+    if (viewer?.role !== Role.Admin) {
+      if (viewer) {
+        commentFilter.$or = [
+          { hidden: false },
+          { hidden: true, author: new Types.ObjectId(viewer.id) },
+        ];
+      } else {
+        commentFilter.hidden = false;
+      }
+    }
+    const { skip, limit } = getPaginationOffset(
+      commentsPage,
+      DEFAULT_PAGE_SIZE,
+    );
+    const [comments, commentCount, liked] = await Promise.all([
+      this.commentModel
+        .find(commentFilter)
+        .sort({ createdAt: 1, _id: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.commentModel.countDocuments(commentFilter).exec(),
+      viewer
+        ? this.likeModel
+            .exists({ post: postId, user: new Types.ObjectId(viewer.id) })
+            .exec()
+        : Promise.resolve(null),
+    ]);
+
+    const commentResponses = await Promise.all(
+      comments.map(async (comment): Promise<PostDetailComment> => {
+        const commentAuthor = await this.usersService.findById(
+          comment.author.toString(),
+        );
+        return {
+          id: comment._id.toString(),
+          author: {
+            id: comment.author.toString(),
+            name:
+              !commentAuthor ||
+              commentAuthor.status === AccountStatus.Deactivated
+                ? 'Deleted user'
+                : commentAuthor.name,
+          },
+          text: comment.text,
+          date: comment.createdAt!,
+        };
+      }),
+    );
+
+    const response: PostDetailResponse = {
+      id: post._id.toString(),
+      title: post.title,
+      body: post.body,
+      author: { id: author._id.toString(), name: author.name },
+      date: post.createdAt!,
+      tags: post.tags,
+      images: (post.images ?? []).map(({ id, url }) => ({ id, url })),
+      likeCount: post.likeCount,
+      status: post.status,
+      comments: commentResponses,
+      commentCount,
+    };
+    if (viewer) response.likedByMe = Boolean(liked);
+    return response;
+  }
+
+  async getPublicAuthorPage(
+    authorId: Types.ObjectId,
+    postsPage = 1,
+    itinerariesPage = 1,
+  ): Promise<PublicAuthorPageResponse> {
+    const author = await this.usersService.findById(authorId.toString());
+    if (!author || author.status === AccountStatus.Deactivated) {
+      throw new NotFoundException('Author not found or deactivated.');
+    }
+
+    const filter = {
+      author: authorId,
+      status: PostStatus.Published,
+      hidden: false,
+    };
+    const { skip, limit } = getPaginationOffset(postsPage, DEFAULT_PAGE_SIZE);
+    const [posts, total, itineraries] = await Promise.all([
+      this.postModel
+        .find(filter)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.postModel.countDocuments(filter).exec(),
+      this.itinerariesService.listPublicByAuthor(authorId, itinerariesPage),
+    ]);
+
+    const postItems: PostSummary[] = posts.map((post) => ({
+      id: post._id.toString(),
+      title: post.title,
+      author: { id: author._id.toString(), name: author.name },
+      date: post.createdAt!,
+      excerpt: post.body.slice(0, 200),
+      tags: post.tags,
+      likeCount: post.likeCount,
+      commentCount: post.commentCount,
+    }));
+
+    return {
+      author: {
+        id: author._id.toString(),
+        name: author.name,
+        createdAt: author.createdAt!,
+      },
+      posts: paginate(postItems, total, postsPage),
+      itineraries,
+    };
+  }
 
   async listPublished(
     query: ListPostsQueryDto,
