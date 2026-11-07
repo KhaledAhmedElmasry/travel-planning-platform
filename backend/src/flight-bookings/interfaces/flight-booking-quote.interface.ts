@@ -21,6 +21,8 @@ export interface QuotedSegment {
   arrivalAirport: QuotedAirport;
   departureAt: Date;
   arrivalAt: Date;
+  departureLocal: string;
+  arrivalLocal: string;
   // Cabin price per seat.
   fare: number;
   freeBags: number;

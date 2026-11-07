@@ -45,12 +45,11 @@ import { SeatInventoryService } from './seat-inventory.service';
 //
 // Done here (Area 1): the seat hold (FLT-22), the four BookingPaymentHandler methods used by the
 // payments module (PAY-01, PAY-02), confirmation with the booking reference and the e-ticket
-// (FLT-23). The hold-expiry job and cancellation are in flight-booking-lifecycle.service.ts.
-// WAITING FOR: FlightBookingQuoteService.quote() (Area 6) and AirlinesService.getBookingPolicies()
-// (Area 5); until then the hold and the policies answer 501.
+// (FLT-23). The booking summary (FLT-19, FLT-21) is computed by FlightBookingQuoteService.
+// The hold-expiry job and cancellation are in flight-booking-lifecycle.service.ts.
 // GEN-01: the user is notified on confirmation (see tryConfirm).
-// TODO(FLT-19, FLT-21, FLT-25; Area 6): the summary, the list and the details go here too. The
-// details must include RefundsService.findRefundForBooking() and the refund preview (FLT-26):
+// TODO(FLT-25; Area 6): the list and details go here. The details must include
+// RefundsService.findRefundForBooking() and the refund preview (FLT-26):
 // FlightBookingLifecycleService.previewCancellation(booking), the same function the cancellation
 // uses. For the Upcoming group of the list use upcomingFlightBookings() below (NEW-01).
 
@@ -179,6 +178,11 @@ export class FlightBookingsService implements BookingPaymentHandler {
     });
     if (!created.booking) throw new Error('The booking was not created.');
     return this.toResponse(created.booking);
+  }
+
+  // FLT-19 / FLT-21: return the summary without reserving seats or creating a booking.
+  quote(request: FlightBookingRequestDto) {
+    return this.quotes.quote(request);
   }
 
   // GET /api/flight-bookings/:id/e-ticket (FLT-23): only the owner, only a Confirmed booking.

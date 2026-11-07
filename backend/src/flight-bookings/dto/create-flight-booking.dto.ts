@@ -1,8 +1,4 @@
-// Area: Flight Search & Booking
-// Used by: POST /api/flight-bookings (body)
-// Requirements: FLT-19, FLT-21
-//
-// TODO: define the DTO class with class-validator rules for the fields this endpoint needs,
-// exactly as documented in docs/api/openapi.yaml.
+// FLT-19 and FLT-21 use the same request shape as the seat-hold endpoint (FLT-22).
+import { FlightBookingRequestDto } from './hold-flight-booking.dto';
 
-export {};
+export class CreateFlightBookingDto extends FlightBookingRequestDto {}

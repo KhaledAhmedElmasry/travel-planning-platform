@@ -13,6 +13,7 @@ import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
 import { RegisteredUserGuard } from '../payments/registered-user.guard';
+import { CreateFlightBookingDto } from './dto/create-flight-booking.dto';
 import { FlightBookingRequestDto } from './dto/hold-flight-booking.dto';
 import {
   CancelledFlightBookingResponse,
@@ -22,13 +23,14 @@ import {
   FlightBookingResponse,
   FlightBookingsService,
 } from './flight-bookings.service';
+import { FlightBookingQuote } from './interfaces/flight-booking-quote.interface';
 
 // Area: Payments, Holds & Booking Engine (hold, cancel, e-ticket) and Search & My Bookings
 // (summary, list, details)
 // Requirements: FLT-19, FLT-21, FLT-22, FLT-23, FLT-25, FLT-26, GEN-11, NEW-01
 // Endpoints to implement (PDF section 8):
 //   POST /api/flight-bookings/hold            FLT-22           done
-//   POST /api/flight-bookings                 FLT-19, FLT-21   TODO (Area 6)
+//   POST /api/flight-bookings                 FLT-19, FLT-21   done
 //   GET  /api/flight-bookings                 FLT-25           TODO (Area 6)
 //   GET  /api/flight-bookings/:id             FLT-25           TODO (Area 6)
 //   POST /api/flight-bookings/:id/cancel      FLT-26           done
@@ -42,9 +44,8 @@ import {
 //   Upcoming = upcomingFlightBookings() in flight-bookings.service.ts (NEW-01).
 //   The e-ticket is a downloadable PDF made with pdfkit (FLT-23).
 //
-//   Hold, e-ticket and cancel need a login (401, JwtAuthGuard) and the role `user` (403 for admins
-//   and moderators, RegisteredUserGuard); the services also check that the booking is the user's
-//   own (404 otherwise, ACC-11).
+//   Booking summary, hold, e-ticket and cancel need a login (401, JwtAuthGuard) and the role `user`
+//   (403 for admins and moderators, RegisteredUserGuard); booking details also check ownership.
 // DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
@@ -56,6 +57,14 @@ export class FlightBookingsController {
     private readonly flightBookingsService: FlightBookingsService,
     private readonly lifecycle: FlightBookingLifecycleService,
   ) {}
+
+  // FLT-19 / FLT-21: show a quote before payment; no booking or seat hold is created.
+  @Post()
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  quote(@Body() dto: CreateFlightBookingDto): Promise<FlightBookingQuote> {
+    return this.flightBookingsService.quote(dto);
+  }
 
   // FLT-22: hold the seats for 10 minutes and create the booking (pending_payment).
   @Post('hold')
