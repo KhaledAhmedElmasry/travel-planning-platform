@@ -2453,8 +2453,14 @@ paths:
 
         Lists active hotels that have at least `rooms` active rooms free for the whole stay (inside a
         bookable range, not blocked, not reserved and not held), whose combined maximum occupancy covers
-        the guests (HTL-11). Give a city or a country. Check-out must be after check-in, and check-in
-        cannot be in the past.
+        the guests (HTL-11). Give a city or a country (or both). Check-out must be after check-in, and
+        check-in cannot be in the past. Every room needs at least one guest, so `rooms` cannot be more
+        than `guests`. Free rooms follow the same rules as `GET /api/hotels/{id}/rooms/available`
+        (HTL-15), where the user then picks the rooms.
+
+        The price shown is per night, in cents of the platform currency: for 1 room, the cheapest free
+        room that holds all the guests; for several rooms, the cheapest free room. Results are sorted by
+        that price, cheapest first.
 
         - **Price filter:** inclusive minimum and maximum price per night of the cheapest qualifying
           room (HTL-12).
@@ -2539,15 +2545,19 @@ paths:
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: Each hotel - id, name, city, country, star class, first photo, average rating, number of ratings, price per night of the cheapest qualifying room.
-          content: *paginated
+          description: Each hotel - id, name, city, country, star class, first photo, average rating, number of ratings, price per night of the cheapest qualifying room, the platform currency and the number of free rooms.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"id": "665f1c2a9b1e8a00123400a1", "name": "Nile View", "cityId": "cairo", "countryCode": "EG", "starRating": 5, "photo": "/uploads/hotels/665f1c2a9b1e8a00123400a1/a.jpg", "averageRating": 4.5, "ratingCount": 12, "pricePerNight": 15000, "currency": "USD", "freeRooms": 2}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
-          description: Missing city and country, invalid dates (check-out not after check-in, check-in in the past), or minPrice greater than maxPrice.
+          description: Missing city and country, invalid dates (check-out not after check-in, check-in in the past), more rooms than guests, or minPrice greater than maxPrice.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Missing city and country, invalid dates (check-out not after check-in, check-in in the past), or minPrice greater than maxPrice.", "path": "/api/hotels/search", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Give a city or a country.", "path": "/api/hotels/search", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/hotels/{id}:
     get:

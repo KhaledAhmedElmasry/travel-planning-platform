@@ -1380,3 +1380,28 @@ of a deactivated hotel are left out, a room needs a bookable range on every nigh
 departure day, blocked and reserved nights remove the room, an empty result is an empty page, and
 bad or past dates give 400. The rules match the hold, so a room shown here can be held unless
 someone takes it first. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-11
+
+Prompt:
+I want to finish GitHub issue #41 (HTL-11) on its own branch feature/HTL-11-hotel-search, on top of
+my HTL-15 branch. Add GET /api/hotels/search, open to everyone, with city or country, checkIn,
+checkOut, guests, rooms (default 1) and page. List the active hotels that have at least that many
+free rooms for the whole stay whose combined maximum occupancy covers the guests, using the
+free-room logic from HTL-15. Each result needs the id, name, city, country, star class, first
+photo, average rating, number of ratings and the price per night of the cheapest qualifying room,
+10 per page, cheapest first. Give 400 when city and country are both missing, for bad or past
+dates, and when there are more rooms than guests. Keep the search in the exported
+HotelSearchService so Area 6 can reuse it for ITN-25, make sure /hotels/search is not matched as
+/hotels/:id, follow docs/api/openapi.yaml and add local tests.
+
+How the output was used:
+Used as the base for SearchHotelsQueryDto, HotelSearchService.search(), the qualify() rule and the
+search route. I checked it against the issue and openapi.yaml: deactivated hotels and hotels
+without enough free rooms are left out, 4 guests in 1 room need a room for 4 while 4 guests in 2
+rooms can use two rooms for 2, a search with no match is an empty page, and the search route is
+registered before GET /hotels/:id. Verified with npm run lint, npm run build, local tests and in
+Swagger.

@@ -21,7 +21,7 @@ import { Room, RoomSchema } from './schemas/room.schema';
     // HotelBookingsModule imports this module.
     forwardRef(() => HotelBookingsModule),
   ],
-  // HotelSearchController first: its fixed paths (rooms/available) are matched before
+  // HotelSearchController first: its fixed paths (search, rooms/available) are matched before
   // HotelsController's /hotels/:id.
   controllers: [HotelSearchController, HotelsController, RoomsController],
   providers: [HotelsService, RoomsService, HotelSearchService],
