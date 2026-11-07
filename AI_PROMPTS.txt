@@ -1356,3 +1356,27 @@ from today on cannot be deactivated but can still be edited, past stays do not s
 and a room that was ever held or reserved cannot be deleted. Each change runs in one transaction
 that reads and writes the room, so it conflicts with a hold saved at the same moment and one of
 them runs again. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-15
+
+Prompt:
+I want to finish GitHub issue #43 (HTL-15) on its own branch feature/HTL-15-available-rooms, on top
+of my HTL-06 branch. Add GET /api/hotels/:id/rooms/available with checkIn, checkOut and page, open
+to everyone. List the active rooms of an active hotel that are free for every night of the stay,
+cheapest first, with the number of nights, the total stay price in cents and the platform currency,
+10 per page. A room is free with the same rules as Area 1's hold: every night inside a bookable
+range, outside every blocked range, and not taken by a Confirmed reservation or an unexpired hold
+(RoomInventoryService). Check-out must be after check-in and check-in cannot be in the past. Put the
+free-room logic in an exported service so the hotel search (HTL-11) and Area 6 (ITN-25) can reuse
+it, follow docs/api/openapi.yaml, and add local tests.
+
+How the output was used:
+Used as the base for AvailableRoomsQueryDto, the stay date helpers, HotelSearchService and
+HotelSearchController. I checked it against the issue and openapi.yaml: deactivated rooms and rooms
+of a deactivated hotel are left out, a room needs a bookable range on every night but not on the
+departure day, blocked and reserved nights remove the room, an empty result is an empty page, and
+bad or past dates give 400. The rules match the hold, so a room shown here can be held unless
+someone takes it first. Verified with npm run lint, npm run build, local tests and in Swagger.

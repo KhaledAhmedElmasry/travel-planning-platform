@@ -1,7 +1,12 @@
 import { BadRequestException } from '@nestjs/common';
-import { dateOnly, formatDate } from '../hotel-bookings/stay-dates';
+import {
+  dateOnly,
+  formatDate,
+  stayNights,
+  todayUtc,
+} from '../hotel-bookings/stay-dates';
 
-// Area: Hotels & Rooms (HTL-05, HTL-06)
+// Area: Hotels & Rooms (HTL-05, HTL-06, HTL-15)
 // Date-range math for a room's bookable and blocked nights. A range is a run of nights stored at
 // 00:00 UTC with BOTH ends included (agreed with Area 1, see schemas/room.schema.ts).
 
@@ -88,4 +93,52 @@ export function formatRanges(ranges: NightRange[]) {
 
 export function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * DAY_MS);
+}
+
+export interface Stay {
+  checkIn: Date;
+  checkOut: Date;
+  // Every night of the stay: checkIn up to the night before checkOut.
+  nights: Date[];
+}
+
+// HTL-15, HTL-11: the searched stay, with the same rules as a booking (HTL-18): check-out after
+// check-in, and check-in not in the past (today is allowed).
+export function parseStay(checkIn: string, checkOut: string): Stay {
+  const stay = {
+    checkIn: parseNight(checkIn, 'checkIn'),
+    checkOut: parseNight(checkOut, 'checkOut'),
+  };
+  if (stay.checkOut <= stay.checkIn) {
+    throw new BadRequestException('checkOut must be after checkIn.');
+  }
+  if (stay.checkIn < todayUtc()) {
+    throw new BadRequestException('checkIn cannot be in the past.');
+  }
+  return { ...stay, nights: stayNights(stay.checkIn, stay.checkOut) };
+}
+
+function contains(range: NightRange, night: Date): boolean {
+  return range.from <= night && night <= range.to;
+}
+
+// The room can be booked on every night: active, each night inside a bookable range and outside
+// every blocked range. The same rule as Area 1's hold (hotel-bookings.service.ts,
+// checkAvailability). Reserved nights are checked separately (RoomInventoryService).
+export function isBookableFor(
+  room: {
+    active?: boolean;
+    availableRanges?: NightRange[];
+    blockedRanges?: NightRange[];
+  },
+  nights: Date[],
+): boolean {
+  return (
+    room.active !== false &&
+    nights.every(
+      (night) =>
+        (room.availableRanges ?? []).some((r) => contains(r, night)) &&
+        !(room.blockedRanges ?? []).some((r) => contains(r, night)),
+    )
+  );
 }

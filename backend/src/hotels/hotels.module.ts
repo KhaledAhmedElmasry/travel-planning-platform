@@ -1,6 +1,8 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { HotelBookingsModule } from '../hotel-bookings/hotel-bookings.module';
+import { HotelSearchController } from './hotel-search.controller';
+import { HotelSearchService } from './hotel-search.service';
 import { HotelsController } from './hotels.controller';
 import { HotelsService } from './hotels.service';
 import { RoomsController } from './rooms.controller';
@@ -15,12 +17,15 @@ import { Room, RoomSchema } from './schemas/room.schema';
       { name: Hotel.name, schema: HotelSchema },
       { name: Room.name, schema: RoomSchema },
     ]),
-    // RoomInventoryService: which nights are reserved (HTL-05, HTL-06). forwardRef because
+    // RoomInventoryService: which nights are reserved (HTL-05, HTL-06, HTL-15). forwardRef because
     // HotelBookingsModule imports this module.
     forwardRef(() => HotelBookingsModule),
   ],
-  controllers: [HotelsController, RoomsController],
-  providers: [HotelsService, RoomsService],
-  exports: [HotelsService], // Area 6 reuses the hotel search service (HTL-11)
+  // HotelSearchController first: its fixed paths (rooms/available) are matched before
+  // HotelsController's /hotels/:id.
+  controllers: [HotelSearchController, HotelsController, RoomsController],
+  providers: [HotelsService, RoomsService, HotelSearchService],
+  // Area 6 reuses the hotel search (HotelSearchService, HTL-11, ITN-25).
+  exports: [HotelsService, HotelSearchService],
 })
 export class HotelsModule {}
