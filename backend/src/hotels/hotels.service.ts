@@ -20,6 +20,17 @@ import { CreateRoomDto } from './dto/create-room.dto';
 import { HotelPoliciesDto } from './dto/hotel-policies.dto';
 import { RoomAvailabilityDto } from './dto/room-availability.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
+import { ListReservationsQueryDto } from './dto/list-reservations-query.dto';
+import { BookingStatus } from '../common/enums';
+import {
+  DEFAULT_PAGE_SIZE,
+  getPaginationOffset,
+  paginate,
+  PaginatedList,
+} from '../common/dto/pagination.dto';
+import { HotelBooking } from '../hotel-bookings/schemas/hotel-booking.schema';
+import { User } from '../users/schemas/user.schema';
+import type { AuthUser } from '../common/interfaces';
 import { pickRefundTier } from './hotel-refund-tier';
 import { Hotel, HotelDocument, HotelPhoto } from './schemas/hotel.schema';
 import { Room, RoomDateRange, RoomDocument } from './schemas/room.schema';
@@ -56,11 +67,24 @@ export interface HotelBookingPoliciesData {
   cancellationTiers: CancellationTier[];
 }
 
+export interface HotelReservationListItem {
+  id: string;
+  reference: string | null;
+  guest: { id: string; name: string };
+  rooms: { roomId: string; roomNumber: string; type: string }[];
+  checkIn: string;
+  checkOut: string;
+  status: BookingStatus;
+}
+
 @Injectable()
 export class HotelsService {
   constructor(
     @InjectModel(Hotel.name) private readonly hotelModel: Model<Hotel>,
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
+    @InjectModel(HotelBooking.name)
+    private readonly hotelBookingModel: Model<HotelBooking>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectConnection() private readonly connection: Connection,
     private readonly config: ConfigService,
   ) {}
@@ -301,6 +325,68 @@ export class HotelsService {
   ): Promise<RefundTier> {
     const hotel = await this.findHotelOrThrow(hotelId);
     return pickRefundTier(this.sortedTiers(hotel), daysBeforeCheckIn);
+  }
+
+  // HTL-22: only the moderator assigned to the requested hotel can view its reservations.
+  async listReservations(
+    hotelId: string,
+    actor: AuthUser,
+    query: ListReservationsQueryDto,
+  ): Promise<PaginatedList<HotelReservationListItem>> {
+    const hotel = await this.findHotelOrThrow(hotelId);
+    this.assertModeratorOf(hotel, actor);
+
+    const from = query.from ? this.parseDay(query.from, 'from') : undefined;
+    const to = query.to ? this.parseDay(query.to, 'to') : undefined;
+    if (from && to && to < from) {
+      throw new BadRequestException('"to" must not be before "from".');
+    }
+
+    const filter: Record<string, unknown> = { hotelId: hotel._id };
+    if (query.status) filter.status = query.status;
+    if (from || to) {
+      filter.checkOut = from ? { $gte: from } : undefined;
+      filter.checkIn = to ? { $lte: to } : undefined;
+    }
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [bookings, total] = await Promise.all([
+      this.hotelBookingModel
+        .find(filter)
+        .sort({ checkIn: 1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      this.hotelBookingModel.countDocuments(filter).exec(),
+    ]);
+    const users = await this.userModel
+      .find({
+        _id: { $in: bookings.map((booking) => booking.userId) },
+      })
+      .select('_id name')
+      .lean<Array<{ _id: Types.ObjectId; name: string }>>();
+    const names = new Map(
+      users.map((user) => [user._id.toString(), user.name]),
+    );
+    return paginate(
+      bookings.map((booking) => ({
+        id: booking._id.toString(),
+        reference: booking.reference ?? null,
+        guest: {
+          id: booking.userId.toString(),
+          name: names.get(booking.userId.toString()) ?? 'Unknown guest',
+        },
+        rooms: booking.rooms.map((room) => ({
+          roomId: room.roomId.toString(),
+          roomNumber: room.roomNumber,
+          type: room.type,
+        })),
+        checkIn: formatDate(booking.checkIn),
+        checkOut: formatDate(booking.checkOut),
+        status: booking.status,
+      })),
+      total,
+      page,
+    );
   }
 
   // --- helpers ---

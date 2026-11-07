@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Patch,
   Post,
@@ -8,6 +9,7 @@ import {
   UploadedFiles,
   UseGuards,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -19,6 +21,7 @@ import type { AuthUser } from '../common/interfaces';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { HotelPoliciesDto } from './dto/hotel-policies.dto';
+import { ListReservationsQueryDto } from './dto/list-reservations-query.dto';
 import { RoomAvailabilityDto } from './dto/room-availability.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 import {
@@ -138,5 +141,16 @@ export class HotelsController {
     @Body() dto: HotelPoliciesDto,
   ) {
     return this.hotelsService.updatePolicies(id, user, dto);
+  }
+
+  @Get(':id/reservations')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  listReservations(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListReservationsQueryDto,
+  ) {
+    return this.hotelsService.listReservations(id, user, query);
   }
 }
