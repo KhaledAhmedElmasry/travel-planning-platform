@@ -2463,10 +2463,12 @@ paths:
         that price, cheapest first.
 
         - **Price filter:** inclusive minimum and maximum price per night of the cheapest qualifying
-          room (HTL-12).
-        - **Rating filter:** minimum average rating from 1 to 5; unrated hotels are excluded when this
-          filter is set (HTL-12).
-        - **Sorting:** by that price or by rating (HTL-12).
+          room, the price shown in the results (HTL-12). minPrice greater than maxPrice gives 400.
+        - **Rating filter:** minimum average rating from 1 to 5, inclusive; unrated hotels are excluded
+          when this filter is set (HTL-12).
+        - **Sorting:** by that price (the default) or by rating, ascending unless `sortOrder=desc`
+          (HTL-12). In a rating sort, unrated hotels come last; equal values are sorted by price, then
+          by name.
         - No match gives an empty list (GEN-04).
       security: []
       parameters:
@@ -2535,6 +2537,7 @@ paths:
             example: 4
         - name: sortBy
           in: query
+          description: Defaults to `price`.
           schema:
             $ref: '#/components/schemas/HotelSortBy'
         - name: sortOrder

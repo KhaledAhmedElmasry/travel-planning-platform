@@ -11,14 +11,18 @@ import { RoomInventoryService } from '../hotel-bookings/room-inventory.service';
 import { formatDate } from '../hotel-bookings/stay-dates';
 import { platformCurrency } from '../payments/platform-currency';
 import { AvailableRoomsQueryDto } from './dto/available-rooms-query.dto';
-import { SearchHotelsQueryDto } from './dto/search-hotels-query.dto';
+import {
+  HotelSortBy,
+  SearchHotelsQueryDto,
+  SortOrder,
+} from './dto/search-hotels-query.dto';
 import { isBookableFor, parseStay, Stay } from './room-ranges';
 import { Hotel, HotelDocument } from './schemas/hotel.schema';
 import { Room, RoomDocument } from './schemas/room.schema';
 
 // Area: Hotels & Rooms
 // Business logic for: HTL-15 (the rooms of a hotel that are free for the searched dates) and
-// HTL-11 (hotel search). Exported for Area 6: GET /api/itineraries/:id/hotels (ITN-25) calls
+// HTL-11 / HTL-12 (hotel search with price and rating filters and sorting). Exported for Area 6: GET /api/itineraries/:id/hotels (ITN-25) calls
 // search() with the city group's city and dates.
 //
 // "Free" means what Area 1's hold accepts (HTL-18): the room is active, every night of the stay is
@@ -85,7 +89,8 @@ export class HotelSearchService {
   // --- HTL-11: GET /api/hotels/search (also ITN-25) ---
 
   // Active hotels in the city or country with at least `rooms` free rooms for the whole stay
-  // whose combined maximum occupancy covers the guests. Cheapest first.
+  // whose combined maximum occupancy covers the guests (HTL-11), filtered by price and rating
+  // and sorted (HTL-12). Cheapest first by default.
   async search(
     query: SearchHotelsQueryDto,
   ): Promise<PaginatedList<HotelSearchResult>> {
@@ -99,11 +104,25 @@ export class HotelSearchService {
         'rooms cannot be more than guests: every room needs at least one guest.',
       );
     }
+    if (
+      query.minPrice !== undefined &&
+      query.maxPrice !== undefined &&
+      query.minPrice > query.maxPrice
+    ) {
+      throw new BadRequestException(
+        'minPrice cannot be greater than maxPrice.',
+      );
+    }
     const page = query.page ?? 1;
 
     const filter: Record<string, unknown> = { active: { $ne: false } };
     if (query.city) filter.cityId = query.city;
     if (query.country) filter.countryCode = query.country;
+    // HTL-12: unrated hotels have no average rating yet, so they cannot reach a minimum.
+    if (query.minRating !== undefined) {
+      filter.ratingCount = { $gt: 0 };
+      filter.averageRating = { $gte: query.minRating };
+    }
     const hotels = await this.hotelModel.find(filter);
     if (hotels.length === 0) return paginate([], 0, page);
 
@@ -125,7 +144,7 @@ export class HotelSearchService {
         query.guests,
         rooms,
       );
-      if (price !== null) {
+      if (price !== null && inPriceRange(price, query)) {
         results.push(
           this.toResult(
             hotel,
@@ -136,10 +155,7 @@ export class HotelSearchService {
         );
       }
     }
-    results.sort(
-      (a, b) =>
-        a.pricePerNight - b.pricePerNight || a.name.localeCompare(b.name),
-    );
+    results.sort(compareResults(query.sortBy, query.sortOrder));
 
     const { skip, limit } = getPaginationOffset(page);
     return paginate(results.slice(skip, skip + limit), results.length, page);
@@ -223,4 +239,36 @@ export function qualify(
   const candidates =
     rooms === 1 ? free.filter((r) => r.maxOccupancy >= guests) : free;
   return Math.min(...candidates.map((r) => r.pricePerNight));
+}
+
+// HTL-12: minPrice and maxPrice are both included.
+function inPriceRange(
+  price: number,
+  query: { minPrice?: number; maxPrice?: number },
+): boolean {
+  return (
+    (query.minPrice === undefined || price >= query.minPrice) &&
+    (query.maxPrice === undefined || price <= query.maxPrice)
+  );
+}
+
+// HTL-12: by price (the default) or by rating, ascending by default. Hotels without ratings come
+// last in a rating sort either way. Ties: cheaper first, then by name.
+function compareResults(
+  sortBy: HotelSortBy = HotelSortBy.Price,
+  sortOrder: SortOrder = SortOrder.Asc,
+) {
+  const sign = sortOrder === SortOrder.Desc ? -1 : 1;
+  return (a: HotelSearchResult, b: HotelSearchResult): number => {
+    if (sortBy === HotelSortBy.Rating) {
+      const unrated = Number(a.ratingCount === 0) - Number(b.ratingCount === 0);
+      if (unrated !== 0) return unrated;
+      const byRating = (a.averageRating - b.averageRating) * sign;
+      if (byRating !== 0) return byRating;
+      return a.pricePerNight - b.pricePerNight || a.name.localeCompare(b.name);
+    }
+    return (
+      (a.pricePerNight - b.pricePerNight) * sign || a.name.localeCompare(b.name)
+    );
+  };
 }

@@ -1405,3 +1405,25 @@ without enough free rooms are left out, 4 guests in 1 room need a room for 4 whi
 rooms can use two rooms for 2, a search with no match is an empty page, and the search route is
 registered before GET /hotels/:id. Verified with npm run lint, npm run build, local tests and in
 Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-12
+
+Prompt:
+I want to finish GitHub issue #42 (HTL-12) on its own branch feature/HTL-12-price-filter-sorting,
+on top of my HTL-11 branch. Add to GET /api/hotels/search an inclusive minPrice and maxPrice in
+cents on the price per night of the cheapest qualifying room, a minRating from 1 to 5 that leaves
+out unrated hotels, and sorting with sortBy price or rating and sortOrder asc or desc, ascending by
+default. minPrice greater than maxPrice gives 400, and invalid values give clear 400 errors. Keep it
+in the exported HotelSearchService so ITN-25 gets the same results, follow docs/api/openapi.yaml and
+add local tests.
+
+How the output was used:
+Used as the base for the new query fields, the price range check and the sort order in
+HotelSearchService. I checked it against the issue and openapi.yaml: both price limits are
+included, the filter uses the price shown for each hotel, a minimum rating leaves out hotels with
+no ratings, unrated hotels come last when sorting by rating, equal ratings are sorted by price, and
+minPrice above maxPrice gives 400. Verified with npm run lint, npm run build, local tests and in
+Swagger.
