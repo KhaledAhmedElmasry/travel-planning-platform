@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import {
+  RoomNight,
+  RoomNightSchema,
+} from '../hotel-bookings/schemas/room-night.schema';
 import { HotelsController } from './hotels.controller';
 import { HotelsService } from './hotels.service';
 import { Hotel, HotelSchema } from './schemas/hotel.schema';
@@ -11,6 +15,7 @@ import { Room, RoomSchema } from './schemas/room.schema';
     MongooseModule.forFeature([
       { name: Hotel.name, schema: HotelSchema },
       { name: Room.name, schema: RoomSchema },
+      { name: RoomNight.name, schema: RoomNightSchema },
     ]),
   ],
   controllers: [HotelsController],

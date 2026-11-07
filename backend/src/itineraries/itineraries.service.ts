@@ -46,6 +46,11 @@ import {
 import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service';
 import { UsersService } from '../users/users.service';
 import { AccountStatus } from '../common/enums';
+import { HotelsService } from '../hotels/hotels.service';
+import { FlightSearchService } from '../flights/flight-search.service';
+import { TripType } from '../flights/dto/search-flights-query.dto';
+import { ItineraryHotelsQueryDto } from './dto/itinerary-hotels-query.dto';
+import { ItineraryFlightsQueryDto } from './dto/itinerary-flights-query.dto';
 
 // Area: Itineraries
 // Business logic and database access for: ITN-01..ITN-26
@@ -55,6 +60,8 @@ export class ItinerariesService {
     @InjectModel(Itinerary.name)
     private readonly itineraryModel: Model<Itinerary>,
     @InjectConnection() private readonly connection: Connection,
+    private readonly hotelsService: HotelsService,
+    private readonly flightSearchService: FlightSearchService,
     @Optional() private readonly uploadsService?: UploadsService,
     @Optional() private readonly usersService?: UsersService,
     @Optional() private readonly exchangeRatesService?: ExchangeRatesService,
@@ -861,6 +868,69 @@ export class ItinerariesService {
     if (result.deletedCount !== 1) throw itineraryNotFound();
   }
 
+  async findHotels(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+    query: ItineraryHotelsQueryDto,
+  ) {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    const group = computeCityGroups(itinerary.days).find((item) =>
+      item.dayIds.includes(query.dayId),
+    );
+    if (!group) {
+      throw new BadRequestException(
+        'The day must belong to a city group in this itinerary.',
+      );
+    }
+    return this.hotelsService.searchHotelsForStay(
+      group.cityId,
+      group.startDate,
+      addOneDay(group.endDate),
+      query.guests,
+      query.rooms ?? 1,
+      query.page ?? 1,
+    );
+  }
+
+  async findFlights(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+    query: ItineraryFlightsQueryDto,
+  ) {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    const firstDay = itinerary.days[0];
+    if (!firstDay) {
+      throw new BadRequestException(
+        "Invalid parameters, the itinerary has no days, or the first day's city has no airport.",
+      );
+    }
+    const destination = await this.connection
+      .collection<{ _id: string }>('airports')
+      .findOne({ cityId: firstDay.cityId });
+    if (!destination) {
+      throw new BadRequestException(
+        "Invalid parameters, the itinerary has no days, or the first day's city has no airport.",
+      );
+    }
+    const lastDay = itinerary.days[itinerary.days.length - 1];
+    const departureDate =
+      query.departureDate ?? formatItineraryDate(itinerary.startDate);
+    const returnDate = query.returnDate ?? formatItineraryDate(lastDay.date);
+    return this.flightSearchService.search({
+      origin: query.origin,
+      destination: destination._id,
+      departureDate,
+      returnDate:
+        query.tripType === TripType.RoundTrip ? returnDate : undefined,
+      tripType: query.tripType ?? TripType.OneWay,
+      adults: query.adults ?? 1,
+      children: query.children ?? 0,
+      infants: query.infants ?? 0,
+      cabinClass: query.cabinClass,
+      page: query.page ?? 1,
+    });
+  }
+
   private async findOwnedOrThrow(
     itineraryId: string | Types.ObjectId,
     userId: string,
@@ -1329,6 +1399,16 @@ export interface ItinerarySummary {
 
 function toStartDate(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
+}
+
+function formatItineraryDate(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+function addOneDay(value: string): string {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return formatItineraryDate(date);
 }
 
 function toDayResponse(

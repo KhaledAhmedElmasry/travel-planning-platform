@@ -6,9 +6,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DEFAULT_PAGE_SIZE, paginate } from '../common/dto/pagination.dto';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
-import { dateOnly, formatDate } from '../hotel-bookings/stay-dates';
+import {
+  dateOnly,
+  formatDate,
+  stayNights,
+  todayUtc,
+} from '../hotel-bookings/stay-dates';
+import {
+  RoomNight,
+  RoomNightStatus,
+} from '../hotel-bookings/schemas/room-night.schema';
 import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
 import { platformCurrency } from '../payments/platform-currency';
 import type {
@@ -63,6 +73,8 @@ export class HotelsService {
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
     @InjectConnection() private readonly connection: Connection,
     private readonly config: ConfigService,
+    @InjectModel(RoomNight.name)
+    private readonly roomNightModel: Model<RoomNight>,
   ) {}
 
   // --- HTL-01: create (admin only; the controller enforces the role) ---
@@ -301,6 +313,104 @@ export class HotelsService {
   ): Promise<RefundTier> {
     const hotel = await this.findHotelOrThrow(hotelId);
     return pickRefundTier(this.sortedTiers(hotel), daysBeforeCheckIn);
+  }
+
+  // Shared hotel search used by ITN-25. It applies the same stay/date and inventory rules as
+  // the public hotel search boundary, without exposing another HTTP endpoint.
+  async searchHotelsForStay(
+    cityId: string,
+    checkInText: string,
+    checkOutText: string,
+    guests: number,
+    roomsNeeded: number,
+    page = 1,
+  ) {
+    const checkIn = this.parseDay(checkInText, 'checkIn');
+    const checkOut = this.parseDay(checkOutText, 'checkOut');
+    if (checkIn < todayUtc() || checkOut <= checkIn) {
+      throw new BadRequestException(
+        'checkOut must be after checkIn and checkIn cannot be in the past.',
+      );
+    }
+    const nights = stayNights(checkIn, checkOut);
+    const hotels = await this.hotelModel
+      .find({ cityId, active: true })
+      .lean<Array<Hotel & { _id: Types.ObjectId }>>();
+    const rooms = await this.roomModel
+      .find({
+        hotelId: { $in: hotels.map((hotel) => hotel._id) },
+        active: true,
+      })
+      .lean<Array<Room & { _id: Types.ObjectId }>>();
+    const taken = await this.roomNightModel
+      .find({
+        roomId: { $in: rooms.map((room) => room._id) },
+        night: { $in: nights },
+        $or: [
+          { status: RoomNightStatus.Booked },
+          { status: RoomNightStatus.Held, expiresAt: { $gt: new Date() } },
+        ],
+      })
+      .lean<Array<{ roomId: Types.ObjectId }>>();
+    const takenIds = new Set(taken.map((item) => item.roomId.toString()));
+    const availableByHotel = new Map<
+      string,
+      Array<Room & { _id: Types.ObjectId }>
+    >();
+    for (const room of rooms) {
+      const available =
+        !takenIds.has(room._id.toString()) &&
+        nights.every((night) =>
+          (room.availableRanges ?? []).some(
+            (range) =>
+              new Date(range.from).getTime() <= night.getTime() &&
+              new Date(range.to).getTime() >= night.getTime(),
+          ),
+        ) &&
+        !(room.blockedRanges ?? []).some((range) =>
+          nights.some(
+            (night) =>
+              new Date(range.from).getTime() <= night.getTime() &&
+              new Date(range.to).getTime() >= night.getTime(),
+          ),
+        );
+      if (!available) continue;
+      const list = availableByHotel.get(room.hotelId.toString()) ?? [];
+      list.push(room);
+      availableByHotel.set(room.hotelId.toString(), list);
+    }
+    const items = hotels.flatMap((hotel) => {
+      const qualifying = (
+        availableByHotel.get(hotel._id.toString()) ?? []
+      ).sort((a, b) => a.pricePerNight - b.pricePerNight);
+      if (
+        qualifying.length < roomsNeeded ||
+        qualifying
+          .slice(0, roomsNeeded)
+          .reduce((sum, room) => sum + room.maxOccupancy, 0) < guests
+      ) {
+        return [];
+      }
+      return [
+        {
+          id: hotel._id.toString(),
+          name: hotel.name,
+          cityId: hotel.cityId,
+          countryCode: hotel.countryCode,
+          starRating: hotel.starRating,
+          photo: hotel.photos?.[0]?.url ?? null,
+          averageRating: hotel.averageRating,
+          ratingCount: hotel.ratingCount,
+          pricePerNight: qualifying[0].pricePerNight,
+        },
+      ];
+    });
+    const start = (page - 1) * DEFAULT_PAGE_SIZE;
+    return paginate(
+      items.slice(start, start + DEFAULT_PAGE_SIZE),
+      items.length,
+      page,
+    );
   }
 
   // --- helpers ---

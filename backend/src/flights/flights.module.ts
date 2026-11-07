@@ -46,6 +46,6 @@ import { Flight, FlightSchema } from './schemas/flight.schema';
     FlightSearchService,
     FlightDetailsService,
   ],
-  exports: [FlightsService],
+  exports: [FlightsService, FlightSearchService],
 })
 export class FlightsModule {}
