@@ -1280,6 +1280,29 @@ the original author credited, and the original is unchanged. Verified with npm r
 npm run build, local tests and in Swagger by publishing an itinerary as one user and searching,
 viewing and cloning it as another (demo scenario 9).
 ================================================
+Date: 2026-11-04
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-04
+Prompt:
+Asked for POST /api/hotels/:id/rooms/:roomId/availability: add a bookable date range to a room, with
+inclusive dates, validation of real calendar dates, and a rule that the room's ranges must not overlap.
+How the output was used:
+Reviewed the generated DTO, service method and controller route. The overlap check is one atomic
+findOneAndUpdate so concurrent requests cannot both succeed. Fixed lint formatting, ran build and tests,
+and tested every case in Swagger (screenshots attached to the PR).
+================================================
+================================================
+Date: 2026-11-04
+Student: Salaheldin Mahmoud
+Tool: ChatGPT
+Related Requirement: HTL-04
+Prompt:
+Asked the assistant to resolve the merge conflicts after merging develop into feature/HTL-04-room-availability
+(hotels.service.ts, hotels.controller.ts, AI_PROMPTS.txt) and to report build, test and lint status.
+How the output was used:
+Reviewed the resolved files against the expected routes and methods, and confirmed build, tests and lint pass.
+================================================
 Date: 2026-11-06
 Student: Ibrahim Alalamy
 Tool: OpenAI Codex
@@ -1300,3 +1323,4 @@ the comment-creation/post-deletion race; the changes add a durable cleanup recor
 comment creation, and focused rollback/retry tests. Jest passed (3 suites, 35 tests), as did the
 backend build, lint, OpenAPI YAML parsing and diff check. Search ordering/exclusion tests inspect the
 Mongo aggregation pipeline; no live MongoDB or Swagger verification has been performed.
+================================================
