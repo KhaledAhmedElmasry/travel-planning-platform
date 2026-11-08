@@ -344,10 +344,10 @@ export class HotelsService {
 
     const filter: Record<string, unknown> = { hotelId: hotel._id };
     if (query.status) filter.status = query.status;
-    if (from || to) {
-      filter.checkOut = from ? { $gte: from } : undefined;
-      filter.checkIn = to ? { $lte: to } : undefined;
-    }
+    // Only add the bounds that were sent: an `undefined` value in the filter is stored as null
+    // and matches nothing, so "from" alone or "to" alone returned an empty list.
+    if (from) filter.checkOut = { $gte: from };
+    if (to) filter.checkIn = { $lte: to };
     const page = query.page ?? 1;
     const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
     const [bookings, total] = await Promise.all([
