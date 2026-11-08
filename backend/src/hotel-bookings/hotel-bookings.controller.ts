@@ -24,6 +24,7 @@ import {
   HotelBookingResponse,
   HotelBookingsService,
 } from './hotel-bookings.service';
+import { PaymentsService } from '../payments/payments.service';
 import { RefundsService } from '../payments/refunds.service';
 import { HotelsService } from '../hotels/hotels.service';
 
@@ -32,8 +33,8 @@ import { HotelsService } from '../hotels/hotels.service';
 // Requirements: HTL-16, HTL-17, HTL-18, HTL-20, HTL-21, GEN-11
 // Endpoints to implement (PDF section 8):
 //   POST /api/hotel-bookings               HTL-16, HTL-18   done
-//   GET  /api/hotel-bookings               HTL-20           TODO (Area 6)
-//   GET  /api/hotel-bookings/:id           HTL-20           TODO (Area 6)
+//   GET  /api/hotel-bookings               HTL-20           done
+//   GET  /api/hotel-bookings/:id           HTL-20           done
 //   POST /api/hotel-bookings/:id/cancel    HTL-21           done
 // Notes:
 //   The reservation details (GET /api/hotel-bookings/:id) show the refund the user would get before
@@ -56,6 +57,7 @@ export class HotelBookingsController {
     private readonly lifecycle: HotelBookingLifecycleService,
     private readonly refunds: RefundsService,
     private readonly hotels: HotelsService,
+    private readonly payments: PaymentsService,
   ) {}
 
   // HTL-16, HTL-18: book one or more rooms and hold them for 10 minutes (pending_payment).
@@ -83,7 +85,8 @@ export class HotelBookingsController {
   @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   async details(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const booking = await this.hotelBookingsService.findOwned(user.id, id);
-    const [refund, cancellation, policies] = await Promise.all([
+    const [payment, refund, cancellation, policies] = await Promise.all([
+      this.payments.findPaymentForBooking(BookingType.Hotel, id),
       this.refunds.findRefundForBooking(BookingType.Hotel, id),
       this.lifecycle.previewCancellation(booking),
       this.hotels.getBookingPolicies(booking.hotelId.toString()),
@@ -96,6 +99,7 @@ export class HotelBookingsController {
         checkInTime: policies?.checkInTime ?? null,
         checkOutTime: policies?.checkOutTime ?? null,
       },
+      payment,
       refund,
       cancellation,
     };

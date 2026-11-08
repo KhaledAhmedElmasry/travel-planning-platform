@@ -179,6 +179,18 @@ export class PaymentsService {
     return this.toResponse(await this.findOwnedPayment(userId, paymentId));
   }
 
+  // For the booking details (FLT-25, HTL-20): the payment status of a booking, or null when the
+  // user has not started paying. A booking has at most one payment (unique index), and the
+  // response never includes the Stripe client secret.
+  async findPaymentForBooking(
+    bookingType: BookingType,
+    bookingId: string,
+  ): Promise<PaymentResponse | null> {
+    if (!isValidObjectId(bookingId)) return null;
+    const payment = await this.paymentModel.findOne({ bookingType, bookingId });
+    return payment ? this.toResponse(payment) : null;
+  }
+
   // POST /api/payments/webhook (PAY-01). Only a verified Stripe event changes a booking.
   async handleWebhook(
     rawBody: Buffer | undefined,

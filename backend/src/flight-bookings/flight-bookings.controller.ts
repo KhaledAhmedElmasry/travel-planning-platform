@@ -18,6 +18,7 @@ import { BookingType } from '../common/enums';
 import { CreateFlightBookingDto } from './dto/create-flight-booking.dto';
 import { FlightBookingRequestDto } from './dto/hold-flight-booking.dto';
 import { ListFlightBookingsQueryDto } from './dto/list-flight-bookings-query.dto';
+import { PaymentsService } from '../payments/payments.service';
 import { RefundsService } from '../payments/refunds.service';
 import {
   CancelledFlightBookingResponse,
@@ -34,9 +35,9 @@ import { FlightBookingQuote } from './interfaces/flight-booking-quote.interface'
 // Requirements: FLT-19, FLT-21, FLT-22, FLT-23, FLT-25, FLT-26, GEN-11
 // Endpoints to implement (PDF section 8):
 //   POST /api/flight-bookings/hold            FLT-22           done
-//   POST /api/flight-bookings                 FLT-19, FLT-21   TODO (Area 6)
-//   GET  /api/flight-bookings                 FLT-25           TODO (Area 6)
-//   GET  /api/flight-bookings/:id             FLT-25           TODO (Area 6)
+//   POST /api/flight-bookings                 FLT-19, FLT-21   done
+//   GET  /api/flight-bookings                 FLT-25           done
+//   GET  /api/flight-bookings/:id             FLT-25           done
 //   POST /api/flight-bookings/:id/cancel      FLT-26           done
 //   GET  /api/flight-bookings/:id/e-ticket    FLT-23           done
 // Notes:
@@ -62,6 +63,7 @@ export class FlightBookingsController {
     private readonly flightBookingsService: FlightBookingsService,
     private readonly lifecycle: FlightBookingLifecycleService,
     private readonly refunds: RefundsService,
+    private readonly payments: PaymentsService,
   ) {}
 
   // FLT-19 / FLT-21: return the summary without creating a booking or holding seats.
@@ -88,12 +90,14 @@ export class FlightBookingsController {
   @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   async details(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const booking = await this.flightBookingsService.findOwned(user.id, id);
-    const [refund, cancellation] = await Promise.all([
+    const [payment, refund, cancellation] = await Promise.all([
+      this.payments.findPaymentForBooking(BookingType.Flight, id),
       this.refunds.findRefundForBooking(BookingType.Flight, id),
       this.lifecycle.previewCancellation(booking),
     ]);
     return {
       ...this.flightBookingsService.toResponse(booking),
+      payment,
       refund,
       cancellation,
     };
