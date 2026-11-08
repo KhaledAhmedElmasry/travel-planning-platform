@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
@@ -13,7 +14,11 @@ import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
 import { RegisteredUserGuard } from '../payments/registered-user.guard';
+import { BookingType } from '../common/enums';
+import { CreateFlightBookingDto } from './dto/create-flight-booking.dto';
 import { FlightBookingRequestDto } from './dto/hold-flight-booking.dto';
+import { ListFlightBookingsQueryDto } from './dto/list-flight-bookings-query.dto';
+import { RefundsService } from '../payments/refunds.service';
 import {
   CancelledFlightBookingResponse,
   FlightBookingLifecycleService,
@@ -22,6 +27,7 @@ import {
   FlightBookingResponse,
   FlightBookingsService,
 } from './flight-bookings.service';
+import { FlightBookingQuote } from './interfaces/flight-booking-quote.interface';
 
 // Area: Payments, Holds & Booking Engine (hold, cancel, e-ticket) and Search & My Bookings
 // (summary, list, details)
@@ -55,7 +61,43 @@ export class FlightBookingsController {
   constructor(
     private readonly flightBookingsService: FlightBookingsService,
     private readonly lifecycle: FlightBookingLifecycleService,
+    private readonly refunds: RefundsService,
   ) {}
+
+  // FLT-19 / FLT-21: return the summary without creating a booking or holding seats.
+  @Post()
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  quote(@Body() dto: CreateFlightBookingDto): Promise<FlightBookingQuote> {
+    return this.flightBookingsService.quote(dto);
+  }
+
+  // FLT-25: list the current user's bookings by Upcoming, Past or Cancelled.
+  @Get()
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListFlightBookingsQueryDto,
+  ) {
+    return this.flightBookingsService.listOwn(user.id, query);
+  }
+
+  // FLT-25: full details are owner-only and include refund state plus the current cancellation
+  // preview used by the cancellation endpoint.
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  async details(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const booking = await this.flightBookingsService.findOwned(user.id, id);
+    const [refund, cancellation] = await Promise.all([
+      this.refunds.findRefundForBooking(BookingType.Flight, id),
+      this.lifecycle.previewCancellation(booking),
+    ]);
+    return {
+      ...this.flightBookingsService.toResponse(booking),
+      refund,
+      cancellation,
+    };
+  }
 
   // FLT-22: hold the seats for 10 minutes and create the booking (pending_payment).
   @Post('hold')
