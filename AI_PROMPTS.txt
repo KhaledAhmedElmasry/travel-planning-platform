@@ -1375,3 +1375,126 @@ The generated code was reviewed and adapted to the existing NestJS and Mongoose 
 The implementation was checked for booking grouping, user ownership restrictions, moderator authorization, pagination, and passenger CSV export.
 
 The relevant endpoints were tested through Swagger using valid requests, invalid inputs, and unauthorized access scenarios.
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: HTL-05
+
+Prompt:
+I want to finish GitHub issue #36 (HTL-05) on its own branch feature/HTL-05-edit-room. Let the
+moderator assigned to a hotel edit a room's beds, maximum occupancy and price per night through
+PATCH /api/hotels/:id/rooms/:roomId, and remove bookable nights through
+PATCH /api/hotels/:id/rooms/:roomId/availability with action remove. Follow the issue,
+docs/api/openapi.yaml, docs/CONVENTIONS.md, the room schema agreed with Area 1 and the ownership
+helper. Only the fields sent change and at least one must be sent. Price changes must not affect
+existing reservations. Removing nights splits a bookable range when needed, both ends of a range
+are included, and it is refused for nights that have a Confirmed reservation or a hold that is
+still being paid, using Area 1's RoomInventoryService. The check and the write must be safe when a
+hold is saved at the same moment. Give clear 400, 401, 403, 404 and 409 errors, keep the code in
+separate files so it does not conflict with the open HTL-04 pull request, and add local tests.
+
+How the output was used:
+Used as the base for UpdateRoomDto, UpdateRoomAvailabilityDto, the range helpers, RoomsService and
+RoomsController. I checked it against the issue and openapi.yaml: only the moderator of the hotel
+can change its rooms, the room number and type stay the same, prices on existing reservations are
+untouched because Area 1 stores them on the reservation, removing nights in the middle of a range
+leaves two ranges, and nights with reservations cannot be removed. The change runs in one
+transaction that reads and writes the room, so it conflicts with a hold saved at the same moment
+and one of them runs again. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-06
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-06
+
+Prompt:
+I want to finish GitHub issue #37 (HTL-06) on its own branch feature/HTL-06-block-deactivate-delete-room,
+on top of my HTL-05 branch. Let the moderator assigned to a hotel block and unblock nights of a room
+through PATCH /api/hotels/:id/rooms/:roomId/availability with action block or unblock, deactivate or
+activate a room through PATCH /api/hotels/:id/rooms/:roomId with active false or true, and delete a
+room through DELETE /api/hotels/:id/rooms/:roomId. Follow the issue, docs/api/openapi.yaml and the
+room schema agreed with Area 1. A block is refused if the nights overlap a Confirmed or Pending
+Payment reservation, and overlapping blocks are joined. Deactivation is refused while the room has
+a Confirmed or Pending Payment reservation from today on. Only a room that was never reserved can
+be deleted, otherwise the moderator is told to deactivate it. Use Area 1's RoomInventoryService,
+lastReservedAt and the reservation index on rooms.roomId, make every check safe when a hold is saved
+at the same moment, give clear 400, 401, 403, 404 and 409 errors and add local tests.
+
+How the output was used:
+Used as the base for the block, unblock, deactivate and delete logic in RoomsService, the DELETE
+route and the range join helper. I checked it against the issue and openapi.yaml: a block over a
+reservation gives 409 with the nights, unblocking part of a block splits it, a room with a stay
+from today on cannot be deactivated but can still be edited, past stays do not stop a deactivation,
+and a room that was ever held or reserved cannot be deleted. Each change runs in one transaction
+that reads and writes the room, so it conflicts with a hold saved at the same moment and one of
+them runs again. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-15
+
+Prompt:
+I want to finish GitHub issue #43 (HTL-15) on its own branch feature/HTL-15-available-rooms, on top
+of my HTL-06 branch. Add GET /api/hotels/:id/rooms/available with checkIn, checkOut and page, open
+to everyone. List the active rooms of an active hotel that are free for every night of the stay,
+cheapest first, with the number of nights, the total stay price in cents and the platform currency,
+10 per page. A room is free with the same rules as Area 1's hold: every night inside a bookable
+range, outside every blocked range, and not taken by a Confirmed reservation or an unexpired hold
+(RoomInventoryService). Check-out must be after check-in and check-in cannot be in the past. Put the
+free-room logic in an exported service so the hotel search (HTL-11) and Area 6 (ITN-25) can reuse
+it, follow docs/api/openapi.yaml, and add local tests.
+
+How the output was used:
+Used as the base for AvailableRoomsQueryDto, the stay date helpers, HotelSearchService and
+HotelSearchController. I checked it against the issue and openapi.yaml: deactivated rooms and rooms
+of a deactivated hotel are left out, a room needs a bookable range on every night but not on the
+departure day, blocked and reserved nights remove the room, an empty result is an empty page, and
+bad or past dates give 400. The rules match the hold, so a room shown here can be held unless
+someone takes it first. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-11
+
+Prompt:
+I want to finish GitHub issue #41 (HTL-11) on its own branch feature/HTL-11-hotel-search, on top of
+my HTL-15 branch. Add GET /api/hotels/search, open to everyone, with city or country, checkIn,
+checkOut, guests, rooms (default 1) and page. List the active hotels that have at least that many
+free rooms for the whole stay whose combined maximum occupancy covers the guests, using the
+free-room logic from HTL-15. Each result needs the id, name, city, country, star class, first
+photo, average rating, number of ratings and the price per night of the cheapest qualifying room,
+10 per page, cheapest first. Give 400 when city and country are both missing, for bad or past
+dates, and when there are more rooms than guests. Keep the search in the exported
+HotelSearchService so Area 6 can reuse it for ITN-25, make sure /hotels/search is not matched as
+/hotels/:id, follow docs/api/openapi.yaml and add local tests.
+
+How the output was used:
+Used as the base for SearchHotelsQueryDto, HotelSearchService.search(), the qualify() rule and the
+search route. I checked it against the issue and openapi.yaml: deactivated hotels and hotels
+without enough free rooms are left out, 4 guests in 1 room need a room for 4 while 4 guests in 2
+rooms can use two rooms for 2, a search with no match is an empty page, and the search route is
+registered before GET /hotels/:id. Verified with npm run lint, npm run build, local tests and in
+Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-12
+
+Prompt:
+I want to finish GitHub issue #42 (HTL-12) on its own branch feature/HTL-12-price-filter-sorting,
+on top of my HTL-11 branch. Add to GET /api/hotels/search an inclusive minPrice and maxPrice in
+cents on the price per night of the cheapest qualifying room, a minRating from 1 to 5 that leaves
+out unrated hotels, and sorting with sortBy price or rating and sortOrder asc or desc, ascending by
+default. minPrice greater than maxPrice gives 400, and invalid values give clear 400 errors. Keep it
+in the exported HotelSearchService so ITN-25 gets the same results, follow docs/api/openapi.yaml and
+add local tests.
+
+How the output was used:
+Used as the base for the new query fields, the price range check and the sort order in
+HotelSearchService. I checked it against the issue and openapi.yaml: both price limits are
+included, the filter uses the price shown for each hotel, a minimum rating leaves out hotels with
+no ratings, unrated hotels come last when sorting by rating, equal ratings are sorted by price, and
+minPrice above maxPrice gives 400. Verified with npm run lint, npm run build, local tests and in
+Swagger.
