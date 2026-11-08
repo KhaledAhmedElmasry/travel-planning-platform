@@ -48,7 +48,7 @@ describe('Blog public detail and author pages', () => {
 
   it('rejects invalid ObjectIds through the shared route pipe', () => {
     const pipe = new ParseObjectIdPipe();
-    expect(() => pipe.transform('not-an-object-id', { type: 'param' })).toThrow(
+    expect(() => pipe.transform('not-an-object-id')).toThrow(
       'not a valid MongoDB ObjectId',
     );
   });
@@ -194,10 +194,7 @@ describe('Blog public detail and author pages', () => {
     const commentsQuery = makeQuery([visibleComment]);
     const commentFilter = {
       post: postId,
-      $or: [
-        { hidden: false },
-        { hidden: true, author: viewerId },
-      ],
+      $or: [{ hidden: false }, { hidden: true, author: viewerId }],
     };
     const countQuery = makeQuery(1);
     const commentModel = {
