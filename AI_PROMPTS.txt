@@ -1324,6 +1324,25 @@ comment creation, and focused rollback/retry tests. Jest passed (3 suites, 35 te
 backend build, lint, OpenAPI YAML parsing and diff check. Search ordering/exclusion tests inspect the
 Mongo aggregation pipeline; no live MongoDB or Swagger verification has been performed.
 ================================================
+Date: 2026-11-07
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: BLG-02, BLG-12
+
+Prompt:
+Implement the public post-detail endpoint and public author page according to the existing OpenAPI
+contract. Preserve existing Blog behavior; use optional cookie authentication for likedByMe, enforce
+post and comment visibility, paginate comments/posts/public itineraries independently, reuse
+UsersService and ItinerariesService, exclude private or hidden content, document the response schemas,
+and add focused automated tests.
+
+How the output was used:
+Used Codex to inspect the current branch, OpenAPI, Blog, Users, and Itineraries implementations and to
+add the detail and author-page service/controller behavior, DTOs, OpenAPI schemas, and tests. The
+changes were reviewed against repository conventions. Focused and full Jest runs passed (3 suites,
+19 tests), as did the backend build and lint. OpenAPI YAML parsing and response-reference checks
+passed. No live MongoDB or Swagger verification has been performed.
+================================================
 
 Date: 2026-11-07  
 Student: Omar Ahmed Alaga 

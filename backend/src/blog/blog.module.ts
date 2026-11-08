@@ -6,6 +6,8 @@ import { Post, PostSchema } from './schemas/post.schema';
 import { Comment, CommentSchema } from './schemas/comment.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { UploadsModule } from '../uploads/uploads.module';
+import { UsersModule } from '../users/users.module';
+import { ItinerariesModule } from '../itineraries/itineraries.module';
 import { Like, LikeSchema } from './schemas/like.schema';
 import {
   PostDeletionCleanup,
@@ -15,6 +17,8 @@ import {
 @Module({
   imports: [
     UploadsModule,
+    UsersModule,
+    ItinerariesModule,
     MongooseModule.forFeature([
       { name: Post.name, schema: PostSchema },
       { name: Comment.name, schema: CommentSchema },

@@ -9,6 +9,9 @@ import {
   Patch,
   Post as HttpPost,
   Query,
+  Req,
+  UnauthorizedException,
+  ForbiddenException,
   UseGuards,
 } from '@nestjs/common';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
@@ -19,6 +22,9 @@ import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
+import type { Request } from 'express';
+import { ACCESS_COOKIE } from '../auth/auth-cookies';
+import { SessionsService } from '../auth/sessions.service';
 import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -35,6 +41,10 @@ import type {
   PostSummary,
 } from './blog.service';
 import type { PaginatedList } from '../common/dto/pagination.dto';
+import {
+  PostDetailQueryDto,
+  PublicAuthorPageQueryDto,
+} from './dto/public-pages-query.dto';
 
 // Area: Community & Cross-cutting
 // Requirements: BLG-01..BLG-12
@@ -62,7 +72,10 @@ import type { PaginatedList } from '../common/dto/pagination.dto';
 //   PATCH /api/posts/:id/itinerary   BLG-13 (Optional)
 @Controller()
 export class BlogController {
-  constructor(private readonly blogService: BlogService) {}
+  constructor(
+    private readonly blogService: BlogService,
+    private readonly sessionsService: SessionsService,
+  ) {}
 
   @HttpPost('posts/:id/comments')
   @HttpCode(HttpStatus.CREATED)
@@ -103,6 +116,50 @@ export class BlogController {
     @Query() query: ListPostsQueryDto,
   ): Promise<PaginatedList<PostSummary>> {
     return this.blogService.listPublished(query);
+  }
+
+  @Get('posts/:id')
+  async getPost(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Query() query: PostDetailQueryDto,
+    @Req() request: Request,
+  ) {
+    const cookies: unknown = request.cookies;
+    const cookieValue =
+      typeof cookies === 'object' &&
+      cookies !== null &&
+      ACCESS_COOKIE in cookies
+        ? (cookies as Record<string, unknown>)[ACCESS_COOKIE]
+        : undefined;
+    const token = typeof cookieValue === 'string' ? cookieValue : undefined;
+    let viewer: AuthUser | undefined;
+    if (token) {
+      try {
+        viewer = await this.sessionsService.authenticate(token);
+      } catch (error) {
+        // This endpoint remains public if the optional cookie is absent, expired, or belongs to
+        // an account that cannot authenticate. Unexpected database/runtime errors still surface.
+        if (
+          !(error instanceof UnauthorizedException) &&
+          !(error instanceof ForbiddenException)
+        ) {
+          throw error;
+        }
+      }
+    }
+    return this.blogService.getPostDetail(id, query.commentsPage, viewer);
+  }
+
+  @Get('authors/:id')
+  getAuthorPage(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Query() query: PublicAuthorPageQueryDto,
+  ) {
+    return this.blogService.getPublicAuthorPage(
+      id,
+      query.postsPage,
+      query.itinerariesPage,
+    );
   }
 
   @Patch('posts/:id')
