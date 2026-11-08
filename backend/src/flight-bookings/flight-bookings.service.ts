@@ -32,12 +32,22 @@ import { platformCurrency } from '../payments/platform-currency';
 import { flightConfirmedText } from './booking-notifications';
 import { FlightBookingQuoteService } from './booking-quote.service';
 import { FlightBookingRequestDto } from './dto/hold-flight-booking.dto';
+import {
+  FlightBookingGroup,
+  ListFlightBookingsQueryDto,
+} from './dto/list-flight-bookings-query.dto';
 import { localTime, renderETicket } from './e-ticket';
 import {
   FlightBooking,
   FlightBookingDocument,
 } from './schemas/flight-booking.schema';
 import { SeatInventoryService } from './seat-inventory.service';
+import {
+  DEFAULT_PAGE_SIZE,
+  getPaginationOffset,
+  PaginatedList,
+  paginate,
+} from '../common/dto';
 
 // Area: Payments, Holds & Booking Engine (FLT-22, FLT-23) and Search & My Bookings (FLT-19,
 // FLT-21, FLT-25)
@@ -111,6 +121,19 @@ export interface FlightBookingResponse {
   createdAt?: Date;
 }
 
+export interface FlightBookingListItem {
+  id: string;
+  reference: string | null;
+  status: BookingStatus;
+  flightNumber: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  departureAt: Date;
+  departureLocal: string;
+  passengers: number;
+  cabinClass: string;
+}
+
 @Injectable()
 export class FlightBookingsService implements BookingPaymentHandler {
   private readonly logger = new Logger(FlightBookingsService.name);
@@ -181,6 +204,10 @@ export class FlightBookingsService implements BookingPaymentHandler {
     return this.toResponse(created.booking);
   }
 
+  quote(request: FlightBookingRequestDto) {
+    return this.quotes.quote(request);
+  }
+
   // GET /api/flight-bookings/:id/e-ticket (FLT-23): only the owner, only a Confirmed booking.
   async eTicket(
     userId: string,
@@ -226,6 +253,65 @@ export class FlightBookingsService implements BookingPaymentHandler {
       ...upcomingFlightBookings(now),
     });
     return found !== null;
+  }
+
+  // FLT-25: list only the current user's bookings in the requested lifecycle group.
+  async listOwn(
+    userId: string,
+    query: ListFlightBookingsQueryDto,
+  ): Promise<PaginatedList<FlightBookingListItem>> {
+    const filter: FilterQuery<FlightBooking> = { userId };
+    switch (query.group) {
+      case FlightBookingGroup.Upcoming:
+        Object.assign(filter, upcomingFlightBookings());
+        break;
+      case FlightBookingGroup.Past:
+        filter.status = {
+          $in: [BookingStatus.Completed, BookingStatus.Expired],
+        };
+        break;
+      case FlightBookingGroup.Cancelled:
+        filter.status = BookingStatus.Cancelled;
+        break;
+    }
+
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [bookings, total] = await Promise.all([
+      this.bookingModel
+        .find(filter)
+        .sort({ 'segments.departureAt': 1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.bookingModel.countDocuments(filter).exec(),
+    ]);
+
+    return paginate(
+      bookings.map((booking) => this.toListItem(booking)),
+      total,
+      page,
+      DEFAULT_PAGE_SIZE,
+    );
+  }
+
+  private toListItem(booking: FlightBookingDocument): FlightBookingListItem {
+    const segment = booking.segments[0];
+    return {
+      id: booking._id.toString(),
+      reference: booking.reference ?? null,
+      status: booking.status,
+      flightNumber: segment.flightNumber,
+      departureAirport: segment.departureAirport.code,
+      arrivalAirport: segment.arrivalAirport.code,
+      departureAt: segment.departureAt,
+      departureLocal: localTime(
+        segment.departureAt,
+        segment.departureAirport.timeZone,
+      ),
+      passengers: booking.passengers.length,
+      cabinClass: segment.cabinClass,
+    };
   }
 
   // --- Used by the payments module (PAY-01, PAY-02) ---

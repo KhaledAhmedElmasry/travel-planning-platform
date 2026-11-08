@@ -1324,3 +1324,33 @@ comment creation, and focused rollback/retry tests. Jest passed (3 suites, 35 te
 backend build, lint, OpenAPI YAML parsing and diff check. Search ordering/exclusion tests inspect the
 Mongo aggregation pipeline; no live MongoDB or Swagger verification has been performed.
 ================================================
+
+Date: 2026-11-07  
+Student: Omar Ahmed Alaga  
+Tool: Codex  
+Related Requirement: FLT-25, FLT-29
+
+**Prompt:**
+
+Implement FLT-25 and FLT-29 for the existing flight booking functionality in the NestJS and Mongoose backend.
+
+The implementation should cover:
+
+- FLT-25: Allow registered users to view their flight bookings grouped into Upcoming, Past, and Cancelled.
+- FLT-29: Allow airline moderators to view bookings for their flights, including booking references, passenger names, cabin information, and booking details.
+- Implement a CSV export of passenger information for a specific flight.
+- Use the existing flight booking and flight modules, controllers, services, DTOs, and schemas.
+- Enforce authentication, role-based authorization, and ownership restrictions.
+- Support pagination and consistent error handling where applicable.
+- Update Swagger documentation for the relevant endpoints.
+- Preserve existing functionality and avoid unrelated changes.
+
+**How the output was used:**
+
+Codex was used to assist with implementing the flight booking lists (FLT-25) and airline moderator flight manifests (FLT-29).
+
+The generated code was reviewed and adapted to the existing NestJS and Mongoose backend structure.
+
+The implementation was checked for booking grouping, user ownership restrictions, moderator authorization, pagination, and passenger CSV export.
+
+The relevant endpoints were tested through Swagger using valid requests, invalid inputs, and unauthorized access scenarios.

@@ -25,6 +25,16 @@ import { CreateCabinDto } from './dto/create-cabin.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { UpdateCabinDto } from './dto/update-cabin.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
+import {
+  FlightManifestStatus,
+  ListFlightManifestQueryDto,
+} from './dto/list-flight-manifest-query.dto';
+import {
+  DEFAULT_PAGE_SIZE,
+  getPaginationOffset,
+  PaginatedList,
+  paginate,
+} from '../common/dto';
 import { flightTimeChangedText } from './flight-change-notification';
 import { isOpenFlight } from './flight-status.job';
 import {
@@ -89,8 +99,25 @@ export interface CancelledFlightResponse {
   expiredHolds: number;
 }
 
+export interface FlightManifestItem {
+  id: string;
+  reference: string | null;
+  passengerNames: string[];
+  cabinClass: string;
+  seats: number;
+  status: BookingStatus;
+}
+
+export interface FlightManifestResponse extends PaginatedList<FlightManifestItem> {
+  seatsRemaining: { cabinClass: string; seatsRemaining: number }[];
+}
+
 const DUPLICATE_FLIGHT =
   'The airline already has this flight number on that departure date.';
+
+function csvCell(value: string): string {
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
 
 // Area: Airlines & Flight Inventory
 // Business logic and database access for: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06
@@ -110,6 +137,99 @@ export class FlightsService {
     private readonly airlinesService: AirlinesService,
     private readonly referenceData: ReferenceDataService,
   ) {}
+
+  // FLT-29: view confirmed/cancelled bookings for a managed flight, with remaining inventory.
+  async listFlightBookings(
+    user: AuthUser,
+    flightId: Types.ObjectId,
+    query: ListFlightManifestQueryDto,
+  ): Promise<FlightManifestResponse> {
+    const flight = await this.findManagedFlight(user, flightId);
+    const filter = {
+      'segments.flightId': flight._id,
+      status: query.status
+        ? query.status
+        : { $in: [BookingStatus.Confirmed, BookingStatus.Cancelled] },
+    };
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [bookings, total] = await Promise.all([
+      this.bookingModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.bookingModel.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      ...paginate(
+        bookings.map((booking) => this.toManifestItem(booking, flight._id)),
+        total,
+        page,
+        DEFAULT_PAGE_SIZE,
+      ),
+      seatsRemaining: flight.cabins.map((cabin) => ({
+        cabinClass: cabin.cabinClass,
+        seatsRemaining: Math.max(0, cabin.total - cabin.booked - cabin.held),
+      })),
+    };
+  }
+
+  private toManifestItem(
+    booking: FlightBookingDocument,
+    flightId: Types.ObjectId,
+  ): FlightManifestItem {
+    const segment = booking.segments.find((item) =>
+      item.flightId.equals(flightId),
+    );
+    if (!segment) throw new Error('Booking segment not found.');
+    return {
+      id: booking._id.toString(),
+      reference: booking.reference ?? null,
+      passengerNames: booking.passengers.map((passenger) => passenger.fullName),
+      cabinClass: segment.cabinClass,
+      seats: booking.seats,
+      status: booking.status,
+    };
+  }
+
+  // FLT-29: export one row per passenger from confirmed bookings only.
+  async exportPassengers(
+    user: AuthUser,
+    flightId: Types.ObjectId,
+  ): Promise<string> {
+    const flight = await this.findManagedFlight(user, flightId);
+    const bookings = await this.bookingModel
+      .find({
+        'segments.flightId': flight._id,
+        status: FlightManifestStatus.Confirmed,
+      })
+      .sort({ createdAt: 1 })
+      .exec();
+    const rows = ['reference,passengerName,type,cabin,status'];
+    for (const booking of bookings) {
+      const segment = booking.segments.find((item) =>
+        item.flightId.equals(flight._id),
+      );
+      if (!segment) continue;
+      for (const passenger of booking.passengers) {
+        rows.push(
+          [
+            booking.reference ?? '',
+            passenger.fullName,
+            passenger.type,
+            segment.cabinClass,
+            booking.status,
+          ]
+            .map(csvCell)
+            .join(','),
+        );
+      }
+    }
+    return `${rows.join('\n')}\n`;
+  }
 
   // FLT-03: an airline moderator creates a flight for their own airline. Local times are
   // converted to UTC with each airport's time zone (GEN-06). The flight starts as Scheduled
