@@ -1,17 +1,21 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
 import { RegisteredUserGuard } from '../payments/registered-user.guard';
+import { BookingType } from '../common/enums';
 import { CreateHotelBookingDto } from './dto/create-hotel-booking.dto';
+import { ListHotelBookingsQueryDto } from './dto/list-hotel-bookings-query.dto';
 import {
   CancelledHotelBookingResponse,
   HotelBookingLifecycleService,
@@ -20,6 +24,8 @@ import {
   HotelBookingResponse,
   HotelBookingsService,
 } from './hotel-bookings.service';
+import { RefundsService } from '../payments/refunds.service';
+import { HotelsService } from '../hotels/hotels.service';
 
 // Area: Payments, Holds & Booking Engine (book + hold, cancel) and Search & My Bookings (list,
 // details)
@@ -48,6 +54,8 @@ export class HotelBookingsController {
   constructor(
     private readonly hotelBookingsService: HotelBookingsService,
     private readonly lifecycle: HotelBookingLifecycleService,
+    private readonly refunds: RefundsService,
+    private readonly hotels: HotelsService,
   ) {}
 
   // HTL-16, HTL-18: book one or more rooms and hold them for 10 minutes (pending_payment).
@@ -58,6 +66,39 @@ export class HotelBookingsController {
     @Body() dto: CreateHotelBookingDto,
   ): Promise<HotelBookingResponse> {
     return this.hotelBookingsService.book(user.id, dto);
+  }
+
+  // HTL-20: list only the authenticated user's reservations.
+  @Get()
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListHotelBookingsQueryDto,
+  ) {
+    return this.hotelBookingsService.listOwned(user.id, query);
+  }
+
+  // HTL-20: full details, including refund and cancellation preview.
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  async details(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const booking = await this.hotelBookingsService.findOwned(user.id, id);
+    const [refund, cancellation, policies] = await Promise.all([
+      this.refunds.findRefundForBooking(BookingType.Hotel, id),
+      this.lifecycle.previewCancellation(booking),
+      this.hotels.getBookingPolicies(booking.hotelId.toString()),
+    ]);
+    const response = this.hotelBookingsService.toResponse(booking);
+    return {
+      ...response,
+      hotel: {
+        ...response.hotel,
+        checkInTime: policies?.checkInTime ?? null,
+        checkOutTime: policies?.checkOutTime ?? null,
+      },
+      refund,
+      cancellation,
+    };
   }
 
   // HTL-21: cancel a confirmed reservation before check-in; returns it with its refund.

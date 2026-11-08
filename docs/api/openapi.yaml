@@ -2453,14 +2453,22 @@ paths:
 
         Lists active hotels that have at least `rooms` active rooms free for the whole stay (inside a
         bookable range, not blocked, not reserved and not held), whose combined maximum occupancy covers
-        the guests (HTL-11). Give a city or a country. Check-out must be after check-in, and check-in
-        cannot be in the past.
+        the guests (HTL-11). Give a city or a country (or both). Check-out must be after check-in, and
+        check-in cannot be in the past. Every room needs at least one guest, so `rooms` cannot be more
+        than `guests`. Free rooms follow the same rules as `GET /api/hotels/{id}/rooms/available`
+        (HTL-15), where the user then picks the rooms.
+
+        The price shown is per night, in cents of the platform currency: for 1 room, the cheapest free
+        room that holds all the guests; for several rooms, the cheapest free room. Results are sorted by
+        that price, cheapest first.
 
         - **Price filter:** inclusive minimum and maximum price per night of the cheapest qualifying
-          room (HTL-12).
-        - **Rating filter:** minimum average rating from 1 to 5; unrated hotels are excluded when this
-          filter is set (HTL-12).
-        - **Sorting:** by that price or by rating (HTL-12).
+          room, the price shown in the results (HTL-12). minPrice greater than maxPrice gives 400.
+        - **Rating filter:** minimum average rating from 1 to 5, inclusive; unrated hotels are excluded
+          when this filter is set (HTL-12).
+        - **Sorting:** by that price (the default) or by rating, ascending unless `sortOrder=desc`
+          (HTL-12). In a rating sort, unrated hotels come last; equal values are sorted by price, then
+          by name.
         - No match gives an empty list (GEN-04).
       security: []
       parameters:
@@ -2529,6 +2537,7 @@ paths:
             example: 4
         - name: sortBy
           in: query
+          description: Defaults to `price`.
           schema:
             $ref: '#/components/schemas/HotelSortBy'
         - name: sortOrder
@@ -2539,15 +2548,19 @@ paths:
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: Each hotel - id, name, city, country, star class, first photo, average rating, number of ratings, price per night of the cheapest qualifying room.
-          content: *paginated
+          description: Each hotel - id, name, city, country, star class, first photo, average rating, number of ratings, price per night of the cheapest qualifying room, the platform currency and the number of free rooms.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"id": "665f1c2a9b1e8a00123400a1", "name": "Nile View", "cityId": "cairo", "countryCode": "EG", "starRating": 5, "photo": "/uploads/hotels/665f1c2a9b1e8a00123400a1/a.jpg", "averageRating": 4.5, "ratingCount": 12, "pricePerNight": 15000, "currency": "USD", "freeRooms": 2}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
-          description: Missing city and country, invalid dates (check-out not after check-in, check-in in the past), or minPrice greater than maxPrice.
+          description: Missing city and country, invalid dates (check-out not after check-in, check-in in the past), more rooms than guests, or minPrice greater than maxPrice.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Missing city and country, invalid dates (check-out not after check-in, check-in in the past), or minPrice greater than maxPrice.", "path": "/api/hotels/search", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Give a city or a country.", "path": "/api/hotels/search", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/hotels/{id}:
     get:
@@ -2703,14 +2716,16 @@ paths:
     patch:
       operationId: patchHotelsByIdRoomsByRoomId
       tags: [Hotels and Rooms]
-      summary: 'Edit or deactivate a room (HTL-05)'
+      summary: 'Edit or deactivate a room (HTL-05, HTL-06)'
       description: |
         **Access:** the hotel moderator assigned to this hotel.
 
-        Edits beds, maximum occupancy and price per night (HTL-05). Price changes do not affect existing
-        reservations. Setting `active` to false deactivates the room (HTL-06): this is rejected if the
-        room has a Confirmed or Pending Payment reservation from today on, and deactivated rooms are
-        excluded from search. Bookable dates are edited with the availability endpoints.
+        Edits beds, maximum occupancy and price per night (HTL-05). Send only the fields to change,
+        at least one. The room number and type cannot be changed here. Price changes do not affect
+        existing reservations: each reservation keeps the price it was booked at. Setting `active` to
+        false deactivates the room (HTL-06): this is rejected if the room has a Confirmed or Pending
+        Payment reservation from today on, and deactivated rooms are excluded from search. Bookable
+        dates are edited with the availability endpoints.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -2723,9 +2738,14 @@ paths:
               $ref: '#/components/schemas/UpdateRoomRequest'
       responses:
         '200':
-          description: The updated room.
+          description: The updated room - id, hotel id, room number, type, beds, maximum occupancy, price per night, active, bookable ranges and blocked ranges.
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid fields (each a whole number of at least 1), or no field to change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Send at least one field to change: beds, maxOccupancy, pricePerNight or active.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2743,12 +2763,12 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel or room not found.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
-          description: The room cannot be deactivated because it has Confirmed or Pending Payment reservations.
+          description: The room cannot be deactivated because it has Confirmed or Pending Payment reservations from today on. The message lists the nights.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The room cannot be deactivated because it has Confirmed or Pending Payment reservations.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The room cannot be deactivated because it has Confirmed or Pending Payment reservations: 2027-03-25, 2027-03-26.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
     delete:
       operationId: deleteHotelsByIdRoomsByRoomId
       tags: [Hotels and Rooms]
@@ -2757,7 +2777,9 @@ paths:
         **Access:** the hotel moderator assigned to this hotel. The frontend asks for confirmation
         first (GEN-03).
 
-        Only rooms that have never been reserved can be deleted; otherwise deactivate the room instead.
+        Only rooms that have never been reserved can be deleted: no hold or reservation of any status,
+        past or future, has ever included the room. Otherwise deactivate the room instead
+        (`PATCH /api/hotels/{id}/rooms/{roomId}` with `active: false`).
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -2787,7 +2809,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The room has been reserved before and cannot be deleted.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The room has been reserved before and cannot be deleted. Deactivate it instead.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/hotels/{id}/rooms/available:
     get:
@@ -2797,8 +2819,14 @@ paths:
       description: |
         **Access:** everyone, including guests.
 
-        Lists the hotel's active rooms that are free for every night of the stay. The user selects one or
-        more of them and books them together with `POST /api/hotel-bookings` (HTL-16).
+        Lists the hotel's active rooms that are free for every night of the stay, cheapest first. The
+        user selects one or more of them and books them together with `POST /api/hotel-bookings`
+        (HTL-16).
+
+        A room is free when every night from check-in up to the night before check-out is inside one of
+        its bookable ranges (HTL-04), outside every blocked range (HTL-06), and not taken by a Confirmed
+        reservation or an unexpired hold. These are the same rules the hold checks (HTL-18), so a room
+        taken in the meantime is refused there with a 409. No free room gives an empty list (GEN-04).
       security: []
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -2819,22 +2847,26 @@ paths:
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: Each room - id, room number, type, beds, maximum occupancy, price per night, and total stay price (nights x price per night) in cents.
-          content: *paginated
+          description: Each room - id, room number, type, beds, maximum occupancy, price per night, number of nights, total stay price (nights x price per night) in cents, the platform currency, check-in and check-out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedList'
+              example: {"items": [{"id": "665f1c2a9b1e8a0012345681", "roomNumber": "101", "type": "Deluxe double", "beds": 2, "maxOccupancy": 3, "pricePerNight": 12000, "nights": 4, "totalPrice": 48000, "currency": "USD", "checkIn": "2027-03-01", "checkOut": "2027-03-05"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
           description: Invalid dates (check-out not after check-in, or check-in in the past).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid dates (check-out not after check-in, or check-in in the past).", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/available", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "checkOut must be after checkIn.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/available", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Hotel not found, or deactivated.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel not found, or deactivated.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/available", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel not found.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/available", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/hotels/{id}/rooms/{roomId}/availability:
     post:
@@ -2896,11 +2928,14 @@ paths:
       description: |
         **Access:** the hotel moderator assigned to this hotel.
 
-        - `remove`: removes bookable nights (HTL-05). Rejected for nights that have a Confirmed
-          reservation.
-        - `block`: blocks nights so they cannot be booked (HTL-06). Rejected if the range overlaps any
-          Confirmed or Pending Payment reservation.
-        - `unblock`: removes a block again.
+        - `remove`: removes bookable nights (HTL-05). A bookable range that contains the nights is
+          split in two. Rejected (409) for nights that have a Confirmed reservation or a hold that is
+          still being paid (Pending Payment), and (400) if none of the nights are bookable.
+        - `block`: blocks nights so they cannot be booked (HTL-06). Rejected (409) if the range overlaps
+          any Confirmed or Pending Payment reservation. Blocks that overlap or touch are joined into
+          one range. The bookable ranges do not change.
+        - `unblock`: removes a block again, splitting a block in two when needed. Rejected (400) if none
+          of the nights are blocked.
 
         `from` and `to` are the first and last night (both inclusive).
       security: *auth
@@ -2916,8 +2951,16 @@ paths:
       responses:
         '200':
           description: The room's bookable ranges and blocked ranges.
+          content:
+            application/json:
+              example: {"roomId": "665f1c2a9b1e8a0012345681", "roomNumber": "101", "availableRanges": [{"from": "2027-03-01", "to": "2027-03-23"}, {"from": "2027-03-27", "to": "2027-03-31"}], "blockedRanges": []}
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid fields or dates (to before from), or none of the nights are bookable (remove) or blocked (unblock).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "None of these nights are bookable, so nothing was removed.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2940,7 +2983,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The nights overlap reservations, as described above.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "These nights have reservations, so nothing was removed: 2027-03-25, 2027-03-26.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/hotels/{id}/availability:
     get:

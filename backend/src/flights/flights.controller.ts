@@ -1,10 +1,13 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Param,
   Patch,
   Post,
+  Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
@@ -16,6 +19,7 @@ import { CreateCabinDto } from './dto/create-cabin.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { UpdateCabinDto } from './dto/update-cabin.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
+import { ListFlightManifestQueryDto } from './dto/list-flight-manifest-query.dto';
 import { FlightsService } from './flights.service';
 
 // Area: Airlines & Flight Inventory
@@ -38,6 +42,31 @@ import { FlightsService } from './flights.service';
 @Controller('flights')
 export class FlightsController {
   constructor(private readonly flightsService: FlightsService) {}
+
+  // FLT-29: the airline moderator sees only bookings for their own flight.
+  @Get(':id/bookings')
+  @UseGuards(JwtAuthGuard)
+  bookings(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Query() query: ListFlightManifestQueryDto,
+  ) {
+    return this.flightsService.listFlightBookings(user, id, query);
+  }
+
+  // FLT-29: confirmed passengers only, in the documented CSV format.
+  @Get(':id/passengers/export')
+  @UseGuards(JwtAuthGuard)
+  async exportPassengers(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+  ): Promise<StreamableFile> {
+    const csv = await this.flightsService.exportPassengers(user, id);
+    return new StreamableFile(Buffer.from(csv, 'utf8'), {
+      type: 'text/csv; charset=utf-8',
+      disposition: `attachment; filename="passengers-${id.toString()}.csv"`,
+    });
+  }
 
   // FLT-03: an airline moderator creates a flight for their own airline. The role check
   // (403 "Not an airline moderator.") is in the service.

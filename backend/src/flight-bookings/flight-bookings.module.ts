@@ -1,6 +1,8 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AirlinesModule } from '../airlines/airlines.module';
+import { Airline, AirlineSchema } from '../airlines/schemas/airline.schema';
+import { Flight, FlightSchema } from '../flights/schemas/flight.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { FlightBookingQuoteService } from './booking-quote.service';
@@ -23,6 +25,8 @@ import { SeatInventoryService } from './seat-inventory.service';
   imports: [
     MongooseModule.forFeature([
       { name: FlightBooking.name, schema: FlightBookingSchema },
+      { name: Flight.name, schema: FlightSchema },
+      { name: Airline.name, schema: AirlineSchema },
     ]),
     AirlinesModule,
     forwardRef(() => PaymentsModule),

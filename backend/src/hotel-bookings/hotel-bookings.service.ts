@@ -16,6 +16,12 @@ import {
   Types,
 } from 'mongoose';
 import { BookingStatus, BookingType } from '../common/enums';
+import {
+  DEFAULT_PAGE_SIZE,
+  getPaginationOffset,
+  paginate,
+  PaginatedList,
+} from '../common/dto/pagination.dto';
 import { allowedFrom } from '../payments/booking-lifecycle';
 import { HotelsService } from '../hotels/hotels.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -43,6 +49,10 @@ import {
   HotelBookingDocument,
 } from './schemas/hotel-booking.schema';
 import { dateOnly, formatDate, stayNights, todayUtc } from './stay-dates';
+import {
+  BookingGroup,
+  ListHotelBookingsQueryDto,
+} from './dto/list-hotel-bookings-query.dto';
 
 // Area: Payments, Holds & Booking Engine (HTL-16, HTL-17, HTL-18) and Search & My Bookings
 // (HTL-20)
@@ -137,6 +147,19 @@ export interface HotelBookingResponse {
   cancelledAt: Date | null;
   completedAt: Date | null;
   createdAt?: Date;
+}
+
+export interface HotelBookingListItem {
+  id: string;
+  reference: string | null;
+  hotel: { id: string; name: string };
+  rooms: { roomId: string; roomNumber: string; type: string }[];
+  checkIn: string;
+  checkOut: string;
+  guests: { adults: number; children: number };
+  totalAmount: number;
+  currency: string;
+  status: BookingStatus;
 }
 
 @Injectable()
@@ -261,6 +284,65 @@ export class HotelBookingsService implements BookingPaymentHandler {
       : null;
     if (!booking) throw new NotFoundException('Reservation not found.');
     return booking;
+  }
+
+  async listOwned(
+    userId: string,
+    query: ListHotelBookingsQueryDto,
+  ): Promise<PaginatedList<HotelBookingListItem>> {
+    const page = query.page ?? 1;
+    const now = new Date();
+    const filter: FilterQuery<HotelBooking> = { userId };
+    if (query.group === BookingGroup.Cancelled) {
+      filter.status = BookingStatus.Cancelled;
+    } else if (query.group === BookingGroup.Past) {
+      filter.$or = [
+        { status: { $in: [BookingStatus.Completed, BookingStatus.Expired] } },
+        { status: BookingStatus.Confirmed, checkIn: { $lte: todayUtc(now) } },
+      ];
+    } else {
+      Object.assign(filter, upcomingHotelBookings(now));
+    }
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [bookings, total] = await Promise.all([
+      this.bookingModel
+        .find(filter)
+        .sort({ checkIn: 1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      this.bookingModel.countDocuments(filter).exec(),
+    ]);
+    return paginate(
+      bookings.map((booking) => this.toListItem(booking)),
+      total,
+      page,
+    );
+  }
+
+  private toListItem(booking: HotelBookingDocument): HotelBookingListItem {
+    const rooms = booking.rooms.map((room) => ({
+      roomId: room.roomId.toString(),
+      roomNumber: room.roomNumber,
+      type: room.type,
+    }));
+    return {
+      id: booking._id.toString(),
+      reference: booking.reference ?? null,
+      hotel: { id: booking.hotelId.toString(), name: booking.hotelName },
+      rooms,
+      checkIn: formatDate(booking.checkIn),
+      checkOut: formatDate(booking.checkOut),
+      guests: {
+        adults: booking.rooms.reduce((sum, room) => sum + room.adults, 0),
+        children: booking.rooms.reduce(
+          (sum, room) => sum + room.childrenAges.length,
+          0,
+        ),
+      },
+      totalAmount: booking.totalAmount,
+      currency: booking.currency,
+      status: booking.status,
+    };
   }
 
   // ACC-12 (Area 2): deactivating an account is blocked while the user has an upcoming hotel
