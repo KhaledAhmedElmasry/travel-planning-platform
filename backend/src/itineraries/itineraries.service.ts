@@ -49,7 +49,6 @@ import { AccountStatus } from '../common/enums';
 import { HotelSearchService } from '../hotels/hotel-search.service';
 import { FlightSearchService } from '../flights/flight-search.service';
 import { TripType } from '../flights/dto/search-flights-query.dto';
-import type { SearchHotelsQueryDto } from '../hotels/dto/search-hotels-query.dto';
 import { ItineraryHotelsQueryDto } from './dto/itinerary-hotels-query.dto';
 import { ItineraryFlightsQueryDto } from './dto/itinerary-flights-query.dto';
 
@@ -931,7 +930,7 @@ export class ItinerariesService {
       guests: query.guests,
       rooms: query.rooms ?? 1,
       page: query.page ?? 1,
-    } as SearchHotelsQueryDto);
+    });
     return {
       cityId: group.cityId,
       checkIn: group.startDate,
