@@ -6,6 +6,26 @@ in chronological order, using the format below (project description, section 11)
 Add your entry in the same pull request as the work it relates to.
 
 ================================================
+Date: 2026-11-06
+Student: Salaheldin Mahmoud
+Tool: Copilot
+Related Requirement: BON-02 / Issue #111
+
+Prompt:
+Implement BON-02 on a new branch after all mandatory hotel requirements are merged: allow
+registered users to save hotels and public itineraries to a private favourites list, list them
+with pagination and optional type filtering, and remove them. Use idempotent duplicate saves,
+retain deactivated hotels while hiding them from list results, allow only normal registered users,
+enforce ownership on deletion, reuse existing public itinerary visibility rules, document all
+routes in OpenAPI, add tests, and run lint, build and the complete npm test suite.
+
+How the output was used:
+Used AI assistance to implement the Favourite schema, DTOs, protected controller, service,
+hotel and itinerary summary lookups, OpenAPI contract, and validation workflow. Duplicate saves
+are handled idempotently by the unique compound index and upsert; private list and delete queries
+are scoped to the authenticated user. Backend lint, build and all Jest tests passed. Swagger
+manual verification remains for the PR tester.
+================================================
 Date: 2026-11-04
 Student: Ibrahim Alalamy
 Tool: Codex
@@ -1649,4 +1669,3 @@ creation date or travel date, validates from <= to dates, and formats responses 
 Added unit test suites for AnalyticsQueryDto and AdminService analytics logic covering security guards, date filters, provider
 filtering, sorting, empty states (GEN-04) and pagination (GEN-05). Verified TypeScript build, Jest tests (8 suites, 64 tests),
 ESLint and OpenAPI YAML validation.
-
