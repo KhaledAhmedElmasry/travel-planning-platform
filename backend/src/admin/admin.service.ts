@@ -139,7 +139,6 @@ export interface ProviderAnalyticsItem {
 
 export interface AdminAnalyticsResponse extends PaginatedList<ProviderAnalyticsItem> {
   summary: AnalyticsSummary;
-  providers: ProviderAnalyticsItem[];
 }
 
 export type LeanFlightBooking = FlightBooking & { _id: Types.ObjectId };
@@ -1249,7 +1248,6 @@ export class AdminService {
     return {
       ...paginated,
       summary,
-      providers: paginated.items,
     };
   }
 }

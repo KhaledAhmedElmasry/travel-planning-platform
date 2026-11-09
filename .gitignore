@@ -22,8 +22,6 @@ coverage/
 *.test.ts
 !backend/src/blog/blog.attach-itinerary.spec.ts
 !backend/src/blog/dto/attach-itinerary.dto.spec.ts
-!backend/src/admin/admin.analytics.spec.ts
-!backend/src/admin/dto/analytics-query.dto.spec.ts
 
 # Uploaded images (GEN-08) — created at runtime
 backend/uploads/

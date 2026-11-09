@@ -7267,11 +7267,6 @@ components:
           description: Paginated provider analytics items (GEN-05).
           items:
             $ref: '#/components/schemas/ProviderAnalyticsItem'
-        providers:
-          type: array
-          description: Alias to items for convenience.
-          items:
-            $ref: '#/components/schemas/ProviderAnalyticsItem'
         page:
           type: integer
           example: 1
