@@ -75,6 +75,11 @@ export interface LikeCountResponse {
   likeCount: number;
 }
 
+export interface AttachItineraryResponse {
+  id: string;
+  itineraryId: string | null;
+}
+
 export interface CommentResponse {
   id: string;
   author: { id: string; name: string };
@@ -740,6 +745,32 @@ export class BlogService {
     if (!author) throw new NotFoundException('Author not found.');
 
     return this.toCreatedPostResponse(post, author);
+  }
+
+  async attachItinerary(
+    postId: string | Types.ObjectId,
+    authorId: string,
+    itineraryId: string | null,
+  ): Promise<AttachItineraryResponse> {
+    const post = await this.postModel.findById(postId).exec();
+    if (!post) throw new NotFoundException('Post not found.');
+    if (post.author.toString() !== authorId) {
+      throw new ForbiddenException('Not the author of this post.');
+    }
+
+    if (itineraryId === null) {
+      post.itinerary = null;
+    } else {
+      // Reuse ITN-03 ownership and not-found behavior; public visibility is not required here.
+      await this.itinerariesService.getOne(itineraryId, authorId);
+      post.itinerary = new Types.ObjectId(itineraryId);
+    }
+
+    await post.save();
+    return {
+      id: post._id.toString(),
+      itineraryId: post.itinerary?.toString() ?? null,
+    };
   }
 
   async listPublishedByTag(

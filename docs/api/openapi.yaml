@@ -5695,6 +5695,21 @@ paths:
       responses:
         '200':
           description: The post with the attached itinerary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttachItineraryResponse'
+              examples:
+                attached:
+                  summary: Itinerary attached
+                  value:
+                    id: '665f1c2a9b1e8a00123400a1'
+                    itineraryId: '665f1c2a9b1e8a0012345678'
+                detached:
+                  summary: Itinerary detached
+                  value:
+                    id: '665f1c2a9b1e8a00123400a1'
+                    itineraryId: null
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -8388,3 +8403,17 @@ components:
           nullable: true
           example: '665f1c2a9b1e8a0012345678'
           description: One of the author's itineraries, or null to detach.
+
+    AttachItineraryResponse:
+      type: object
+      required: [id, itineraryId]
+      properties:
+        id:
+          type: string
+          description: The id of the updated post.
+          example: '665f1c2a9b1e8a00123400a1'
+        itineraryId:
+          type: string
+          nullable: true
+          description: The attached itinerary id, or null when no itinerary is attached.
+          example: '665f1c2a9b1e8a0012345678'

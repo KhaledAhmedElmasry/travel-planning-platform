@@ -1,9 +1,9 @@
-// BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
-// Area: Community & Cross-cutting (bonus)
-// Used by: PATCH /api/posts/:id/itinerary (body)
-// Requirements: BLG-13
-//
-// TODO: define the DTO class with class-validator rules for the fields this endpoint needs,
-// exactly as documented in docs/api/openapi.yaml.
+import { IsMongoId, ValidateIf } from 'class-validator';
 
-export {};
+// Used by: PATCH /api/posts/:id/itinerary (body), BLG-13.
+export class AttachItineraryDto {
+  // Null is the explicit detach operation. Undefined is still validated, so the field is required.
+  @ValidateIf((_object, value) => value !== null)
+  @IsMongoId()
+  itineraryId: string | null;
+}

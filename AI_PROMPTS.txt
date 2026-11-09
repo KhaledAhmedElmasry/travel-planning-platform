@@ -1519,6 +1519,26 @@ minPrice above maxPrice gives 400. Verified with npm run lint, npm run build, lo
 Swagger.
 
 ================================================
+Date: 2026-11-08
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: BLG-13 (#109)
+
+Prompt:
+Implement BLG-13 on feature/BLG-13-attach-itinerary-to-post-Alamy. Add the required nullable
+itineraryId DTO, an optional Itinerary reference on Post, and PATCH /api/posts/{id}/itinerary for
+the authenticated author. Reuse ItinerariesService.getOne(itineraryId, userId) for ownership,
+support null detachment, return a documented minimal updated-post response, add focused validation,
+controller and service tests, and update OpenAPI without reimplementing BLG-01 or ITN-03.
+
+How the output was used:
+Used Codex to inspect the existing contracts and implement the BLG-13 DTO, Post reference, guarded
+controller route, service logic, response schema and focused tests. Reviewed the changes against
+the existing authentication, validation and itinerary ownership conventions. Focused Jest tests
+passed (2 suites, 16 tests), the full backend suite passed (5 suites, 36 tests), and build, lint and
+OpenAPI YAML parsing passed. No live MongoDB or Swagger verification has been performed.
+
+================================================
 Date: 2026-11-09
 Student: Salaheldin Mahmoud
 Tool: Claude
