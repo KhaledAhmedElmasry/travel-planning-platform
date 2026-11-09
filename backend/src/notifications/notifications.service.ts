@@ -13,6 +13,8 @@ import {
   PaginatedList,
 } from '../common/dto/pagination.dto';
 import type { AuthUser } from '../common/interfaces';
+import { MailService } from '../mail/mail.service';
+import { User, UserDocument } from '../users/schemas/user.schema';
 import { ListNotificationsQueryDto } from './dto/list-notifications-query.dto';
 import {
   Notification,
@@ -42,9 +44,12 @@ export class NotificationsService {
   constructor(
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<NotificationDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+    private readonly mailService: MailService,
   ) {}
 
-  // GEN-01: Create an in-app notification (called by other services)
+  // GEN-01, GEN-01-B: Create an in-app notification and mirror it via email (called by other services)
   async notify(
     userId: string | Types.ObjectId,
     title: string,
@@ -68,6 +73,29 @@ export class NotificationsService {
       });
 
       await notification.save();
+
+      // GEN-01-B: Send the notification by email via SMTP
+      try {
+        const user = await this.userModel
+          .findById(userObjectId)
+          .select('email')
+          .lean()
+          .exec();
+
+        if (user?.email) {
+          await this.mailService.sendNotificationEmail(
+            user.email,
+            title.trim(),
+            message.trim(),
+            link ?? null,
+          );
+        }
+      } catch (mailError) {
+        this.logger.error(
+          'Failed to send notification email (GEN-01-B)',
+          mailError,
+        );
+      }
     } catch (error) {
       // Notification failures should never block the primary action.
       this.logger.error('Failed to create in-app notification', error);
