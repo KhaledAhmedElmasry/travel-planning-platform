@@ -2,9 +2,12 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseEnumPipe,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +18,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { AdminService } from './admin.service';
 import { AdminActionDto } from './dto/admin-action.dto';
+import { CreateModeratorDto } from './dto/create-moderator.dto';
 import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 
@@ -42,6 +46,16 @@ import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 @Roles(Role.Admin)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
+
+  // ACC-13, GEN-01-B: Create a hotel or airline moderator
+  @Post('moderators')
+  @HttpCode(HttpStatus.CREATED)
+  createModerator(
+    @CurrentUser() admin: AuthUser,
+    @Body() dto: CreateModeratorDto,
+  ) {
+    return this.adminService.createModerator(admin, dto);
+  }
 
   // ACC-14: Paginated list of all accounts with search and filters
   @Get('accounts')

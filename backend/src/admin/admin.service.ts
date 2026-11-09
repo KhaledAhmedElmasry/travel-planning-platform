@@ -3,11 +3,14 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import * as bcrypt from 'bcryptjs';
 import { Connection, FilterQuery, Model, Types } from 'mongoose';
 import { AuditService } from '../audit/audit.service';
+import { BCRYPT_ROUNDS } from '../auth/password-rule';
 import { SessionsService } from '../auth/sessions.service';
 import {
   DEFAULT_PAGE_SIZE,
@@ -17,6 +20,7 @@ import {
 } from '../common/dto/pagination.dto';
 import {
   AccountStatus,
+  AuditAction,
   BookingStatus,
   BookingType,
   Role,
@@ -30,9 +34,11 @@ import {
   HotelBooking,
   HotelBookingDocument,
 } from '../hotel-bookings/schemas/hotel-booking.schema';
+import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { AdminActionDto } from './dto/admin-action.dto';
+import { CreateModeratorDto } from './dto/create-moderator.dto';
 import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 
@@ -118,6 +124,8 @@ function escapeRegex(text: string): string {
 // Business logic and database access for: ACC-07a, ACC-13, ACC-14, ACC-15, ACC-16, ACC-17
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectConnection() private readonly connection: Connection,
@@ -128,7 +136,117 @@ export class AdminService {
     private readonly flightBookingModel: Model<FlightBookingDocument>,
     @InjectModel(HotelBooking.name)
     private readonly hotelBookingModel: Model<HotelBookingDocument>,
+    private readonly mailService: MailService,
   ) {}
+
+  // ACC-13, GEN-01-B: Create a hotel or airline moderator account
+  async createModerator(
+    admin: AuthUser,
+    dto: CreateModeratorDto,
+  ): Promise<AccountResponse> {
+    const email = dto.email.trim().toLowerCase();
+    const existing = await this.userModel.findOne({ email }).exec();
+    if (existing) {
+      throw new ConflictException('The email is already registered.');
+    }
+
+    const providerObjectId = new Types.ObjectId(dto.providerId);
+    const db = this.connection.db;
+    let providerName = '';
+
+    if (dto.role === Role.AirlineModerator) {
+      const airline = await db
+        ?.collection('airlines')
+        .findOne({ _id: providerObjectId });
+      if (!airline) {
+        throw new NotFoundException('The airline or hotel does not exist.');
+      }
+      providerName = (airline as { name?: string }).name ?? 'Airline';
+    } else if (dto.role === Role.HotelModerator) {
+      const hotel = await db
+        ?.collection('hotels')
+        .findOne({ _id: providerObjectId });
+      if (!hotel) {
+        throw new NotFoundException('The airline or hotel does not exist.');
+      }
+      providerName = (hotel as { name?: string }).name ?? 'Hotel';
+    } else {
+      throw new BadRequestException('Invalid moderator role.');
+    }
+
+    const passwordHash = await bcrypt.hash(
+      dto.temporaryPassword,
+      BCRYPT_ROUNDS,
+    );
+
+    const user = new this.userModel({
+      name: dto.name.trim(),
+      email,
+      passwordHash,
+      role: dto.role,
+      status: AccountStatus.Active,
+      mustChangePassword: true,
+      airlineId: dto.role === Role.AirlineModerator ? providerObjectId : null,
+      hotelId: dto.role === Role.HotelModerator ? providerObjectId : null,
+      preferredCurrency: 'USD',
+      failedLoginAttempts: 0,
+      lockUntil: null,
+      deactivatedAt: null,
+    });
+
+    try {
+      await user.save();
+    } catch (error) {
+      // Two requests with the same new email at once: the unique index on
+      // users.email lets only one through; the other gets 409, not 500.
+      if ((error as { code?: number }).code === 11000) {
+        throw new ConflictException('The email is already registered.');
+      }
+      throw error;
+    }
+
+    // GEN-07: Write to audit log
+    await this.auditService.record({
+      adminId: admin.id,
+      action: AuditAction.CreateModerator,
+      targetType: 'user',
+      targetId: user._id.toString(),
+      details: {
+        role: dto.role,
+        providerId: dto.providerId,
+        providerName,
+        email: user.email,
+      },
+    });
+
+    // GEN-01-B: Send moderator invitation email over SMTP
+    // Not awaited: a slow or unreachable mail server must not delay the answer.
+    this.mailService
+      .sendModeratorInvitation({
+        to: user.email,
+        name: user.name,
+        role: dto.role,
+        providerName,
+        temporaryPassword: dto.temporaryPassword,
+      })
+      .catch((mailError: unknown) => {
+        this.logger.error(
+          'Failed to send moderator invitation email (GEN-01-B)',
+          mailError,
+        );
+      });
+
+    return {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      airlineId: user.airlineId ? user.airlineId.toString() : undefined,
+      hotelId: user.hotelId ? user.hotelId.toString() : undefined,
+      mustChangePassword: user.mustChangePassword,
+    };
+  }
 
   // ACC-14: Paginated list of all accounts with search by name/email and filter by role/status
   async listAccounts(
