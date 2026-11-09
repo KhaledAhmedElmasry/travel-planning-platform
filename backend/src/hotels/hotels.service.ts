@@ -46,6 +46,7 @@ import { Room, RoomDateRange, RoomDocument } from './schemas/room.schema';
 // Business logic and database access for: HTL-01..HTL-06, HTL-08..HTL-12, HTL-15, HTL-22
 
 export const MAX_HOTEL_PHOTOS = 5; // GEN-08
+export const MAX_CALENDAR_NIGHTS = 366; // HTL-08: at most one year per request
 
 // Used when a moderator has not set the times yet (HTL-09), because a reservation always shows them.
 const DEFAULT_CHECK_IN_TIME = '14:00';
@@ -243,6 +244,13 @@ export class HotelsService {
     const hotel = await this.findHotelOrThrow(hotelId);
     this.assertModeratorOf(hotel, actor);
     const range = parseNightRange(query.from, query.to);
+    const nightCount =
+      (range.to.getTime() - range.from.getTime()) / 86400000 + 1;
+    if (nightCount > MAX_CALENDAR_NIGHTS) {
+      throw new BadRequestException(
+        `The date range is too long: choose at most ${MAX_CALENDAR_NIGHTS} nights.`,
+      );
+    }
     const nights: Date[] = [];
     for (
       let time = range.from.getTime();

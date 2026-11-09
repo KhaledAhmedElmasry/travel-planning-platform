@@ -3094,6 +3094,7 @@ paths:
 
         For each room and each date: `available`, `booked` (with the reservation reference) or
         `blocked`. Dates outside the room's bookable ranges are shown as `blocked`.
+        The range can cover at most 366 nights; a longer range answers `400`.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
