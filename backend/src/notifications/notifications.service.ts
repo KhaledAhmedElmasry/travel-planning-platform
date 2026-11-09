@@ -91,10 +91,7 @@ export class NotificationsService {
           );
         }
       } catch (mailError) {
-        this.logger.error(
-          'Failed to send notification email (GEN-01-B)',
-          mailError,
-        );
+        this.logger.error('Failed to send notification email (GEN-01-B)', mailError);
       }
     } catch (error) {
       // Notification failures should never block the primary action.
