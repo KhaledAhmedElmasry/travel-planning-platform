@@ -194,7 +194,16 @@ export class AdminService {
       deactivatedAt: null,
     });
 
-    await user.save();
+    try {
+      await user.save();
+    } catch (error) {
+      // Two requests with the same new email at once: the unique index on
+      // users.email lets only one through; the other gets 409, not 500.
+      if ((error as { code?: number }).code === 11000) {
+        throw new ConflictException('The email is already registered.');
+      }
+      throw error;
+    }
 
     // GEN-07: Write to audit log
     await this.auditService.record({
@@ -211,20 +220,21 @@ export class AdminService {
     });
 
     // GEN-01-B: Send moderator invitation email over SMTP
-    try {
-      await this.mailService.sendModeratorInvitation({
+    // Not awaited: a slow or unreachable mail server must not delay the answer.
+    this.mailService
+      .sendModeratorInvitation({
         to: user.email,
         name: user.name,
         role: dto.role,
         providerName,
         temporaryPassword: dto.temporaryPassword,
+      })
+      .catch((mailError: unknown) => {
+        this.logger.error(
+          'Failed to send moderator invitation email (GEN-01-B)',
+          mailError,
+        );
       });
-    } catch (mailError) {
-      this.logger.error(
-        'Failed to send moderator invitation email (GEN-01-B)',
-        mailError,
-      );
-    }
 
     return {
       id: user._id.toString(),

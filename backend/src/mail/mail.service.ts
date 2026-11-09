@@ -35,6 +35,10 @@ export class MailService {
         port,
         secure: port === 465,
         auth: { user, pass },
+        // A mail server that does not answer must not hold anything up for long.
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 10000,
       });
       this.logger.log(`MailService ready (SMTP: ${host}:${port})`);
     } else {

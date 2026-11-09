@@ -75,27 +75,45 @@ export class NotificationsService {
       await notification.save();
 
       // GEN-01-B: Send the notification by email via SMTP
-      try {
-        const user = await this.userModel
-          .findById(userObjectId)
-          .select('email')
-          .lean()
-          .exec();
-
-        if (user?.email) {
-          await this.mailService.sendNotificationEmail(
-            user.email,
-            title.trim(),
-            message.trim(),
-            link ?? null,
-          );
-        }
-      } catch (mailError) {
-        this.logger.error('Failed to send notification email (GEN-01-B)', mailError);
-      }
+      // Not awaited: the caller (booking, refund, suspend...) never waits for SMTP.
+      void this.mirrorByEmail(
+        userObjectId,
+        title.trim(),
+        message.trim(),
+        link ?? null,
+      );
     } catch (error) {
       // Notification failures should never block the primary action.
       this.logger.error('Failed to create in-app notification', error);
+    }
+  }
+
+  // GEN-01-B: send the same notification to the user's email. Never throws.
+  private async mirrorByEmail(
+    userId: Types.ObjectId,
+    title: string,
+    message: string,
+    link: string | null,
+  ): Promise<void> {
+    try {
+      const user = await this.userModel
+        .findById(userId)
+        .select('email')
+        .lean()
+        .exec();
+      if (user?.email) {
+        await this.mailService.sendNotificationEmail(
+          user.email,
+          title,
+          message,
+          link,
+        );
+      }
+    } catch (mailError) {
+      this.logger.error(
+        'Failed to send notification email (GEN-01-B)',
+        mailError,
+      );
     }
   }
 
