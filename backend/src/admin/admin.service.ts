@@ -5,7 +5,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
 import { Connection, FilterQuery, Model, Types } from 'mongoose';
@@ -23,6 +25,7 @@ import {
   AuditAction,
   BookingStatus,
   BookingType,
+  ProviderType,
   Role,
 } from '../common/enums';
 import type { AuthUser } from '../common/interfaces';
@@ -39,6 +42,10 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { AdminActionDto } from './dto/admin-action.dto';
 import { CreateModeratorDto } from './dto/create-moderator.dto';
+import {
+  AnalyticsDateFilterBy,
+  AnalyticsQueryDto,
+} from './dto/analytics-query.dto';
 import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 
@@ -103,6 +110,37 @@ export interface AdminBookingItem {
   createdAt: Date;
 }
 
+export interface AnalyticsSummary {
+  totalBookings: number;
+  confirmedBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  pendingBookings: number;
+  totalRevenue: number;
+  currency: string;
+  period: {
+    from?: string;
+    to?: string;
+  };
+}
+
+export interface ProviderAnalyticsItem {
+  providerId: string;
+  providerName: string;
+  providerType: ProviderType;
+  totalBookings: number;
+  confirmedBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  pendingBookings: number;
+  totalRevenue: number;
+  currency: string;
+}
+
+export interface AdminAnalyticsResponse extends PaginatedList<ProviderAnalyticsItem> {
+  summary: AnalyticsSummary;
+}
+
 export type LeanFlightBooking = FlightBooking & { _id: Types.ObjectId };
 export type LeanHotelBooking = HotelBooking & { _id: Types.ObjectId };
 
@@ -137,6 +175,7 @@ export class AdminService {
     @InjectModel(HotelBooking.name)
     private readonly hotelBookingModel: Model<HotelBookingDocument>,
     private readonly mailService: MailService,
+    @Optional() private readonly configService?: ConfigService,
   ) {}
 
   // ACC-13, GEN-01-B: Create a hotel or airline moderator account
@@ -909,6 +948,306 @@ export class AdminService {
       currency: b.currency,
       status: b.status,
       createdAt: b.createdAt ?? new Date(),
+    };
+  }
+
+  // BON-01: Admin analytics dashboard showing bookings and revenue per provider over a selected period
+  async getAnalytics(
+    query: AnalyticsQueryDto,
+  ): Promise<AdminAnalyticsResponse> {
+    if (query.from && query.to && query.from > query.to) {
+      throw new BadRequestException('from date must not be after to date');
+    }
+
+    const dateBy = query.dateBy ?? AnalyticsDateFilterBy.Created;
+    const dateRangeFilter: Record<string, Date> = {};
+
+    if (query.from) {
+      dateRangeFilter.$gte = new Date(`${query.from}T00:00:00.000Z`);
+    }
+
+    if (query.to) {
+      dateRangeFilter.$lte = new Date(`${query.to}T23:59:59.999Z`);
+    }
+
+    const hasDateFilter = Boolean(query.from || query.to);
+
+    const flightFilter: FilterQuery<FlightBookingDocument> = {};
+    const hotelFilter: FilterQuery<HotelBookingDocument> = {};
+
+    if (query.status) {
+      flightFilter.status = query.status;
+      hotelFilter.status = query.status;
+    }
+
+    if (hasDateFilter) {
+      const flightDateKey =
+        dateBy === AnalyticsDateFilterBy.Travel
+          ? 'segments.0.departureAt'
+          : 'createdAt';
+      flightFilter[flightDateKey] = dateRangeFilter;
+
+      const hotelDateKey =
+        dateBy === AnalyticsDateFilterBy.Travel ? 'checkIn' : 'createdAt';
+      hotelFilter[hotelDateKey] = dateRangeFilter;
+    }
+
+    if (query.providerId && Types.ObjectId.isValid(query.providerId)) {
+      const providerObjectId = new Types.ObjectId(query.providerId);
+      flightFilter['segments.airlineId'] = providerObjectId;
+      hotelFilter.hotelId = providerObjectId;
+    }
+
+    const currency =
+      this.configService?.get<string>('PLATFORM_CURRENCY') ?? 'USD';
+    const providerMap = new Map<string, ProviderAnalyticsItem>();
+
+    // Seed known providers from airlines collection
+    if (!query.type || query.type === ProviderType.Airline) {
+      const airlineCollection = this.connection?.db?.collection<{
+        _id: Types.ObjectId;
+        name?: string;
+      }>('airlines');
+      if (airlineCollection) {
+        const airlineQuery: Record<string, unknown> = {};
+        if (query.providerId && Types.ObjectId.isValid(query.providerId)) {
+          airlineQuery._id = new Types.ObjectId(query.providerId);
+        }
+        try {
+          const airlines = await airlineCollection
+            .find(airlineQuery)
+            .project<{ _id: Types.ObjectId; name?: string }>({
+              _id: 1,
+              name: 1,
+            })
+            .toArray();
+          for (const a of airlines) {
+            const id = a._id.toString();
+            providerMap.set(id, {
+              providerId: id,
+              providerName: a.name || 'Unknown Airline',
+              providerType: ProviderType.Airline,
+              totalBookings: 0,
+              confirmedBookings: 0,
+              completedBookings: 0,
+              cancelledBookings: 0,
+              pendingBookings: 0,
+              totalRevenue: 0,
+              currency,
+            });
+          }
+        } catch {
+          // If collection does not exist, continue gracefully
+        }
+      }
+    }
+
+    // Seed known providers from hotels collection
+    if (!query.type || query.type === ProviderType.Hotel) {
+      const hotelCollection = this.connection?.db?.collection<{
+        _id: Types.ObjectId;
+        name?: string;
+      }>('hotels');
+      if (hotelCollection) {
+        const hotelQuery: Record<string, unknown> = {};
+        if (query.providerId && Types.ObjectId.isValid(query.providerId)) {
+          hotelQuery._id = new Types.ObjectId(query.providerId);
+        }
+        try {
+          const hotels = await hotelCollection
+            .find(hotelQuery)
+            .project<{ _id: Types.ObjectId; name?: string }>({
+              _id: 1,
+              name: 1,
+            })
+            .toArray();
+          for (const h of hotels) {
+            const id = h._id.toString();
+            providerMap.set(id, {
+              providerId: id,
+              providerName: h.name || 'Unknown Hotel',
+              providerType: ProviderType.Hotel,
+              totalBookings: 0,
+              confirmedBookings: 0,
+              completedBookings: 0,
+              cancelledBookings: 0,
+              pendingBookings: 0,
+              totalRevenue: 0,
+              currency,
+            });
+          }
+        } catch {
+          // If collection does not exist, continue gracefully
+        }
+      }
+    }
+
+    const shouldQueryFlights =
+      !query.type || query.type === ProviderType.Airline;
+    const shouldQueryHotels = !query.type || query.type === ProviderType.Hotel;
+
+    const [flights, hotels] = await Promise.all([
+      shouldQueryFlights
+        ? this.flightBookingModel
+            .find(flightFilter)
+            .lean<LeanFlightBooking[]>()
+            .exec()
+        : Promise.resolve([]),
+      shouldQueryHotels
+        ? this.hotelBookingModel
+            .find(hotelFilter)
+            .lean<LeanHotelBooking[]>()
+            .exec()
+        : Promise.resolve([]),
+    ]);
+
+    for (const f of flights) {
+      const firstSeg = f.segments?.[0];
+      const airlineId = firstSeg?.airlineId
+        ? firstSeg.airlineId.toString()
+        : '';
+      if (!airlineId) continue;
+      if (query.providerId && airlineId !== query.providerId) continue;
+
+      let provider = providerMap.get(airlineId);
+      if (!provider) {
+        const airlineName = firstSeg?.airlineName || 'Unknown Airline';
+        provider = {
+          providerId: airlineId,
+          providerName: airlineName,
+          providerType: ProviderType.Airline,
+          totalBookings: 0,
+          confirmedBookings: 0,
+          completedBookings: 0,
+          cancelledBookings: 0,
+          pendingBookings: 0,
+          totalRevenue: 0,
+          currency: f.currency || currency,
+        };
+        providerMap.set(airlineId, provider);
+      }
+
+      provider.totalBookings++;
+      const amount = f.totalAmount ?? 0;
+
+      if (f.status === BookingStatus.Confirmed) {
+        provider.confirmedBookings++;
+        provider.totalRevenue += amount;
+      } else if (f.status === BookingStatus.Completed) {
+        provider.completedBookings++;
+        provider.totalRevenue += amount;
+      } else if (f.status === BookingStatus.Cancelled) {
+        provider.cancelledBookings++;
+      } else if (f.status === BookingStatus.PendingPayment) {
+        provider.pendingBookings++;
+      }
+    }
+
+    for (const h of hotels) {
+      const hotelId = h.hotelId ? h.hotelId.toString() : '';
+      if (!hotelId) continue;
+      if (query.providerId && hotelId !== query.providerId) continue;
+
+      let provider = providerMap.get(hotelId);
+      if (!provider) {
+        const hotelName = h.hotelName || 'Unknown Hotel';
+        provider = {
+          providerId: hotelId,
+          providerName: hotelName,
+          providerType: ProviderType.Hotel,
+          totalBookings: 0,
+          confirmedBookings: 0,
+          completedBookings: 0,
+          cancelledBookings: 0,
+          pendingBookings: 0,
+          totalRevenue: 0,
+          currency: h.currency || currency,
+        };
+        providerMap.set(hotelId, provider);
+      }
+
+      provider.totalBookings++;
+      const amount = h.totalAmount ?? 0;
+
+      if (h.status === BookingStatus.Confirmed) {
+        provider.confirmedBookings++;
+        provider.totalRevenue += amount;
+      } else if (h.status === BookingStatus.Completed) {
+        provider.completedBookings++;
+        provider.totalRevenue += amount;
+      } else if (h.status === BookingStatus.Cancelled) {
+        provider.cancelledBookings++;
+      } else if (h.status === BookingStatus.PendingPayment) {
+        provider.pendingBookings++;
+      }
+    }
+
+    let providersList = Array.from(providerMap.values());
+    if (query.providerId) {
+      providersList = providersList.filter(
+        (p) => p.providerId === query.providerId,
+      );
+    }
+    if (query.type) {
+      providersList = providersList.filter(
+        (p) => p.providerType === query.type,
+      );
+    }
+
+    let totalBookings = 0;
+    let confirmedBookings = 0;
+    let completedBookings = 0;
+    let cancelledBookings = 0;
+    let pendingBookings = 0;
+    let totalRevenue = 0;
+
+    for (const p of providersList) {
+      totalBookings += p.totalBookings;
+      confirmedBookings += p.confirmedBookings;
+      completedBookings += p.completedBookings;
+      cancelledBookings += p.cancelledBookings;
+      pendingBookings += p.pendingBookings;
+      totalRevenue += p.totalRevenue;
+    }
+
+    const summary: AnalyticsSummary = {
+      totalBookings,
+      confirmedBookings,
+      completedBookings,
+      cancelledBookings,
+      pendingBookings,
+      totalRevenue,
+      currency,
+      period: {
+        from: query.from,
+        to: query.to,
+      },
+    };
+
+    const sortedProviders = providersList.sort((a, b) => {
+      if (b.totalRevenue !== a.totalRevenue) {
+        return b.totalRevenue - a.totalRevenue;
+      }
+      if (b.totalBookings !== a.totalBookings) {
+        return b.totalBookings - a.totalBookings;
+      }
+      return a.providerName.localeCompare(b.providerName);
+    });
+
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const pagedProviders = sortedProviders.slice(skip, skip + limit);
+
+    const paginated = paginate(
+      pagedProviders,
+      sortedProviders.length,
+      page,
+      DEFAULT_PAGE_SIZE,
+    );
+
+    return {
+      ...paginated,
+      summary,
     };
   }
 }
