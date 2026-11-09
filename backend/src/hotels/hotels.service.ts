@@ -9,6 +9,8 @@ import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
 import { dateOnly, formatDate } from '../hotel-bookings/stay-dates';
+import { parseNightRange } from './room-ranges';
+import { RoomInventoryService } from '../hotel-bookings/room-inventory.service';
 import { parseStay } from './room-ranges';
 import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
 import { platformCurrency } from '../payments/platform-currency';
@@ -18,6 +20,8 @@ import type {
 } from '../payments/interfaces/payable-booking.interface';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { AvailabilityQueryDto } from './dto/availability-query.dto';
+import { buildRoomCalendar } from './availability-calendar';
 import { HotelDetailsQueryDto } from './dto/hotel-details-query.dto';
 import { HotelPoliciesDto } from './dto/hotel-policies.dto';
 import { RoomAvailabilityDto } from './dto/room-availability.dto';
@@ -110,6 +114,16 @@ export interface HotelReservationListItem {
   status: BookingStatus;
 }
 
+export interface HotelAvailabilityRoom {
+  id: string;
+  roomNumber: string;
+  dates: {
+    date: string;
+    status: 'available' | 'booked' | 'blocked';
+    reference: string | null;
+  }[];
+}
+
 @Injectable()
 export class HotelsService {
   constructor(
@@ -121,6 +135,7 @@ export class HotelsService {
     @InjectConnection() private readonly connection: Connection,
     private readonly config: ConfigService,
     private readonly hotelSearch: HotelSearchService,
+    private readonly inventory: RoomInventoryService,
   ) {}
 
   // --- HTL-01: create (admin only; the controller enforces the role) ---
@@ -216,6 +231,84 @@ export class HotelsService {
     }
 
     return response;
+  }
+
+  // --- HTL-08: moderator room status calendar ---
+
+  async getAvailability(
+    hotelId: string,
+    actor: AuthUser,
+    query: AvailabilityQueryDto,
+  ): Promise<PaginatedList<HotelAvailabilityRoom>> {
+    const hotel = await this.findHotelOrThrow(hotelId);
+    this.assertModeratorOf(hotel, actor);
+    const range = parseNightRange(query.from, query.to);
+    const nights: Date[] = [];
+    for (
+      let time = range.from.getTime();
+      time <= range.to.getTime();
+      time += 86400000
+    ) {
+      nights.push(new Date(time));
+    }
+
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page);
+    const [rooms, total] = await Promise.all([
+      this.roomModel
+        .find({ hotelId: hotel._id })
+        .sort({ roomNumber: 1 })
+        .skip(skip)
+        .limit(limit),
+      this.roomModel.countDocuments({ hotelId: hotel._id }).exec(),
+    ]);
+    const taken = await this.inventory.findTakenNights(
+      rooms.map((room) => room._id),
+      range.from,
+      range.to,
+    );
+    const bookingIds = [
+      ...new Set(taken.map((item) => item.bookingId.toString())),
+    ];
+    const bookings =
+      bookingIds.length === 0
+        ? []
+        : await this.hotelBookingModel
+            .find({ _id: { $in: bookingIds } })
+            .select({ _id: 1, reference: 1 })
+            .lean<Array<{ _id: Types.ObjectId; reference?: string }>>();
+    const references = new Map(
+      bookings.map((booking) => [
+        booking._id.toString(),
+        booking.reference ?? null,
+      ]),
+    );
+    const takenByRoom = new Map<
+      string,
+      { night: Date; reference: string | null }[]
+    >();
+    for (const item of taken) {
+      const roomTaken = takenByRoom.get(item.roomId.toString()) ?? [];
+      roomTaken.push({
+        night: item.night,
+        reference: references.get(item.bookingId.toString()) ?? null,
+      });
+      takenByRoom.set(item.roomId.toString(), roomTaken);
+    }
+
+    return paginate(
+      rooms.map((room) => ({
+        id: room.id as string,
+        roomNumber: room.roomNumber,
+        dates: buildRoomCalendar(
+          room,
+          nights,
+          takenByRoom.get(room.id as string) ?? [],
+        ),
+      })),
+      total,
+      page,
+    );
   }
 
   // --- HTL-01: edit (only the moderator assigned to THIS hotel) ---

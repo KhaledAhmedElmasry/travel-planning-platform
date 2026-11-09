@@ -1541,3 +1541,27 @@ and photo filenames, and returns 404 for unknown or deactivated hotels. I review
 against the issue and openapi.yaml, added the concrete OpenAPI response schema and example, and
 verified targeted ESLint, the backend build and the complete Jest suite. Swagger testing remains
 for team review.
+
+================================================
+Date: 2026-11-09
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-08 / Issue #38
+
+Prompt:
+Implement HTL-08 on feature/HTL-08-room-calendar as GET /api/hotels/:id/availability, following
+docs/api/openapi.yaml and the agreed hotel-bookings inventory contract. Restrict it to the moderator
+of the requested hotel, validate inclusive real calendar dates, paginate rooms by 10, call
+RoomInventoryService.findTakenNights() once for all rooms on the page, query booking references
+once, and use a pure function for available/booked/blocked status precedence. Booked references
+must be nullable for unexpired holds. Add isolated unit tests for the pure calendar logic and
+document the concrete response shape in OpenAPI.
+
+How the output was used:
+Used the generated AvailabilityQueryDto, moderator-protected controller route, HotelsService
+calendar method, and availability-calendar pure function. The implementation marks booked or held
+nights before blocked rules, treats inactive rooms and nights outside inclusive available ranges as
+blocked, returns nullable references for holds, paginates rooms, and performs one inventory lookup
+plus one booking-reference query. Added tests for available, blocked, booked with and without a
+reference, inactive rooms and inclusive one-night ranges. Targeted ESLint, the backend build and
+the complete Jest suite passed; Swagger testing remains for team review.

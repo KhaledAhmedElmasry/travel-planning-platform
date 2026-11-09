@@ -3117,7 +3117,63 @@ paths:
       responses:
         '200':
           description: Each room - id, room number, and for each date its status (available, booked with reservation reference, or blocked).
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total, totalPages]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, roomNumber, dates]
+                      properties:
+                        id:
+                          type: string
+                        roomNumber:
+                          type: string
+                        dates:
+                          type: array
+                          items:
+                            type: object
+                            required: [date, status, reference]
+                            properties:
+                              date:
+                                type: string
+                                format: date
+                              status:
+                                type: string
+                                enum: [available, booked, blocked]
+                              reference:
+                                type: string
+                                nullable: true
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  total:
+                    type: integer
+                  totalPages:
+                    type: integer
+              example:
+                items:
+                  - id: 665f1c2a9b1e8a0012345681
+                    roomNumber: '101'
+                    dates:
+                      - date: '2027-03-01'
+                        status: available
+                        reference: null
+                      - date: '2027-03-02'
+                        status: booked
+                        reference: HTL123
+                      - date: '2027-03-03'
+                        status: blocked
+                        reference: null
+                page: 1
+                pageSize: 10
+                total: 1
+                totalPages: 1
         '400':
           description: Invalid dates (to before from).
           content:
