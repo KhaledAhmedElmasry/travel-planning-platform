@@ -1598,3 +1598,26 @@ Help me implement GEN-01-B (sending GEN-01 notifications and moderator invitatio
 How the output was used:
 Used AI guidance to structure MailModule, configure nodemailer transport with graceful degradation, integrate email dispatch into NotificationsService.notify(), and implement moderator creation (ACC-13) with invitation email delivery. Verified with npm run lint (0 errors) and npm run build.
 ================================================
+Tool: Claude
+Related Requirement: BON-01 / Issue #110
+
+Prompt:
+Implement the bonus requirement BON-01 on branch feature/BON-01-admin-analytics-dashboard as GET /api/admin/analytics.
+Follow docs/api/openapi.yaml, ACC-17, and the repository conventions for admin endpoints.
+Create the AnalyticsQueryDto supporting optional from, to, type (airline/hotel), status, providerId, dateBy (created/travel),
+and page parameters with class-validator validation and friendly error messages.
+Implement getAnalytics in AdminService aggregating bookings and revenue per provider (airlines and hotels)
+over the selected period, computing total/confirmed/completed/cancelled/pending bookings and platform currency revenue,
+sorting by revenue descending, returning the overall summary and paginated providers (page size 10), and handling empty states.
+Add comprehensive unit tests for the DTO and service/controller, document the endpoint in docs/api/openapi.yaml,
+and report build, test and lint status.
+
+How the output was used:
+Used the generated AnalyticsQueryDto, AdminAnalyticsResponse and AdminService.getAnalytics method.
+The implementation respects the admin role guard on AdminController, seeds known providers from MongoDB collections,
+accurately tallies flight and hotel bookings by provider with integer-cent revenue, supports date range filtering by either
+creation date or travel date, validates from <= to dates, and formats responses with overall summary plus paginated provider list.
+Added unit test suites for AnalyticsQueryDto and AdminService analytics logic covering security guards, date filters, provider
+filtering, sorting, empty states (GEN-04) and pagination (GEN-05). Verified TypeScript build, Jest tests (8 suites, 64 tests),
+ESLint and OpenAPI YAML validation.
+
