@@ -30,12 +30,14 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
+import { AttachItineraryDto } from './dto/attach-itinerary.dto';
 import { BrowsePostsByTagDto } from './dto/browse-posts-by-tag.dto';
 import { ListMyPostsQueryDto } from './dto/list-my-posts-query.dto';
 import { ListPostsQueryDto } from './dto/list-posts-query.dto';
 import type {
   CommentResponse,
   CreatedPostResponse,
+  AttachItineraryResponse,
   LikeCountResponse,
   MyPostSummary,
   PostSummary,
@@ -171,6 +173,17 @@ export class BlogController {
     @Body() dto: UpdatePostDto,
   ): Promise<CreatedPostResponse> {
     return this.blogService.updatePost(id, user.id, dto);
+  }
+
+  @Patch('posts/:id/itinerary')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  attachItinerary(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AttachItineraryDto,
+  ): Promise<AttachItineraryResponse> {
+    return this.blogService.attachItinerary(id, user.id, dto.itineraryId);
   }
 
   @Delete('posts/:id')

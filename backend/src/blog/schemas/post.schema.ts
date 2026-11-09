@@ -53,6 +53,13 @@ export class Post {
   @Prop({ type: [PostImageReferenceSchema], default: [] })
   images: PostImageReference[];
 
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Itinerary',
+    required: false,
+  })
+  itinerary?: Types.ObjectId | null;
+
   @Prop({ required: true, default: false, index: true })
   hidden: boolean;
 
