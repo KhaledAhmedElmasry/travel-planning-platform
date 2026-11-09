@@ -1517,3 +1517,27 @@ included, the filter uses the price shown for each hotel, a minimum rating leave
 no ratings, unrated hotels come last when sorting by rating, equal ratings are sorted by price, and
 minPrice above maxPrice gives 400. Verified with npm run lint, npm run build, local tests and in
 Swagger.
+
+================================================
+Date: 2026-11-09
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-02 / Issue #33 (also closes HTL-09 / Issue #39)
+
+Prompt:
+Implement HTL-02 on feature/HTL-02-hotel-details as GET /api/hotels/:id, following the
+authoritative requirements and docs/api/openapi.yaml. Return the active hotel's profile, photos,
+amenities, check-in and check-out times, cancellation tiers, average rating and rating count.
+Support optional checkIn, checkOut and guests query parameters, reuse the existing HTL-15 free-room
+logic and stay-date validation, reject incomplete or invalid dates, filter rooms by guests'
+minimum occupancy, and update the OpenAPI response documentation. Keep the change limited to the
+hotels area and create a separate branch from develop.
+
+How the output was used:
+Used the generated hotel-details DTO, public controller route and HotelsService.getHotelDetails().
+The implementation reuses HotelSearchService.findFreeRooms() and parseStay(), returns fallback
+policy times of 14:00 and 12:00, sorts cancellation tiers by daysBefore, hides internal fields
+and photo filenames, and returns 404 for unknown or deactivated hotels. I reviewed the response
+against the issue and openapi.yaml, added the concrete OpenAPI response schema and example, and
+verified targeted ESLint, the backend build and the complete Jest suite. Swagger testing remains
+for team review.

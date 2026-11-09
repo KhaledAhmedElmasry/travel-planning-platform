@@ -20,6 +20,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { HotelDetailsQueryDto } from './dto/hotel-details-query.dto';
 import { HotelPoliciesDto } from './dto/hotel-policies.dto';
 import { ListReservationsQueryDto } from './dto/list-reservations-query.dto';
 import { RoomAvailabilityDto } from './dto/room-availability.dto';
@@ -84,6 +85,15 @@ export class HotelsController {
       await deleteHotelPhotos(photos);
       throw error;
     }
+  }
+
+  // HTL-02: everyone can view an active hotel's profile and optional free rooms.
+  @Get(':id')
+  getDetails(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Query() query: HotelDetailsQueryDto,
+  ) {
+    return this.hotelsService.getHotelDetails(id, query);
   }
 
   // HTL-01: the moderator assigned to this hotel edits it (multipart).

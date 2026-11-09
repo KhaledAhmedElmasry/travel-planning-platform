@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, isValidObjectId, Model, Types } from 'mongoose';
 import { dateOnly, formatDate } from '../hotel-bookings/stay-dates';
+import { parseStay } from './room-ranges';
 import { isDuplicateKeyError } from '../payments/is-duplicate-key-error';
 import { platformCurrency } from '../payments/platform-currency';
 import type {
@@ -17,6 +18,7 @@ import type {
 } from '../payments/interfaces/payable-booking.interface';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { HotelDetailsQueryDto } from './dto/hotel-details-query.dto';
 import { HotelPoliciesDto } from './dto/hotel-policies.dto';
 import { RoomAvailabilityDto } from './dto/room-availability.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
@@ -32,6 +34,7 @@ import { HotelBooking } from '../hotel-bookings/schemas/hotel-booking.schema';
 import { User } from '../users/schemas/user.schema';
 import type { AuthUser } from '../common/interfaces';
 import { pickRefundTier } from './hotel-refund-tier';
+import { HotelSearchService } from './hotel-search.service';
 import { Hotel, HotelDocument, HotelPhoto } from './schemas/hotel.schema';
 import { Room, RoomDateRange, RoomDocument } from './schemas/room.schema';
 
@@ -48,6 +51,36 @@ const DEFAULT_CHECK_OUT_TIME = '12:00';
 export interface NewHotelPhoto {
   url: string;
   filename: string;
+}
+
+export interface HotelDetailsResponse {
+  id: string;
+  name: string;
+  address: string;
+  cityId: string;
+  countryCode: string;
+  description: string;
+  starRating: number;
+  photos: { id: string; url: string }[];
+  amenities: string[];
+  checkInTime: string;
+  checkOutTime: string;
+  cancellationTiers: CancellationTier[];
+  averageRating: number;
+  ratingCount: number;
+  availableRooms?: {
+    id: string;
+    roomNumber: string;
+    type: string;
+    beds: number;
+    maxOccupancy: number;
+    pricePerNight: number;
+    nights: number;
+    totalPrice: number;
+    currency: string;
+    checkIn: string;
+    checkOut: string;
+  }[];
 }
 
 // The logged-in user (AuthUser has these fields). hotelId is the hotel a moderator manages.
@@ -87,6 +120,7 @@ export class HotelsService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectConnection() private readonly connection: Connection,
     private readonly config: ConfigService,
+    private readonly hotelSearch: HotelSearchService,
   ) {}
 
   // --- HTL-01: create (admin only; the controller enforces the role) ---
@@ -111,6 +145,77 @@ export class HotelsService {
       active: true,
     });
     return this.toResponse(hotel);
+  }
+
+  // --- HTL-02: public hotel profile and optional free rooms ---
+
+  async getHotelDetails(
+    hotelId: string,
+    query: HotelDetailsQueryDto,
+  ): Promise<HotelDetailsResponse> {
+    if (!isValidObjectId(hotelId)) {
+      throw new NotFoundException('Hotel not found.');
+    }
+    const hotel = await this.hotelModel.findOne({
+      _id: hotelId,
+      active: { $ne: false },
+    });
+    if (!hotel) throw new NotFoundException('Hotel not found.');
+
+    const hasCheckIn = query.checkIn !== undefined;
+    const hasCheckOut = query.checkOut !== undefined;
+    if (hasCheckIn !== hasCheckOut) {
+      throw new BadRequestException(
+        'checkIn and checkOut must be given together.',
+      );
+    }
+
+    const response: HotelDetailsResponse = {
+      id: hotel.id as string,
+      name: hotel.name,
+      address: hotel.address,
+      cityId: hotel.cityId,
+      countryCode: hotel.countryCode,
+      description: hotel.description,
+      starRating: hotel.starRating,
+      photos: hotel.photos.map((photo) => ({
+        id: this.photoId(photo),
+        url: photo.url,
+      })),
+      amenities: hotel.amenities,
+      checkInTime: hotel.checkInTime ?? DEFAULT_CHECK_IN_TIME,
+      checkOutTime: hotel.checkOutTime ?? DEFAULT_CHECK_OUT_TIME,
+      cancellationTiers: this.sortedTiers(hotel),
+      averageRating: hotel.averageRating,
+      ratingCount: hotel.ratingCount,
+    };
+
+    if (query.checkIn && query.checkOut) {
+      const { checkIn, checkOut } = query;
+      const stay = parseStay(checkIn, checkOut);
+      const freeRooms = await this.hotelSearch.findFreeRooms([hotel._id], stay);
+      const { guests } = query;
+      const rooms =
+        guests === undefined
+          ? freeRooms
+          : freeRooms.filter((room) => room.maxOccupancy >= guests);
+      const currency = platformCurrency(this.config);
+      response.availableRooms = rooms.map((room) => ({
+        id: room.id as string,
+        roomNumber: room.roomNumber,
+        type: room.type,
+        beds: room.beds,
+        maxOccupancy: room.maxOccupancy,
+        pricePerNight: room.pricePerNight,
+        nights: stay.nights.length,
+        totalPrice: room.pricePerNight * stay.nights.length,
+        currency,
+        checkIn,
+        checkOut,
+      }));
+    }
+
+    return response;
   }
 
   // --- HTL-01: edit (only the moderator assigned to THIS hotel) ---
