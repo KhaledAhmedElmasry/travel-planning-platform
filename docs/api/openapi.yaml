@@ -2600,6 +2600,105 @@ paths:
             The hotel profile - name, address, city, country, description, star class, photos,
             amenities, check-in and check-out times, cancellation policy, average rating and number of
             ratings - and the available rooms when dates were given.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name, address, cityId, countryCode, description, starRating, photos, amenities, checkInTime, checkOutTime, cancellationTiers, averageRating, ratingCount]
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  address:
+                    type: string
+                  cityId:
+                    type: string
+                  countryCode:
+                    type: string
+                  description:
+                    type: string
+                  starRating:
+                    type: integer
+                  photos:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, url]
+                      properties:
+                        id:
+                          type: string
+                        url:
+                          type: string
+                  amenities:
+                    type: array
+                    items:
+                      type: string
+                  checkInTime:
+                    type: string
+                    nullable: false
+                    example: '14:00'
+                  checkOutTime:
+                    type: string
+                    nullable: false
+                    example: '12:00'
+                  cancellationTiers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CancellationTier'
+                  averageRating:
+                    type: number
+                  ratingCount:
+                    type: integer
+                  availableRooms:
+                    type: array
+                    description: Present only when checkIn and checkOut are provided.
+                    items:
+                      type: object
+                      required: [id, roomNumber, type, beds, maxOccupancy, pricePerNight, nights, totalPrice, currency, checkIn, checkOut]
+                      properties:
+                        id:
+                          type: string
+                        roomNumber:
+                          type: string
+                        type:
+                          type: string
+                        beds:
+                          type: integer
+                        maxOccupancy:
+                          type: integer
+                        pricePerNight:
+                          type: integer
+                          description: In cents of the platform currency.
+                        nights:
+                          type: integer
+                        totalPrice:
+                          type: integer
+                          description: Nights multiplied by pricePerNight, in cents.
+                        currency:
+                          type: string
+                        checkIn:
+                          type: string
+                          format: date
+                        checkOut:
+                          type: string
+                          format: date
+              example:
+                id: 665f1c2a9b1e8a00123400a1
+                name: Nile View
+                address: Corniche El Nil
+                cityId: cairo
+                countryCode: EG
+                description: A hotel beside the Nile.
+                starRating: 5
+                photos: [{id: 665f1c2a9b1e8a00123400b1, url: /uploads/hotels/665f1c2a9b1e8a00123400a1/a.jpg}]
+                amenities: [Wi-Fi, Pool]
+                checkInTime: '14:00'
+                checkOutTime: '12:00'
+                cancellationTiers: [{daysBefore: 14, refundPercentage: 100}]
+                averageRating: 4.5
+                ratingCount: 12
+                availableRooms: [{id: 665f1c2a9b1e8a00123400e5, roomNumber: '101', type: Deluxe double, beds: 2, maxOccupancy: 3, pricePerNight: 12000, nights: 4, totalPrice: 48000, currency: USD, checkIn: '2027-03-01', checkOut: '2027-03-05'}]
         '400':
           description: Invalid dates.
           content:
