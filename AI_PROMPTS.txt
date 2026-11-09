@@ -1344,6 +1344,7 @@ changes were reviewed against repository conventions. Focused and full Jest runs
 passed. No live MongoDB or Swagger verification has been performed.
 ================================================
 
+
 Date: 2026-11-07  
 Student: Omar Ahmed Alaga 
 Tool: Codex  
@@ -1598,3 +1599,31 @@ Help me implement GEN-01-B (sending GEN-01 notifications and moderator invitatio
 How the output was used:
 Used AI guidance to structure MailModule, configure nodemailer transport with graceful degradation, integrate email dispatch into NotificationsService.notify(), and implement moderator creation (ACC-13) with invitation email delivery. Verified with npm run lint (0 errors) and npm run build.
 ================================================
+Related Requirement: ITN-25, ITN-26
+
+**Prompt:**
+
+Implement ITN-25 and ITN-26 for the existing itinerary functionality in the NestJS and Mongoose backend.
+
+The implementation should cover:
+
+- ITN-25: Allow users to select a city group within their itinerary and view available hotels for that destination.
+- ITN-26: Allow users to search for one-way or round-trip flights from a selected origin airport to a destination associated with their itinerary.
+- Reuse the existing hotel search functionality for ITN-25.
+- Reuse the existing flight search functionality (FLT-11, FLT-12, FLT-15) for ITN-26.
+- Implement the functionality using the existing itinerary, hotel, and flight modules, services, controllers, and DTOs.
+- Validate itinerary IDs, city selections, airport information, travel dates, and search parameters.
+- Enforce authentication and itinerary ownership restrictions.
+- Preserve existing hotel and flight search behavior, including filtering, sorting, and pagination.
+- Update Swagger documentation for the relevant endpoints.
+- Avoid unrelated changes.
+
+**How the output was used:**
+
+Codex was used to assist with implementing itinerary-based hotel searching (ITN-25) and flight searching (ITN-26).
+
+The generated code was reviewed and adapted to the existing NestJS and Mongoose backend structure.
+
+The implementation was checked for correct itinerary destination handling, integration with existing search services, input validation, and ownership restrictions.
+
+The relevant endpoints were tested through Swagger using valid itinerary IDs, hotel and flight search parameters, invalid inputs, and unauthorized access scenarios.
