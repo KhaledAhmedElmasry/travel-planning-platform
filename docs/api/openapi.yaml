@@ -820,6 +820,75 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/bookings", "timestamp": "2026-11-01T10:00:00.000Z"}
 
+  /api/admin/analytics:
+    get:
+      operationId: getAdminAnalytics
+      tags: [Administration]
+      summary: '[Bonus] Admin analytics dashboard showing bookings and revenue per provider (BON-01)'
+      description: |
+        **Access:** admin. Read-only.
+
+        Returns an analytics dashboard showing bookings count and revenue aggregated per provider (airline or hotel)
+        over an optional selected period, with an overall summary and paginated provider breakdown (GEN-05).
+      security: *auth
+      parameters:
+        - name: type
+          in: query
+          description: Optional provider type filter (airline or hotel).
+          schema:
+            $ref: '#/components/schemas/ProviderType'
+        - name: providerId
+          in: query
+          description: Optional provider ID to filter by a specific airline or hotel.
+          schema:
+            type: string
+            example: '665f1c2a9b1e8a0012340001'
+        - name: status
+          in: query
+          description: Optional booking status filter.
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+        - name: from
+          in: query
+          description: First date of the period (YYYY-MM-DD), inclusive.
+          schema:
+            type: string
+            format: date
+            example: '2026-01-01'
+        - name: to
+          in: query
+          description: Last date of the period (YYYY-MM-DD), inclusive.
+          schema:
+            type: string
+            format: date
+            example: '2026-12-31'
+        - name: dateBy
+          in: query
+          description: Date filter basis ('created' for booking creation date, 'travel' for flight departure or hotel check-in date). Defaults to 'created'.
+          schema:
+            type: string
+            enum: [created, travel]
+            default: created
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Analytics dashboard with overall summary and per-provider bookings and revenue breakdown.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAnalyticsDashboard'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/analytics", "timestamp": "2026-11-01T10:00:00.000Z"}
+
   /api/reports:
     post:
       operationId: postReports
@@ -7186,6 +7255,101 @@ components:
           type: string
           maxLength: 500
           example: Spam link
+
+    AdminAnalyticsDashboard:
+      type: object
+      description: Analytics dashboard showing overall booking and revenue summary and per-provider breakdown (BON-01).
+      properties:
+        summary:
+          $ref: '#/components/schemas/AnalyticsSummary'
+        items:
+          type: array
+          description: Paginated provider analytics items (GEN-05).
+          items:
+            $ref: '#/components/schemas/ProviderAnalyticsItem'
+        page:
+          type: integer
+          example: 1
+        pageSize:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 2
+        totalPages:
+          type: integer
+          example: 1
+
+    AnalyticsSummary:
+      type: object
+      properties:
+        totalBookings:
+          type: integer
+          example: 15
+        confirmedBookings:
+          type: integer
+          example: 12
+        completedBookings:
+          type: integer
+          example: 1
+        cancelledBookings:
+          type: integer
+          example: 2
+        pendingBookings:
+          type: integer
+          example: 0
+        totalRevenue:
+          type: integer
+          description: Total revenue in platform currency integer cents (PAY-04).
+          example: 250000
+        currency:
+          type: string
+          example: USD
+        period:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+              example: '2026-01-01'
+            to:
+              type: string
+              format: date
+              example: '2026-12-31'
+
+    ProviderAnalyticsItem:
+      type: object
+      properties:
+        providerId:
+          type: string
+          example: '665f1c2a9b1e8a0012340001'
+        providerName:
+          type: string
+          example: EgyptAir
+        providerType:
+          $ref: '#/components/schemas/ProviderType'
+        totalBookings:
+          type: integer
+          example: 10
+        confirmedBookings:
+          type: integer
+          example: 8
+        completedBookings:
+          type: integer
+          example: 1
+        cancelledBookings:
+          type: integer
+          example: 1
+        pendingBookings:
+          type: integer
+          example: 0
+        totalRevenue:
+          type: integer
+          description: Provider revenue in platform currency integer cents (PAY-04).
+          example: 180000
+        currency:
+          type: string
+          example: USD
 
     # --- Airlines, Flights, and Flight Inventory ---
 
