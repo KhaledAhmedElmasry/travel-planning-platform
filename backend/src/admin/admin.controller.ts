@@ -15,6 +15,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { AdminService } from './admin.service';
 import { AdminActionDto } from './dto/admin-action.dto';
+import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 
@@ -100,5 +101,11 @@ export class AdminController {
   @Get('bookings')
   getBookings(@Query() query: ListBookingsQueryDto) {
     return this.adminService.listBookings(query);
+  }
+
+  // BON-01: Admin analytics dashboard showing bookings and revenue per provider over a selected period
+  @Get('analytics')
+  getAnalytics(@Query() query: AnalyticsQueryDto) {
+    return this.adminService.getAnalytics(query);
   }
 }
