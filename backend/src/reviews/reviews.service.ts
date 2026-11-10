@@ -345,7 +345,7 @@ function changeRatingPipeline(ratingDelta: number) {
   ];
 }
 
-function removeRatingPipeline(rating: number) {
+export function removeRatingPipeline(rating: number) {
   const count = { $ifNull: ['$ratingCount', 0] };
   const average = { $ifNull: ['$averageRating', 0] };
   const remainingCount = { $subtract: [count, 1] };
