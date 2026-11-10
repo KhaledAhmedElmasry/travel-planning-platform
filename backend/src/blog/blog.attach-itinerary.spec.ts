@@ -45,7 +45,7 @@ function makeBlogService(post: ReturnType<typeof makePost> | null) {
   const service = Object.assign(
     Object.create(BlogService.prototype) as object,
     { postModel, itinerariesService },
-  ) as BlogService;
+  ) as unknown as BlogService;
 
   return { service, postModel, itinerariesService, query };
 }
@@ -162,6 +162,7 @@ describe('BLG-13 attach itinerary to post', () => {
       airlineId: null,
       hotelId: null,
       mustChangePassword: false,
+      emailVerified: true,
     };
 
     await expect(
@@ -207,6 +208,7 @@ describe('BLG-13 attach itinerary to post', () => {
         id: new Types.ObjectId().toString(),
         role: Role.HotelModerator,
         mustChangePassword: false,
+        emailVerified: true,
       }),
     };
     const reflector = {

@@ -159,6 +159,7 @@ describe('Blog public detail and author pages', () => {
       airlineId: null,
       hotelId: null,
       mustChangePassword: false,
+      emailVerified: true,
     };
 
     const response = await service.getPostDetail(postId, 2, viewer);
@@ -209,6 +210,7 @@ describe('Blog public detail and author pages', () => {
       airlineId: null,
       hotelId: null,
       mustChangePassword: false,
+      emailVerified: true,
     };
 
     const response = await service.getPostDetail(postId, 1, viewer);
@@ -253,6 +255,7 @@ describe('Blog public detail and author pages', () => {
       airlineId: null,
       hotelId: null,
       mustChangePassword: false,
+      emailVerified: true,
     };
     const otherUser = { ...owner, id: new Types.ObjectId().toString() };
     const admin = {
@@ -290,6 +293,7 @@ describe('Blog public detail and author pages', () => {
       airlineId: null,
       hotelId: null,
       mustChangePassword: false,
+      emailVerified: true,
     };
     const other = { ...owner, id: new Types.ObjectId().toString() };
     const admin = { ...other, role: Role.Admin };
