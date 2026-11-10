@@ -57,13 +57,11 @@ import {
 // Done here (Area 1): the seat hold (FLT-22), the four BookingPaymentHandler methods used by the
 // payments module (PAY-01, PAY-02), confirmation with the booking reference and the e-ticket
 // (FLT-23). The hold-expiry job and cancellation are in flight-booking-lifecycle.service.ts.
-// WAITING FOR: FlightBookingQuoteService.quote() (Area 6) and AirlinesService.getBookingPolicies()
-// (Area 5); until then the hold and the policies answer 501.
+// The summary comes from FlightBookingQuoteService.quote() (FLT-19, FLT-21) and the policies from
+// AirlinesService.getBookingPolicies() (FLT-04, FLT-08, FLT-09).
 // GEN-01: the user is notified on confirmation (see tryConfirm).
-// TODO(FLT-19, FLT-21, FLT-25; Area 6): the summary, the list and the details go here too. The
-// details must include RefundsService.findRefundForBooking() and the refund preview (FLT-26):
-// FlightBookingLifecycleService.previewCancellation(booking), the same function the cancellation
-// uses. For the Upcoming group of the list use upcomingFlightBookings() below (GEN-11).
+// FLT-25: listOwn() and the details; the details include the refund, the payment status and the
+// refund preview (FlightBookingLifecycleService.previewCancellation, the same function cancel uses).
 
 // FLT-22: seats are held for 10 minutes.
 export const HOLD_MINUTES = 10;

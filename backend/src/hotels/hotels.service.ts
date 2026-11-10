@@ -37,7 +37,7 @@ import {
 import { HotelBooking } from '../hotel-bookings/schemas/hotel-booking.schema';
 import { User } from '../users/schemas/user.schema';
 import type { AuthUser } from '../common/interfaces';
-import { pickRefundTier } from './hotel-refund-tier';
+import { pickRefundTier } from '../common/utils';
 import { HotelSearchService } from './hotel-search.service';
 import { Hotel, HotelDocument, HotelPhoto } from './schemas/hotel.schema';
 import { Room, RoomDateRange, RoomDocument } from './schemas/room.schema';
@@ -700,7 +700,6 @@ export class HotelsService {
   }
 
   // GEN-12: the country and city must exist, and the city must belong to the country.
-  // TODO: replace with ReferenceDataService once Area 5 exports its lookups.
   private async assertCityInCountry(cityId: string, countryCode: string) {
     const db = this.connection.db!;
     const country = await db

@@ -218,8 +218,7 @@ export class AuthService {
     }
     await this.sessionsService.revokeAllForUser(targetId);
 
-    // WAITING FOR (GEN-07): AuditService. Record action "reset_password" with the admin id and
-    // targetId here once it is implemented.
+    // GEN-07: the controller records the "reset_password" audit entry.
     return {
       message:
         'Password reset. The account must set a new password at its next login',

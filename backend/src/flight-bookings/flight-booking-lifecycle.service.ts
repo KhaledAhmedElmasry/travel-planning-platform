@@ -42,8 +42,7 @@ import { SeatInventoryService } from './seat-inventory.service';
 //   - cancelBookingsForFlight() + finishFlightCancellation(): POST /api/flights/:id/cancel
 //     (FLT-06; Area 5).
 //
-// WAITING FOR: AirlinesService.getRefundTier() (Area 5, FLT-09); until then cancel and the preview
-// of a confirmed booking answer 501 before changing anything.
+// The refund tier comes from AirlinesService.getRefundTier() (FLT-09).
 // GEN-01: the user is notified of each cancellation (with the refund); RefundsService notifies
 // when the refund is refunded or failed.
 // GEN-11: every status change below uses allowedFrom() / canTransition() from

@@ -43,9 +43,6 @@ import { UsersModule } from './users/users.module';
     // Register it here only, once for the whole app.
     ScheduleModule.forRoot(),
 
-    // TODO: register app-wide providers as they are built, for example the
-    // authentication and role guards (PDF section 6.1).
-
     // Feature modules (one folder each)
     ReferenceDataModule,
     AuthModule,

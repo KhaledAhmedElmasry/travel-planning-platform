@@ -14,7 +14,8 @@ export interface StoredImage {
 
 @Injectable()
 export class UploadsService {
-  // PLACEHOLDER(GEN-08): replace this shared adapter with Area 4's merged media service.
+  // GEN-08: JPG or PNG (checked by the file bytes too), at most 5 MB, served at /uploads/images/.
+  // The per-item limit (5 images) is checked by the module that owns the images.
   async storeImage(file: Express.Multer.File): Promise<StoredImage> {
     if (
       !['image/jpeg', 'image/png'].includes(file.mimetype) ||

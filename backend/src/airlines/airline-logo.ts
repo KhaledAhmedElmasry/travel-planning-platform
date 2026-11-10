@@ -7,11 +7,8 @@ import { join } from 'path';
 // The airline logo (FLT-01) following the shared upload rule (GEN-08): JPG or PNG, at most 5 MB,
 // one logo per airline. The file arrives with multipart/form-data in the "logo" field.
 //
-// The shared upload code (uploads/, Area 4) is not merged yet, so the airline module checks and
-// stores its logo here. When UploadsService is ready this file can call it instead.
-//
 // Files are saved in backend/uploads/airlines/ (git-ignored) and the airline stores the public
-// path /uploads/airlines/<file>. Serving /uploads is set up in main.ts (GEN-08, TODO there).
+// path /uploads/airlines/<file>, served by the static /uploads route in main.ts (GEN-08).
 
 export const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 
