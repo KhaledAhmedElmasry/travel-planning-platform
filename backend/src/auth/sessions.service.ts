@@ -28,10 +28,6 @@ interface TokenPayload {
 const SESSION_ENDED = 'Your session has ended. Please log in again';
 export const ACCOUNT_SUSPENDED = 'Account suspended';
 
-// ACC-06: every authenticated request moves the 30-minute idle deadline forward. To avoid a
-// database write on every request, the session is updated at most once a minute.
-const ACTIVITY_WRITE_INTERVAL_MS = 60 * 1000;
-
 // Area: Auth & Accounts
 // Token-based sessions (ACC-19) and the check behind JwtAuthGuard (ACC-04, ACC-19).
 // Exported by AuthModule, which is global, so the guard works in every module.
@@ -206,7 +202,7 @@ export class SessionsService {
       throw new ForbiddenException(ACCOUNT_SUSPENDED);
     }
 
-    await this.recordActivity(session._id, session.lastActivityAt, now);
+    await this.recordActivity(session._id, now);
 
     return {
       id: user._id.toString(),
@@ -225,14 +221,12 @@ export class SessionsService {
     };
   }
 
+  // ACC-06: every authenticated request moves the 30-minute idle deadline forward, so a session
+  // expires exactly 30 minutes after its last authenticated request.
   private async recordActivity(
     sessionId: Types.ObjectId,
-    lastActivityAt: Date,
     now: Date,
   ): Promise<void> {
-    if (now.getTime() - lastActivityAt.getTime() < ACTIVITY_WRITE_INTERVAL_MS) {
-      return;
-    }
     await this.sessionModel
       .updateOne(
         { _id: sessionId, revokedAt: null },

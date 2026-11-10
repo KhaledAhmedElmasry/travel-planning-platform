@@ -82,6 +82,13 @@ function fieldError(field: string, message: string): BadRequestException {
     fieldErrors: [{ field, messages: [message] }],
   });
 }
+// ACC-01, GEN-02: the duplicate email is shown as an inline error on the email field.
+function emailTaken(): ConflictException {
+  return new ConflictException({
+    message: EMAIL_TAKEN,
+    fieldErrors: [{ field: 'email', messages: [EMAIL_TAKEN] }],
+  });
+}
 const ACCOUNT_DEACTIVATED = 'This account has been deactivated';
 
 // Area: Auth & Accounts
@@ -105,7 +112,7 @@ export class AuthService {
 
     // Gives the clear 409 in the normal case, before spending time on hashing.
     if (await this.usersService.existsByEmail(email)) {
-      throw new ConflictException(EMAIL_TAKEN);
+      throw emailTaken();
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -132,7 +139,7 @@ export class AuthService {
     } catch (err) {
       // Two registrations with the same email at the same moment can both pass the check above;
       // the unique index on email rejects the second one with MongoDB error 11000.
-      if (isDuplicateKeyError(err)) throw new ConflictException(EMAIL_TAKEN);
+      if (isDuplicateKeyError(err)) throw emailTaken();
       throw err;
     }
   }
