@@ -5174,7 +5174,12 @@ paths:
       tags: [Itineraries]
       summary: '[Bonus] Export the itinerary as PDF (ITN-28)'
       description: |
-        **Access:** the owner.
+        **Access:** the owner (role `user`); another user's itinerary is a 404.
+
+        A downloadable PDF (`Content-Disposition: attachment; filename="itinerary-<title>.pdf"`) with the title,
+        countries, start date, every day with its city name, notes, activities (time, cost), budget entries and
+        transport costs, the bookings linked to its days (ITN-27) and the budget totals. Amounts keep their own
+        currencies; nothing is converted. The built-in PDF fonts are Latin only: other characters show as `?`.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
