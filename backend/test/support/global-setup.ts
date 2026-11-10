@@ -7,7 +7,7 @@
 //     forwards the real webhook events of the test account to the application under test.
 //   - FXRatesAPI: the real public API.
 import { execFileSync, spawn } from 'child_process';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -15,7 +15,6 @@ export const WEBHOOK_EVENTS =
   'payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,refund.created,refund.updated,refund.failed';
 
 const BACKEND = join(__dirname, '..', '..');
-const STATE_FILE = join(tmpdir(), 'tp-systest-state.json');
 
 export default async function globalSetup(): Promise<void> {
   const envFile = join(BACKEND, '.env');
@@ -114,10 +113,19 @@ export default async function globalSetup(): Promise<void> {
   listener.stderr.resume();
   listener.unref();
 
-  writeFileSync(
-    STATE_FILE,
-    JSON.stringify({ database, uri: testUri, pid: listener.pid, workDir }),
-  );
-  (globalThis as { __STRIPE_LISTENER__?: unknown }).__STRIPE_LISTENER__ =
-    listener;
+  // Kept in memory for global-teardown.ts (same process). Never in a shared file: two runs at
+  // the same time (other ports, other worktrees) must each clean up only their own database.
+  (globalThis as { __SYSTEST__?: SystemTestState }).__SYSTEST__ = {
+    database,
+    uri: testUri,
+    listener,
+    workDir,
+  };
+}
+
+export interface SystemTestState {
+  database: string;
+  uri: string;
+  listener: ReturnType<typeof spawn>;
+  workDir: string;
 }
