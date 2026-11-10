@@ -34,6 +34,7 @@ export class PasswordResetService {
     private readonly usersService: UsersService,
     private readonly sessionsService: SessionsService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   // ACC-07: the caller always gets RESET_REQUESTED, so nobody can find out which emails exist.

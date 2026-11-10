@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -31,7 +32,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly sessions: SessionsService,
     private readonly reflector: Reflector,
-    private readonly config: ConfigService,
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -61,7 +62,7 @@ export class JwtAuthGuard implements CanActivate {
     // email inbox, for example when the API is tried in Swagger).
     if (
       !user.emailVerified &&
-      this.config.get<string>('REQUIRE_EMAIL_VERIFICATION') === 'true'
+      this.config?.get<string>('REQUIRE_EMAIL_VERIFICATION') === 'true'
     ) {
       const required = this.reflector.getAllAndOverride<boolean | undefined>(
         REQUIRE_VERIFIED_EMAIL_KEY,
