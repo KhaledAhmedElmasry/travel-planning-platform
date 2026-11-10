@@ -37,6 +37,10 @@ import {
   ItinerarySummary,
 } from '../itineraries/itineraries.service';
 
+const MAX_POST_IMAGES = 5;
+const POST_IMAGE_LIMIT_MESSAGE =
+  'Not JPG/PNG, larger than 5 MB, or the post already has 5 images.';
+
 export interface MyPostSummary {
   id: string;
   title: string;
@@ -380,6 +384,104 @@ export class BlogService {
       .aggregate<PostListAggregation>(pipeline)
       .exec();
     return paginate(result?.items ?? [], result?.metadata[0]?.total ?? 0, page);
+  }
+
+  // BLG-10 + GEN-08: attach an image to the author's own post. The shared upload
+  // rule (JPG/PNG, 5 MB, real image bytes) is checked by UploadsService; at most
+  // 5 images per post is enforced atomically in the update itself (the filter
+  // requires that there is no 5th image yet), so simultaneous uploads can never
+  // pass the limit. If the post disappeared or filled up meanwhile, the stored
+  // file is removed again.
+  async attachPostImage(
+    postId: Types.ObjectId,
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<{ id: string; url: string }> {
+    const authorObjectId = new Types.ObjectId(userId);
+    const post = await this.postModel
+      .findById(postId)
+      .select('author images.id')
+      .lean<{ author: Types.ObjectId; images?: { id: string }[] }>()
+      .exec();
+    if (!post) throw new NotFoundException('Post not found.');
+    if (post.author.toString() !== userId) {
+      throw new ForbiddenException('Not the author of this post.');
+    }
+    if ((post.images ?? []).length >= MAX_POST_IMAGES) {
+      throw new BadRequestException(POST_IMAGE_LIMIT_MESSAGE);
+    }
+
+    const image = await this.uploadsService.storeImage(file);
+    let updated: { _id: Types.ObjectId } | null;
+    try {
+      updated = await this.postModel
+        .findOneAndUpdate(
+          {
+            _id: postId,
+            author: authorObjectId,
+            [`images.${MAX_POST_IMAGES - 1}`]: { $exists: false },
+          },
+          {
+            $push: {
+              images: {
+                id: image.id,
+                url: image.url,
+                storageKey: image.storageKey,
+              },
+            },
+          },
+        )
+        .select('_id')
+        .lean<{ _id: Types.ObjectId }>()
+        .exec();
+    } catch (error) {
+      await this.uploadsService.removeImage(image.storageKey);
+      throw error;
+    }
+    if (!updated) {
+      await this.uploadsService.removeImage(image.storageKey);
+      const stillThere = await this.postModel.exists({
+        _id: postId,
+        author: authorObjectId,
+      });
+      if (!stillThere) throw new NotFoundException('Post not found.');
+      throw new BadRequestException(POST_IMAGE_LIMIT_MESSAGE);
+    }
+    return { id: image.id, url: image.url };
+  }
+
+  // BLG-10: remove an image from the author's own post (the file is deleted too).
+  async removePostImage(
+    postId: Types.ObjectId,
+    imageId: string,
+    userId: string,
+  ): Promise<void> {
+    const post = await this.postModel
+      .findById(postId)
+      .select('author images.id +images.storageKey')
+      .lean<{
+        author: Types.ObjectId;
+        images?: { id: string; storageKey: string }[];
+      }>()
+      .exec();
+    if (!post) throw new NotFoundException('Post or image not found.');
+    if (post.author.toString() !== userId) {
+      throw new ForbiddenException('Not the author of this post.');
+    }
+    const image = (post.images ?? []).find((item) => item.id === imageId);
+    if (!image) throw new NotFoundException('Post or image not found.');
+
+    // Only the request that really pulls the image deletes the file.
+    const result = await this.postModel
+      .updateOne(
+        { _id: postId, author: post.author, 'images.id': imageId },
+        { $pull: { images: { id: imageId } } },
+      )
+      .exec();
+    if (result.modifiedCount !== 1) {
+      throw new NotFoundException('Post or image not found.');
+    }
+    await this.uploadsService.removeImage(image.storageKey);
   }
 
   async deletePost(postId: Types.ObjectId, authorId: string): Promise<void> {

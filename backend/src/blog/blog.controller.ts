@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -12,8 +13,11 @@ import {
   Req,
   UnauthorizedException,
   ForbiddenException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
@@ -195,6 +199,31 @@ export class BlogController {
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
     return this.blogService.deletePost(id, user.id);
+  }
+
+  @HttpPost('posts/:id/images')
+  @UseInterceptors(FileInterceptor('image'))
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  attachPostImage(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ): Promise<{ id: string; url: string }> {
+    if (!file) throw new BadRequestException('image is required');
+    return this.blogService.attachPostImage(id, user.id, file);
+  }
+
+  @Delete('posts/:id/images/:imageId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  removePostImage(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('imageId', ParseObjectIdPipe) imageId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    return this.blogService.removePostImage(id, imageId.toHexString(), user.id);
   }
 
   @HttpPost('posts/:id/like')
