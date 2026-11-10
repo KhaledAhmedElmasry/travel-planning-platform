@@ -13,6 +13,7 @@ import {
   UseGuards,
   UploadedFile,
   UseInterceptors,
+  StreamableFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
@@ -148,6 +149,26 @@ export class ItinerariesController {
   }
 
   // ITN-26: search flights from the chosen origin to an airport in the first city.
+  // ITN-28 (bonus): the itinerary as a downloadable PDF.
+  @Get('itineraries/:id/pdf')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async exportPdf(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<StreamableFile> {
+    const { pdf, title } = await this.itinerariesService.exportPdf(id, user.id);
+    const name =
+      title
+        .replace(/[^A-Za-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 60) || 'itinerary';
+    return new StreamableFile(pdf, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="itinerary-${name}.pdf"`,
+    });
+  }
+
   // ITN-27 (bonus): link a Confirmed booking of the user to a day of the itinerary.
   @Post('itineraries/:id/bookings')
   @UseGuards(JwtAuthGuard, RolesGuard)

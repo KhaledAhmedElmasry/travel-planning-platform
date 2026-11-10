@@ -52,6 +52,7 @@ import { TripType } from '../flights/dto/search-flights-query.dto';
 import { ItineraryHotelsQueryDto } from './dto/itinerary-hotels-query.dto';
 import { ItineraryFlightsQueryDto } from './dto/itinerary-flights-query.dto';
 import { AttachBookingDto } from './dto/attach-booking.dto';
+import { renderItineraryPdf } from './itinerary-pdf';
 import {
   ItineraryBookingsService,
   LinkedBookingResponse,
@@ -547,6 +548,38 @@ export class ItinerariesService {
     };
   }
 
+  // ITN-28 (bonus): the owner's itinerary as a PDF (title, days, activities, budget, linked
+  // bookings). Only the owner can export it (404 otherwise, like every private itinerary).
+  async exportPdf(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<{ pdf: Buffer; title: string }> {
+    const itinerary = await this.getOne(itineraryId, userId);
+    const budget = await this.getBudgetSummary(
+      itineraryId,
+      userId,
+      undefined,
+      false,
+    );
+    const cityIds = [
+      ...new Set([
+        ...itinerary.days.map((day) => day.cityId),
+        ...itinerary.transportCosts.flatMap((cost) => [
+          cost.fromCityId,
+          cost.toCityId,
+        ]),
+      ]),
+    ];
+    const cities = await this.connection
+      .collection<{ _id: string; name?: string }>('cities')
+      .find({ _id: { $in: cityIds } })
+      .toArray();
+    const cityNames: Record<string, string> = {};
+    for (const city of cities) cityNames[city._id] = city.name ?? city._id;
+    const pdf = await renderItineraryPdf({ itinerary, budget, cityNames });
+    return { pdf, title: itinerary.title };
+  }
+
   // ITN-27 (bonus): link one of the user's Confirmed bookings to a day of the itinerary.
   async linkBooking(
     itineraryId: string | Types.ObjectId,
@@ -628,6 +661,8 @@ export class ItinerariesService {
     itineraryId: string | Types.ObjectId,
     userId: string,
     currency?: string,
+    // false: only the original totals (used by the PDF export, ITN-28).
+    convert = true,
   ): Promise<BudgetSummaryResponse> {
     const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
     if (currency !== undefined) await this.assertCurrencyExists(currency);
@@ -690,7 +725,7 @@ export class ItinerariesService {
         ? (await this.usersService.findById(userId))?.preferredCurrency
         : undefined);
 
-    if (targetCurrency && this.exchangeRatesService) {
+    if (convert && targetCurrency && this.exchangeRatesService) {
       await this.assertCurrencyExists(targetCurrency);
       const convertedCategories: Record<BudgetCategory, CurrencyTotals> =
         {} as Record<BudgetCategory, CurrencyTotals>;
