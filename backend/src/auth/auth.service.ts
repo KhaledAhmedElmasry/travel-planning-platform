@@ -177,6 +177,11 @@ export class AuthService {
     return { account: toAccount(user), tokens };
   }
 
+  // ACC-19: rotate the session's tokens. The controller sets the new cookies.
+  refresh(refreshToken: string): Promise<AuthTokens> {
+    return this.sessionsService.refresh(refreshToken);
+  }
+
   // ACC-06: revoke the current session on the server. The controller clears the cookies.
   logout(sessionId: string): Promise<void> {
     return this.sessionsService.revoke(sessionId);

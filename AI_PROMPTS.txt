@@ -1690,3 +1690,55 @@ status, and the shared pagination helper. The full backend Jest suite passed (10
 lint passed, and the OpenAPI YAML parsed successfully. Manual Swagger/live Atlas verification remains outstanding.
 HTL-26 replies and booking-completion logic were not implemented.
 
+================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-19
+
+Prompt:
+I asked the assistant to implement GitHub issue #96 (ACC-19): authentication tokens and user
+credentials are never stored in localStorage, sessionStorage or any other JavaScript-accessible
+storage; access and refresh tokens are issued as httpOnly, Secure, SameSite cookies, and the
+frontend gets the current user from /auth/me. Most of this was built in ACC-04 and ACC-06, so I
+asked it to audit the whole backend for anything that still leaks a token, a password or a
+password hash, and to close the remaining gaps.
+
+How the output was used:
+Used the audit results and the NoStoreInterceptor. The audit found no leak: outside auth/ and
+users/ nothing reads passwordHash or a token, validation errors return only field names and
+messages (never the typed value), the error filter logs only the method and URL, and nothing uses
+localStorage or sessionStorage. The remaining gap was HTTP caching, so every response of the auth,
+admin password reset and users controllers now has Cache-Control: no-store. I also added the
+ACC-19 rules for the Milestone 2 frontend to frontend/README.md (credentials: 'include', user only
+in memory from /auth/me, 401 handling, logout, CORS note). Verified with npm run lint, npm run
+build, local tests (the header on success and error responses, and on all three controllers,
+including checks that fail when the interceptor is removed), and in Swagger / DevTools.
+================================================
+
+================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: NEW-07
+
+Prompt:
+I asked the assistant to implement GitHub issue #118 (NEW-07): token-based sessions with a
+short-lived access token and a rotating refresh token, both in httpOnly, Secure, SameSite cookies,
+refresh tokens stored only as hashes, rotated on each refresh, a 30-minute idle expiry, and reuse
+of a rotated or revoked refresh token rejected with 401. Login, logout and the session revocations
+already existed, so I asked for the missing refresh endpoint, following ASSUMED_REQUIREMENTS.md,
+and for it to be added to docs/api/openapi.yaml.
+
+How the output was used:
+Used as the base for POST /api/auth/refresh, SessionsService.refresh and signTokens, and the
+openapi.yaml entry. I checked it against the acceptance criteria: a refresh issues a new access
+token and a rotated refresh token (each token has a unique jti, so the new one never equals the
+old one), the old one stops working, the rotation is one conditional database update so two
+refreshes with the same token cannot both succeed, reusing a rotated token revokes the whole
+session, an idle (30 minutes), revoked, suspended or deactivated session is rejected, and both
+cookies are cleared on every failure. The refresh token and cookie now last up to 24 hours while
+the server-side idle expiry decides, so an active user is not cut off 30 minutes after login.
+Verified with npm run lint, npm run build, local tests (including checks that fail when the
+rotation, the reuse revoke or the unique token id is removed), and in Swagger.
+================================================

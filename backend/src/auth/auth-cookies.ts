@@ -9,8 +9,12 @@ export const REFRESH_COOKIE = 'refresh_token';
 
 // The access token is short-lived (ACC-19).
 export const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
-// A session with no activity for 30 minutes expires (ACC-06).
+// A session with no activity for 30 minutes expires (ACC-06, ACC-19). Checked on the server with
+// the session's expiresAt, which moves forward with every authenticated request and refresh.
 export const SESSION_IDLE_SECONDS = 30 * 60;
+// ACC-19: the refresh token (and its cookie) is an upper limit only. Whether it still works is
+// decided by the session's 30-minute idle expiry, so an active user is never cut off early.
+export const REFRESH_TOKEN_TTL_SECONDS = 24 * 60 * 60;
 
 export interface AuthTokens {
   accessToken: string;
@@ -35,7 +39,7 @@ export function setAuthCookies(res: Response, tokens: AuthTokens): void {
   res.cookie(REFRESH_COOKIE, tokens.refreshToken, {
     ...BASE,
     path: '/api/auth',
-    maxAge: SESSION_IDLE_SECONDS * 1000,
+    maxAge: REFRESH_TOKEN_TTL_SECONDS * 1000,
   });
 }
 
