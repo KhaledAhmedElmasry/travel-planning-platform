@@ -41,6 +41,7 @@ import {
   FlightBooking,
   FlightBookingDocument,
 } from './schemas/flight-booking.schema';
+import { FlightSeatSelectionService } from './flight-seat-selection.service';
 import { SeatInventoryService } from './seat-inventory.service';
 import {
   DEFAULT_PAGE_SIZE,
@@ -147,6 +148,7 @@ export class FlightBookingsService implements BookingPaymentHandler {
     private readonly airlines: AirlinesService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly seatSelection: FlightSeatSelectionService,
   ) {}
 
   // POST /api/flight-bookings/hold (FLT-22): reserve the seats on every segment and create the
@@ -225,6 +227,8 @@ export class FlightBookingsService implements BookingPaymentHandler {
       passengers: booking.passengers,
       totalAmount: booking.totalAmount,
       currency: booking.currency,
+      // FLT-28: the seats the passengers chose, if any.
+      seats: await this.seatSelection.list(booking),
     });
     return { pdf, reference: booking.reference };
   }

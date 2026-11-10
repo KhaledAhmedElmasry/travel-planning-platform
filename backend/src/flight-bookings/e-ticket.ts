@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import PDFDocument from 'pdfkit';
 import { formatMoney } from '../payments/format-money';
+import type { SeatAssignmentResponse } from './flight-seat-selection.service';
 import {
   BookedPassenger,
   BookedSegment,
@@ -16,6 +17,8 @@ export interface ETicketData {
   passengers: BookedPassenger[];
   totalAmount: number;
   currency: string;
+  // FLT-28 (bonus): the chosen seats, shown next to the passenger.
+  seats?: SeatAssignmentResponse[];
 }
 
 const CABIN_NAMES: Record<string, string> = {
@@ -67,13 +70,17 @@ export function renderETicket(ticket: ETicketData): Promise<Buffer> {
 
     doc.font('Helvetica-Bold').fontSize(14).text('Passengers');
     doc.font('Helvetica').fontSize(12);
-    for (const p of ticket.passengers) {
+    for (const [index, p] of ticket.passengers.entries()) {
       const extra =
         p.extraBags.length > 0
           ? `, extra bags: ${p.extraBags.map((b) => `${b.weightKg} kg`).join(', ')}`
           : '';
+      const seats = (ticket.seats ?? [])
+        .filter((seat) => seat.passengerIndex === index)
+        .map((seat) => `${seat.flightNumber} seat ${seat.seatNumber}`)
+        .join(', ');
       doc.text(
-        `${p.fullName} (${p.type}) - passport/ID ${p.passportNumber}${extra}`,
+        `${p.fullName} (${p.type}) - passport/ID ${p.passportNumber}${extra}${seats ? ` - ${seats}` : ''}`,
       );
     }
     doc.moveDown();

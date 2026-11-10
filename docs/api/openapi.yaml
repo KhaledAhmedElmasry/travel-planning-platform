@@ -2472,7 +2472,18 @@ paths:
       description: |
         **Access:** the user who made the booking.
 
-        Chooses a seat for one passenger on one segment. Infants have no seat.
+        Chooses (or moves) the seat of one passenger on one flight of a **Confirmed** booking, before that
+        flight departs. Infants have no seat. Choosing the seat the passenger already has changes nothing.
+
+        There is no stored seat map: the seats of a cabin are derived from its seat count (FLT-04). Economy
+        and premium economy have 6 seats per row (A-F), business and first 4 (A-D); rows start at 1 in every
+        cabin and the last row may be partly filled (a 20-seat economy cabin has 1A-4B). A seat belongs to one
+        passenger of one Confirmed booking; two requests for the same seat at the same moment give one 200 and
+        one 409. Seats of a booking that was cancelled are free again.
+
+        The response is the booking with `seatAssignments` (segment, passengerIndex, passengerName, flightNumber,
+        cabinClass, seatNumber); `GET /api/flight-bookings/{id}` shows them too, and the e-ticket prints each
+        passenger's seat.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -2484,9 +2495,14 @@ paths:
               $ref: '#/components/schemas/SelectSeatRequest'
       responses:
         '200':
-          description: The booking with the selected seat.
+          description: The booking with its `seatAssignments`.
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid body, an infant, no return flight on a one-way booking, a passenger that does not exist, or a seat that does not exist in the cabin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Seat 5A does not exist in this cabin (rows 1-4, letters A-F).", "path": "/api/flight-bookings/665f1c2a9b1e8a00123400a1/seat", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -2497,7 +2513,7 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Booking not found, or it belongs to another user.", "path": "/api/flight-bookings/665f1c2a9b1e8a00123400a1/seat", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
-          description: The seat is already taken.
+          description: The seat is already taken, the booking is not Confirmed, or the flight has already departed.
           content:
             application/json:
               schema:
