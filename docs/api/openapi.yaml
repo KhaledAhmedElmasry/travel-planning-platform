@@ -5995,6 +5995,81 @@ paths:
                     type: string
                     format: date-time
 
+  /api/favourites:
+    post:
+      operationId: addFavourite
+      tags: [Favourites]
+      summary: 'Save a hotel or public itinerary'
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddFavourite'
+            examples:
+              hotel:
+                value: {type: hotel, targetId: '507f1f77bcf86cd799439011'}
+              itinerary:
+                value: {type: itinerary, targetId: '507f1f77bcf86cd799439012'}
+      responses:
+        '201':
+          description: The favourite was created or already existed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favourite'
+        '400':
+          description: Invalid type or target ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Only registered users can manage favourites.
+        '404':
+          description: The hotel is inactive, or the itinerary is not public.
+    get:
+      operationId: listFavourites
+      tags: [Favourites]
+      summary: 'List the current user’s private favourites'
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: {type: integer, minimum: 1, default: 1}
+        - name: type
+          in: query
+          schema: {type: string, enum: [hotel, itinerary]}
+      responses:
+        '200':
+          description: Paginated favourites. Inactive or no-longer-public targets are omitted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFavourites'
+        '403':
+          description: Only registered users can manage favourites.
+
+  /api/favourites/{id}:
+    delete:
+      operationId: removeFavourite
+      tags: [Favourites]
+      summary: 'Remove one of the current user’s favourites'
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Favourite removed.
+        '403':
+          description: Only registered users can manage favourites.
+        '404':
+          description: Favourite not found for the current user.
+
 components:
 
   securitySchemes:
@@ -6106,6 +6181,73 @@ components:
           example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Validation failed", "fieldErrors": [{"field": "title", "messages": ["title should not be empty"]}], "path": "/api/itineraries", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   schemas:
+
+    AddFavourite:
+      type: object
+      required: [type, targetId]
+      properties:
+        type:
+          type: string
+          enum: [hotel, itinerary]
+        targetId:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: '507f1f77bcf86cd799439011'
+
+    Favourite:
+      type: object
+      required: [id, type, targetId, item]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [hotel, itinerary]
+        targetId:
+          type: string
+        item:
+          oneOf:
+            - $ref: '#/components/schemas/FavouriteHotel'
+            - $ref: '#/components/schemas/FavouriteItinerary'
+
+    FavouriteHotel:
+      type: object
+      required: [id, name, cityId, countryCode, starRating, photo, averageRating, ratingCount]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        cityId: {type: string}
+        countryCode: {type: string}
+        starRating: {type: number}
+        photo: {type: string, nullable: true}
+        averageRating: {type: number}
+        ratingCount: {type: integer}
+
+    FavouriteItinerary:
+      type: object
+      required: [id, title, countryCodes, startDate, numberOfDays, visibility]
+      properties:
+        id: {type: string}
+        title: {type: string}
+        countryCodes:
+          type: array
+          items: {type: string}
+        startDate: {type: string, format: date}
+        numberOfDays: {type: integer}
+        visibility: {type: string, enum: [public]}
+
+    PaginatedFavourites:
+      type: object
+      required: [items, page, pageSize, total, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Favourite'
+        page: {type: integer}
+        pageSize: {type: integer}
+        total: {type: integer}
+        totalPages: {type: integer}
 
     # --- Shared formats ---
 

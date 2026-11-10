@@ -319,6 +319,25 @@ export class HotelsService {
     );
   }
 
+  // BON-02: summary used by the private favourites list.
+  async findFavouriteSummary(hotelId: Types.ObjectId) {
+    const hotel = await this.hotelModel.findOne({
+      _id: hotelId,
+      active: { $ne: false },
+    });
+    if (!hotel) return null;
+    return {
+      id: hotel.id as string,
+      name: hotel.name,
+      cityId: hotel.cityId,
+      countryCode: hotel.countryCode,
+      starRating: hotel.starRating,
+      photo: hotel.photos[0]?.url ?? null,
+      averageRating: hotel.averageRating,
+      ratingCount: hotel.ratingCount,
+    };
+  }
+
   // --- HTL-01: edit (only the moderator assigned to THIS hotel) ---
 
   async updateHotel(
