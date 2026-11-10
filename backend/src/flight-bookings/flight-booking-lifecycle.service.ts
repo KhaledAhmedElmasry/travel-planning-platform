@@ -31,8 +31,8 @@ import {
 import { SeatInventoryService } from './seat-inventory.service';
 
 // Area: Payments, Holds & Booking Engine
-// Requirements: FLT-22 (hold expiry), FLT-26 (cancellation + refund preview), FLT-06 / NEW-02
-// (bookings of a flight the airline cancels), PAY-03, GEN-11 (completion), NEW-01
+// Requirements: FLT-22 (hold expiry), FLT-26 (cancellation + refund preview), FLT-06
+// (bookings of a flight the airline cancels), PAY-03, GEN-11 (completion)
 // Status changes that also touch the seat counters, payments and refunds. Kept apart from
 // FlightBookingsService so that the payments module (which uses FlightBookingsService) and this
 // service (which uses the payments module) do not depend on each other in a circle.
@@ -40,7 +40,7 @@ import { SeatInventoryService } from './seat-inventory.service';
 // Used by other areas (FlightBookingsModule exports this service):
 //   - previewCancellation(): the refund shown in the booking details (FLT-25, FLT-26; Area 6);
 //   - cancelBookingsForFlight() + finishFlightCancellation(): POST /api/flights/:id/cancel
-//     (FLT-06, NEW-02; Area 5).
+//     (FLT-06; Area 5).
 //
 // WAITING FOR: AirlinesService.getRefundTier() (Area 5, FLT-09); until then cancel and the preview
 // of a confirmed booking answer 501 before changing anything.
@@ -188,7 +188,7 @@ export class FlightBookingLifecycleService {
     return { ...this.bookings.toResponse(state.cancelled), refund };
   }
 
-  // FLT-06, NEW-02 (Area 5): the airline cancels flight `flightId`. Call this INSIDE the
+  // FLT-06 (Area 5): the airline cancels flight `flightId`. Call this INSIDE the
   // transaction that sets the flight's status to 'cancelled', with the same session, so the
   // flight and its bookings change together (that flight write also stops new seat holds). After
   // the transaction committed, call finishFlightCancellation() with the result.
@@ -250,7 +250,7 @@ export class FlightBookingLifecycleService {
     };
   }
 
-  // FLT-06, NEW-02 (Area 5): call after the transaction of cancelBookingsForFlight() committed.
+  // FLT-06 (Area 5): call after the transaction of cancelBookingsForFlight() committed.
   // Refunds 100% of every cancelled booking through Stripe (PAY-03) and cancels the PaymentIntents
   // of the expired ones (PAY-01). Safe to call twice. Errors are logged, not thrown: a refund that
   // could not be created is created by the owed-refunds job, and a payment that still succeeds for
@@ -286,7 +286,7 @@ export class FlightBookingLifecycleService {
     }
   }
 
-  // NEW-02: every affected user is notified once, even if finishFlightCancellation() runs again.
+  // FLT-06: every affected user is notified once, even if finishFlightCancellation() runs again.
   // Errors are logged, not thrown, like the rest of finishFlightCancellation().
   private async notifyOnce(
     bookingId: string,
@@ -312,7 +312,7 @@ export class FlightBookingLifecycleService {
     }
   }
 
-  // GEN-11, NEW-01: every minute, Confirmed bookings whose LAST flight has departed (the return
+  // GEN-11: every minute, Confirmed bookings whose LAST flight has departed (the return
   // flight of a round trip) become Completed. One update for all of them; nothing else changes
   // (the seats stay booked). Completed is final: it can no longer be cancelled or paid.
   @Cron(CronExpression.EVERY_MINUTE, { name: 'flight-booking-completion' })
@@ -444,7 +444,7 @@ export class FlightBookingLifecycleService {
     return refund;
   }
 
-  // FLT-22, NEW-01: every minute, bookings still pending payment after their 10-minute hold
+  // FLT-22, GEN-11: every minute, bookings still pending payment after their 10-minute hold
   // become expired, their held seats are released and the Stripe PaymentIntent is cancelled.
   // Safe to run again or in parallel: each booking changes only if it is still pending.
   @Cron(CronExpression.EVERY_MINUTE, { name: 'flight-booking-hold-expiry' })

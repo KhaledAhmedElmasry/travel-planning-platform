@@ -28,7 +28,7 @@ import { RefundReason } from './schemas/refund.schema';
 import { STRIPE_CLIENT } from './stripe.provider';
 
 // Area: Payments & Refunds
-// Business logic and database access for: PAY-01, PAY-02, PAY-03, PAY-04, NEW-04
+// Business logic and database access for: PAY-01, PAY-02, PAY-03, PAY-04
 //
 // PAY-01 status: done here. Flights and hotels are connected (FLT-22, FLT-23:
 // flight-bookings.service.ts; HTL-17, HTL-18: hotel-bookings.service.ts), and both hold-expiry
@@ -179,6 +179,18 @@ export class PaymentsService {
     return this.toResponse(await this.findOwnedPayment(userId, paymentId));
   }
 
+  // For the booking details (FLT-25, HTL-20): the payment status of a booking, or null when the
+  // user has not started paying. A booking has at most one payment (unique index), and the
+  // response never includes the Stripe client secret.
+  async findPaymentForBooking(
+    bookingType: BookingType,
+    bookingId: string,
+  ): Promise<PaymentResponse | null> {
+    if (!isValidObjectId(bookingId)) return null;
+    const payment = await this.paymentModel.findOne({ bookingType, bookingId });
+    return payment ? this.toResponse(payment) : null;
+  }
+
   // POST /api/payments/webhook (PAY-01). Only a verified Stripe event changes a booking.
   async handleWebhook(
     rawBody: Buffer | undefined,
@@ -222,7 +234,7 @@ export class PaymentsService {
     return { received: true };
   }
 
-  // Called by the hold-expiry cron (NEW-01) when it expires a pending_payment booking:
+  // Called by the hold-expiry cron (GEN-11) when it expires a pending_payment booking:
   // cancels the PaymentIntent so it can no longer be paid (PAY-01).
   // Used by FlightBookingLifecycleService.expireHolds and HotelBookingLifecycleService.expireHolds.
   async cancelPaymentForBooking(
@@ -359,7 +371,7 @@ export class PaymentsService {
     return this.toResponse(payment, current.client_secret);
   }
 
-  // Ownership, status, hold and policy checks before any payment (PAY-01, PAY-02, NEW-01).
+  // Ownership, status, hold and policy checks before any payment (PAY-01, PAY-02, GEN-11).
   private async loadPayableBooking(
     userId: string,
     bookingType: BookingType,

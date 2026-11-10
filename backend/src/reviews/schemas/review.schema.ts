@@ -1,10 +1,38 @@
-// Area: Hotel Booking & Reviews
-//
-// TODO: define the Mongoose schema for:
-//   Review (PDF section 5 "Hotel Bookings"): reservation, user, hotel, rating, text.
-//   See HTL-23.
-//   Also needed: one review per reservation (unique index), hidden flag (GEN-10).
-//
-// Bonus HTL-26: a hotel moderator reply to the review.
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
-export {};
+export type ReviewDocument = HydratedDocument<Review>;
+
+// Area: Hotel Booking & Reviews
+// HTL-23: one review for each completed reservation. hidden is managed by GEN-10.
+@Schema({ timestamps: true })
+export class Review {
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'HotelBooking',
+    required: true,
+  })
+  reservation: Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
+  user: Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Hotel', required: true })
+  hotel: Types.ObjectId;
+
+  @Prop({ required: true, min: 1, max: 5, validate: Number.isInteger })
+  rating: number;
+
+  @Prop({ trim: true, maxlength: 1000 })
+  text?: string;
+
+  @Prop({ type: Boolean, required: true, default: false, index: true })
+  hidden: boolean;
+
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export const ReviewSchema = SchemaFactory.createForClass(Review);
+ReviewSchema.index({ reservation: 1 }, { unique: true });
+ReviewSchema.index({ hotel: 1, hidden: 1, createdAt: -1 });

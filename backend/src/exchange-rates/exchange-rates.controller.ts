@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 
 // Area: Itineraries
-// Requirements: ITN-18, NEW-04
+// Requirements: ITN-18, PAY-04
 // Endpoints to implement (PDF section 8):
 //   none of its own. GET /api/itineraries/:id/budget-summary?currency=... (itineraries module)
 //   calls ExchangeRatesService for conversion (ITN-18).

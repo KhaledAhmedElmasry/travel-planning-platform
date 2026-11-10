@@ -6,6 +6,26 @@ in chronological order, using the format below (project description, section 11)
 Add your entry in the same pull request as the work it relates to.
 
 ================================================
+Date: 2026-11-06
+Student: Salaheldin Mahmoud
+Tool: Copilot
+Related Requirement: BON-02 / Issue #111
+
+Prompt:
+Implement BON-02 on a new branch after all mandatory hotel requirements are merged: allow
+registered users to save hotels and public itineraries to a private favourites list, list them
+with pagination and optional type filtering, and remove them. Use idempotent duplicate saves,
+retain deactivated hotels while hiding them from list results, allow only normal registered users,
+enforce ownership on deletion, reuse existing public itinerary visibility rules, document all
+routes in OpenAPI, add tests, and run lint, build and the complete npm test suite.
+
+How the output was used:
+Used AI assistance to implement the Favourite schema, DTOs, protected controller, service,
+hotel and itinerary summary lookups, OpenAPI contract, and validation workflow. Duplicate saves
+are handled idempotently by the unique compound index and upsert; private list and delete queries
+are scoped to the authenticated user. Backend lint, build and all Jest tests passed. Swagger
+manual verification remains for the PR tester.
+================================================
 Date: 2026-11-04
 Student: Ibrahim Alalamy
 Tool: Codex
@@ -1279,6 +1299,396 @@ view, only Public and not hidden itineraries can be found, viewed or cloned, the
 the original author credited, and the original is unchanged. Verified with npm run lint,
 npm run build, local tests and in Swagger by publishing an itinerary as one user and searching,
 viewing and cloning it as another (demo scenario 9).
+================================================
+Date: 2026-11-04
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-04
+Prompt:
+Asked for POST /api/hotels/:id/rooms/:roomId/availability: add a bookable date range to a room, with
+inclusive dates, validation of real calendar dates, and a rule that the room's ranges must not overlap.
+How the output was used:
+Reviewed the generated DTO, service method and controller route. The overlap check is one atomic
+findOneAndUpdate so concurrent requests cannot both succeed. Fixed lint formatting, ran build and tests,
+and tested every case in Swagger (screenshots attached to the PR).
+================================================
+================================================
+Date: 2026-11-04
+Student: Salaheldin Mahmoud
+Tool: ChatGPT
+Related Requirement: HTL-04
+Prompt:
+Asked the assistant to resolve the merge conflicts after merging develop into feature/HTL-04-room-availability
+(hotels.service.ts, hotels.controller.ts, AI_PROMPTS.txt) and to report build, test and lint status.
+How the output was used:
+Reviewed the resolved files against the expected routes and methods, and confirmed build, tests and lint pass.
+================================================
+Date: 2026-11-06
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: BLG-04, BLG-06, BLG-07, BLG-09
+
+Prompt:
+Implement the Blog batch BLG-04, BLG-06, BLG-07 and BLG-09 on
+feature/BLG-04-06-07-09-blog-management-Alamy. Preserve BLG-01, BLG-03, BLG-05 and BLG-08;
+follow the OpenAPI and repository conventions; implement owner-only post/comment edits and deletes,
+transactional likes with a unique post/user index, and published post search with pagination,
+tag filtering and author-name matching. Reuse the existing upload cleanup adapter for post image
+deletion, keep image upload out of scope, add tests, synchronize OpenAPI, and report actual checks.
+
+How the output was used:
+Used Codex to inspect the existing Blog, authentication, pagination, media and API contracts and to
+implement the four requirements. A follow-up review identified the post-image cleanup retry gap and
+the comment-creation/post-deletion race; the changes add a durable cleanup record, transactional
+comment creation, and focused rollback/retry tests. Jest passed (3 suites, 35 tests), as did the
+backend build, lint, OpenAPI YAML parsing and diff check. Search ordering/exclusion tests inspect the
+Mongo aggregation pipeline; no live MongoDB or Swagger verification has been performed.
+================================================
+Date: 2026-11-07
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: BLG-02, BLG-12
+
+Prompt:
+Implement the public post-detail endpoint and public author page according to the existing OpenAPI
+contract. Preserve existing Blog behavior; use optional cookie authentication for likedByMe, enforce
+post and comment visibility, paginate comments/posts/public itineraries independently, reuse
+UsersService and ItinerariesService, exclude private or hidden content, document the response schemas,
+and add focused automated tests.
+
+How the output was used:
+Used Codex to inspect the current branch, OpenAPI, Blog, Users, and Itineraries implementations and to
+add the detail and author-page service/controller behavior, DTOs, OpenAPI schemas, and tests. The
+changes were reviewed against repository conventions. Focused and full Jest runs passed (3 suites,
+19 tests), as did the backend build and lint. OpenAPI YAML parsing and response-reference checks
+passed. No live MongoDB or Swagger verification has been performed.
+================================================
+
+
+Date: 2026-11-07  
+Student: Omar Ahmed Alaga 
+Tool: Codex  
+Related Requirement: HTL-20, HTL-22
+
+**Prompt:**
+
+Implement HTL-20 and HTL-22 for the existing hotel reservation functionality in the NestJS and Mongoose backend.
+
+The implementation should cover:
+
+- HTL-20: Allow registered users to view their hotel reservations grouped into Upcoming, Past, and Cancelled.
+- HTL-22: Allow hotel moderators to view reservations for their assigned hotel, including guest information, reservation dates, and booking status.
+- Implement reservation retrieval using the existing hotel booking and hotel modules, controllers, services, DTOs, and schemas.
+- Enforce authentication, role-based authorization, and ownership restrictions.
+- Support pagination and appropriate error handling.
+- Ensure users can only access their own reservations and hotel moderators can only access reservations belonging to their assigned hotel.
+Student: Omar Ahmed Alaga  
+Tool: Codex  
+Related Requirement: FLT-25, FLT-29
+
+**Prompt:**
+
+Implement FLT-25 and FLT-29 for the existing flight booking functionality in the NestJS and Mongoose backend.
+
+The implementation should cover:
+
+- FLT-25: Allow registered users to view their flight bookings grouped into Upcoming, Past, and Cancelled.
+- FLT-29: Allow airline moderators to view bookings for their flights, including booking references, passenger names, cabin information, and booking details.
+- Implement a CSV export of passenger information for a specific flight.
+- Use the existing flight booking and flight modules, controllers, services, DTOs, and schemas.
+- Enforce authentication, role-based authorization, and ownership restrictions.
+- Support pagination and consistent error handling where applicable.
+- Update Swagger documentation for the relevant endpoints.
+- Preserve existing functionality and avoid unrelated changes.
+
+**How the output was used:**
+
+Codex was used to assist with implementing hotel reservation retrieval for registered users (HTL-20) and hotel moderator reservation lists (HTL-22).
+
+The generated code was reviewed and adapted to the existing NestJS and Mongoose backend structure.
+
+The implementation was checked for reservation grouping, ownership restrictions, moderator authorization, pagination, and correct reservation information.
+Codex was used to assist with implementing the flight booking lists (FLT-25) and airline moderator flight manifests (FLT-29).
+
+The generated code was reviewed and adapted to the existing NestJS and Mongoose backend structure.
+
+The implementation was checked for booking grouping, user ownership restrictions, moderator authorization, pagination, and passenger CSV export.
+
+The relevant endpoints were tested through Swagger using valid requests, invalid inputs, and unauthorized access scenarios.
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: HTL-05
+
+Prompt:
+I want to finish GitHub issue #36 (HTL-05) on its own branch feature/HTL-05-edit-room. Let the
+moderator assigned to a hotel edit a room's beds, maximum occupancy and price per night through
+PATCH /api/hotels/:id/rooms/:roomId, and remove bookable nights through
+PATCH /api/hotels/:id/rooms/:roomId/availability with action remove. Follow the issue,
+docs/api/openapi.yaml, docs/CONVENTIONS.md, the room schema agreed with Area 1 and the ownership
+helper. Only the fields sent change and at least one must be sent. Price changes must not affect
+existing reservations. Removing nights splits a bookable range when needed, both ends of a range
+are included, and it is refused for nights that have a Confirmed reservation or a hold that is
+still being paid, using Area 1's RoomInventoryService. The check and the write must be safe when a
+hold is saved at the same moment. Give clear 400, 401, 403, 404 and 409 errors, keep the code in
+separate files so it does not conflict with the open HTL-04 pull request, and add local tests.
+
+How the output was used:
+Used as the base for UpdateRoomDto, UpdateRoomAvailabilityDto, the range helpers, RoomsService and
+RoomsController. I checked it against the issue and openapi.yaml: only the moderator of the hotel
+can change its rooms, the room number and type stay the same, prices on existing reservations are
+untouched because Area 1 stores them on the reservation, removing nights in the middle of a range
+leaves two ranges, and nights with reservations cannot be removed. The change runs in one
+transaction that reads and writes the room, so it conflicts with a hold saved at the same moment
+and one of them runs again. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-06
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-06
+
+Prompt:
+I want to finish GitHub issue #37 (HTL-06) on its own branch feature/HTL-06-block-deactivate-delete-room,
+on top of my HTL-05 branch. Let the moderator assigned to a hotel block and unblock nights of a room
+through PATCH /api/hotels/:id/rooms/:roomId/availability with action block or unblock, deactivate or
+activate a room through PATCH /api/hotels/:id/rooms/:roomId with active false or true, and delete a
+room through DELETE /api/hotels/:id/rooms/:roomId. Follow the issue, docs/api/openapi.yaml and the
+room schema agreed with Area 1. A block is refused if the nights overlap a Confirmed or Pending
+Payment reservation, and overlapping blocks are joined. Deactivation is refused while the room has
+a Confirmed or Pending Payment reservation from today on. Only a room that was never reserved can
+be deleted, otherwise the moderator is told to deactivate it. Use Area 1's RoomInventoryService,
+lastReservedAt and the reservation index on rooms.roomId, make every check safe when a hold is saved
+at the same moment, give clear 400, 401, 403, 404 and 409 errors and add local tests.
+
+How the output was used:
+Used as the base for the block, unblock, deactivate and delete logic in RoomsService, the DELETE
+route and the range join helper. I checked it against the issue and openapi.yaml: a block over a
+reservation gives 409 with the nights, unblocking part of a block splits it, a room with a stay
+from today on cannot be deactivated but can still be edited, past stays do not stop a deactivation,
+and a room that was ever held or reserved cannot be deleted. Each change runs in one transaction
+that reads and writes the room, so it conflicts with a hold saved at the same moment and one of
+them runs again. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-15
+
+Prompt:
+I want to finish GitHub issue #43 (HTL-15) on its own branch feature/HTL-15-available-rooms, on top
+of my HTL-06 branch. Add GET /api/hotels/:id/rooms/available with checkIn, checkOut and page, open
+to everyone. List the active rooms of an active hotel that are free for every night of the stay,
+cheapest first, with the number of nights, the total stay price in cents and the platform currency,
+10 per page. A room is free with the same rules as Area 1's hold: every night inside a bookable
+range, outside every blocked range, and not taken by a Confirmed reservation or an unexpired hold
+(RoomInventoryService). Check-out must be after check-in and check-in cannot be in the past. Put the
+free-room logic in an exported service so the hotel search (HTL-11) and Area 6 (ITN-25) can reuse
+it, follow docs/api/openapi.yaml, and add local tests.
+
+How the output was used:
+Used as the base for AvailableRoomsQueryDto, the stay date helpers, HotelSearchService and
+HotelSearchController. I checked it against the issue and openapi.yaml: deactivated rooms and rooms
+of a deactivated hotel are left out, a room needs a bookable range on every night but not on the
+departure day, blocked and reserved nights remove the room, an empty result is an empty page, and
+bad or past dates give 400. The rules match the hold, so a room shown here can be held unless
+someone takes it first. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-11
+
+Prompt:
+I want to finish GitHub issue #41 (HTL-11) on its own branch feature/HTL-11-hotel-search, on top of
+my HTL-15 branch. Add GET /api/hotels/search, open to everyone, with city or country, checkIn,
+checkOut, guests, rooms (default 1) and page. List the active hotels that have at least that many
+free rooms for the whole stay whose combined maximum occupancy covers the guests, using the
+free-room logic from HTL-15. Each result needs the id, name, city, country, star class, first
+photo, average rating, number of ratings and the price per night of the cheapest qualifying room,
+10 per page, cheapest first. Give 400 when city and country are both missing, for bad or past
+dates, and when there are more rooms than guests. Keep the search in the exported
+HotelSearchService so Area 6 can reuse it for ITN-25, make sure /hotels/search is not matched as
+/hotels/:id, follow docs/api/openapi.yaml and add local tests.
+
+How the output was used:
+Used as the base for SearchHotelsQueryDto, HotelSearchService.search(), the qualify() rule and the
+search route. I checked it against the issue and openapi.yaml: deactivated hotels and hotels
+without enough free rooms are left out, 4 guests in 1 room need a room for 4 while 4 guests in 2
+rooms can use two rooms for 2, a search with no match is an empty page, and the search route is
+registered before GET /hotels/:id. Verified with npm run lint, npm run build, local tests and in
+Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-12
+
+Prompt:
+I want to finish GitHub issue #42 (HTL-12) on its own branch feature/HTL-12-price-filter-sorting,
+on top of my HTL-11 branch. Add to GET /api/hotels/search an inclusive minPrice and maxPrice in
+cents on the price per night of the cheapest qualifying room, a minRating from 1 to 5 that leaves
+out unrated hotels, and sorting with sortBy price or rating and sortOrder asc or desc, ascending by
+default. minPrice greater than maxPrice gives 400, and invalid values give clear 400 errors. Keep it
+in the exported HotelSearchService so ITN-25 gets the same results, follow docs/api/openapi.yaml and
+add local tests.
+
+How the output was used:
+Used as the base for the new query fields, the price range check and the sort order in
+HotelSearchService. I checked it against the issue and openapi.yaml: both price limits are
+included, the filter uses the price shown for each hotel, a minimum rating leaves out hotels with
+no ratings, unrated hotels come last when sorting by rating, equal ratings are sorted by price, and
+minPrice above maxPrice gives 400. Verified with npm run lint, npm run build, local tests and in
+Swagger.
+
+================================================
+Date: 2026-11-08
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: BLG-13 (#109)
+
+Prompt:
+Implement BLG-13 on feature/BLG-13-attach-itinerary-to-post-Alamy. Add the required nullable
+itineraryId DTO, an optional Itinerary reference on Post, and PATCH /api/posts/{id}/itinerary for
+the authenticated author. Reuse ItinerariesService.getOne(itineraryId, userId) for ownership,
+support null detachment, return a documented minimal updated-post response, add focused validation,
+controller and service tests, and update OpenAPI without reimplementing BLG-01 or ITN-03.
+
+How the output was used:
+Used Codex to inspect the existing contracts and implement the BLG-13 DTO, Post reference, guarded
+controller route, service logic, response schema and focused tests. Reviewed the changes against
+the existing authentication, validation and itinerary ownership conventions. Focused Jest tests
+passed (2 suites, 16 tests), the full backend suite passed (5 suites, 36 tests), and build, lint and
+OpenAPI YAML parsing passed. No live MongoDB or Swagger verification has been performed.
+
+================================================
+Date: 2026-11-09
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-02 / Issue #33 (also closes HTL-09 / Issue #39)
+
+Prompt:
+Implement HTL-02 on feature/HTL-02-hotel-details as GET /api/hotels/:id, following the
+authoritative requirements and docs/api/openapi.yaml. Return the active hotel's profile, photos,
+amenities, check-in and check-out times, cancellation tiers, average rating and rating count.
+Support optional checkIn, checkOut and guests query parameters, reuse the existing HTL-15 free-room
+logic and stay-date validation, reject incomplete or invalid dates, filter rooms by guests'
+minimum occupancy, and update the OpenAPI response documentation. Keep the change limited to the
+hotels area and create a separate branch from develop.
+
+How the output was used:
+Used the generated hotel-details DTO, public controller route and HotelsService.getHotelDetails().
+The implementation reuses HotelSearchService.findFreeRooms() and parseStay(), returns fallback
+policy times of 14:00 and 12:00, sorts cancellation tiers by daysBefore, hides internal fields
+and photo filenames, and returns 404 for unknown or deactivated hotels. I reviewed the response
+against the issue and openapi.yaml, added the concrete OpenAPI response schema and example, and
+verified targeted ESLint, the backend build and the complete Jest suite. Swagger testing remains
+for team review.
+
+================================================
+Date: 2026-11-09
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-08 / Issue #38
+
+Prompt:
+Implement HTL-08 on feature/HTL-08-room-calendar as GET /api/hotels/:id/availability, following
+docs/api/openapi.yaml and the agreed hotel-bookings inventory contract. Restrict it to the moderator
+of the requested hotel, validate inclusive real calendar dates, paginate rooms by 10, call
+RoomInventoryService.findTakenNights() once for all rooms on the page, query booking references
+once, and use a pure function for available/booked/blocked status precedence. Booked references
+must be nullable for unexpired holds. Add isolated unit tests for the pure calendar logic and
+document the concrete response shape in OpenAPI.
+
+How the output was used:
+Used the generated AvailabilityQueryDto, moderator-protected controller route, HotelsService
+calendar method, and availability-calendar pure function. The implementation marks booked or held
+nights before blocked rules, treats inactive rooms and nights outside inclusive available ranges as
+blocked, returns nullable references for holds, paginates rooms, and performs one inventory lookup
+plus one booking-reference query. Added tests for available, blocked, booked with and without a
+reference, inactive rooms and inclusive one-night ranges. Targeted ESLint, the backend build and
+the complete Jest suite passed; Swagger testing remains for team review.
+
+================================================
+Date: 2026-11-09
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-01-B
+
+Prompt:
+Help me implement GEN-01-B (sending GEN-01 notifications and moderator invitations by email via SMTP using a test inbox in development). Provide guidance on designing MailModule and MailService using nodemailer, reading SMTP configuration from environment variables with graceful fallback, hooking email dispatch into NotificationsService.notify() to mirror in-app notifications by email, implementing CreateModeratorDto and AdminService.createModerator() with audit logging (GEN-07) and moderator invitation emails, and exposing POST /api/admin/moderators.
+
+How the output was used:
+Used AI guidance to structure MailModule, configure nodemailer transport with graceful degradation, integrate email dispatch into NotificationsService.notify(), and implement moderator creation (ACC-13) with invitation email delivery. Verified with npm run lint (0 errors) and npm run build.
+================================================
+Related Requirement: ITN-25, ITN-26
+
+**Prompt:**
+
+Implement ITN-25 and ITN-26 for the existing itinerary functionality in the NestJS and Mongoose backend.
+
+The implementation should cover:
+
+- ITN-25: Allow users to select a city group within their itinerary and view available hotels for that destination.
+- ITN-26: Allow users to search for one-way or round-trip flights from a selected origin airport to a destination associated with their itinerary.
+- Reuse the existing hotel search functionality for ITN-25.
+- Reuse the existing flight search functionality (FLT-11, FLT-12, FLT-15) for ITN-26.
+- Implement the functionality using the existing itinerary, hotel, and flight modules, services, controllers, and DTOs.
+- Validate itinerary IDs, city selections, airport information, travel dates, and search parameters.
+- Enforce authentication and itinerary ownership restrictions.
+- Preserve existing hotel and flight search behavior, including filtering, sorting, and pagination.
+- Update Swagger documentation for the relevant endpoints.
+- Avoid unrelated changes.
+
+**How the output was used:**
+
+Codex was used to assist with implementing itinerary-based hotel searching (ITN-25) and flight searching (ITN-26).
+
+The generated code was reviewed and adapted to the existing NestJS and Mongoose backend structure.
+
+The implementation was checked for correct itinerary destination handling, integration with existing search services, input validation, and ownership restrictions.
+
+The relevant endpoints were tested through Swagger using valid itinerary IDs, hotel and flight search parameters, invalid inputs, and unauthorized access scenarios.
+Tool: Claude
+Related Requirement: BON-01 / Issue #110
+
+Prompt:
+Implement the bonus requirement BON-01 on branch feature/BON-01-admin-analytics-dashboard as GET /api/admin/analytics.
+Follow docs/api/openapi.yaml, ACC-17, and the repository conventions for admin endpoints.
+Create the AnalyticsQueryDto supporting optional from, to, type (airline/hotel), status, providerId, dateBy (created/travel),
+and page parameters with class-validator validation and friendly error messages.
+Implement getAnalytics in AdminService aggregating bookings and revenue per provider (airlines and hotels)
+over the selected period, computing total/confirmed/completed/cancelled/pending bookings and platform currency revenue,
+sorting by revenue descending, returning the overall summary and paginated providers (page size 10), and handling empty states.
+Add comprehensive unit tests for the DTO and service/controller, document the endpoint in docs/api/openapi.yaml,
+and report build, test and lint status.
+
+How the output was used:
+Used the generated AnalyticsQueryDto, AdminAnalyticsResponse and AdminService.getAnalytics method.
+The implementation respects the admin role guard on AdminController, seeds known providers from MongoDB collections,
+accurately tallies flight and hotel bookings by provider with integer-cent revenue, supports date range filtering by either
+creation date or travel date, validates from <= to dates, and formats responses with overall summary plus paginated provider list.
+Added unit test suites for AnalyticsQueryDto and AdminService analytics logic covering security guards, date filters, provider
+filtering, sorting, empty states (GEN-04) and pagination (GEN-05). Verified TypeScript build, Jest tests (8 suites, 64 tests),
+ESLint and OpenAPI YAML validation.
+
+================================================
+Date: 2026-11-10
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: HTL-23, HTL-24 (GitHub Issues #50 and #51)
+
+Prompt:
+Implement hotel review creation and management for completed reservations (HTL-23), and public paginated hotel reviews
+(HTL-24), following docs/api/openapi.yaml, TEAM_PLAN.md, current authentication, pagination and Mongoose conventions.
+Enforce one review per reservation, author-only edits/deletes, rating/text validation, hidden-review visibility,
+deactivated-author privacy, and concurrency-safe hotel rating aggregates. Add tests and response schemas, keep booking
+completion and HTL-26 moderator replies out of scope, update AI_PROMPTS.txt, and report verification honestly.
+
+How the output was used:
+Codex generated and revised the Review schema, DTOs, controller, service, module registration, review tests, and OpenAPI
+response schemas. The changes use transactions for review and hotel aggregate updates, the existing completed-booking
+status, and the shared pagination helper. The full backend Jest suite passed (10 suites, 67 tests), the backend build and
+lint passed, and the OpenAPI YAML parsed successfully. Manual Swagger/live Atlas verification remains outstanding.
+HTL-26 replies and booking-completion logic were not implemented.
 
 ================================================
 Date: 2026-11-06

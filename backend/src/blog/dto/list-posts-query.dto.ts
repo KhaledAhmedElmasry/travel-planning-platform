@@ -1,8 +1,23 @@
-// Area: Community & Cross-cutting
-// Used by: GET /api/posts and GET /api/tags/:tag/posts (query)
-// Requirements: BLG-02, BLG-09, BLG-11, GEN-05
-//
-// TODO: define the DTO class with class-validator rules for the fields this endpoint needs,
-// exactly as documented in docs/api/openapi.yaml.
+import { Transform, type TransformFnParams } from 'class-transformer';
+import { IsOptional, IsString } from 'class-validator';
+import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 
-export {};
+function trimOptionalQuery({ value }: TransformFnParams): unknown {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+// Area: Community & Cross-cutting
+// Used by: GET /api/posts (query), BLG-02/BLG-09.
+export class ListPostsQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @Transform(trimOptionalQuery)
+  @IsString()
+  keyword?: string;
+
+  @IsOptional()
+  @Transform(trimOptionalQuery)
+  @IsString()
+  tag?: string;
+}

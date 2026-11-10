@@ -33,7 +33,7 @@ export class Hotel {
   @Prop({ required: true, trim: true, maxlength: 200 })
   address: string;
 
-  // Official ids from the reference data (NEW-05), e.g. 'cairo' and 'EG'.
+  // Official ids from the reference data (GEN-12), e.g. 'cairo' and 'EG'.
   @Prop({ required: true })
   cityId: string;
 

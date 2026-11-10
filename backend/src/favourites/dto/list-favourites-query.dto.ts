@@ -1,9 +1,9 @@
-// BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
-// Area: Hotels & Rooms (bonus)
-// Used by: the endpoint that lists favourites (query)
-// Requirements: BON-02, GEN-05
-//
-// TODO: define the DTO class with class-validator rules for the fields this endpoint needs,
-// exactly as documented in docs/api/openapi.yaml.
+import { IsEnum, IsOptional } from 'class-validator';
+import { PaginationQueryDto } from '../../common/dto';
+import { FavouriteType } from '../schemas/favourite.schema';
 
-export {};
+export class ListFavouritesQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @IsEnum(FavouriteType)
+  type?: FavouriteType;
+}

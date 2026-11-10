@@ -34,15 +34,15 @@ import { RegisterDto } from './dto/register.dto';
 import { NoStoreInterceptor } from './no-store.interceptor';
 
 // Area: Auth & Accounts
-// Requirements: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19, NEW-07
+// Requirements: ACC-01, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19
 // Endpoints to implement (PDF section 8):
-//   POST  /api/auth/register          ACC-01, ACC-03   done
+//   POST  /api/auth/register          ACC-01   done
 //   POST  /api/auth/login             ACC-04, ACC-05   done
 //   POST  /api/auth/logout            ACC-06           done
 //   PATCH /api/auth/change-password   ACC-08           done
 //   GET   /api/auth/me                ACC-04, ACC-11   done
 // Extra endpoint (not in the PDF tables):
-//   POST  /api/auth/refresh           NEW-07           done
+//   POST  /api/auth/refresh           ACC-19           done
 // Notes:
 //   Tokens live only in httpOnly cookies, never in localStorage or sessionStorage (ACC-19).
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
@@ -58,14 +58,14 @@ import { NoStoreInterceptor } from './no-store.interceptor';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // ACC-01, ACC-03: public, guests register without logging in. A role in the body is stripped.
+  // ACC-01: public, guests register without logging in. A role in the body is stripped.
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   register(@Body() dto: RegisterDto): Promise<RegisterResponse> {
     return this.authService.register(dto);
   }
 
-  // ACC-04: public. Sets the access_token and refresh_token httpOnly cookies (ACC-19, NEW-07)
+  // ACC-04: public. Sets the access_token and refresh_token httpOnly cookies (ACC-19)
   // and returns the account; the frontend opens the home page of the returned role.
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -78,7 +78,7 @@ export class AuthController {
     return account;
   }
 
-  // NEW-07: public (the access token has usually just expired). Reads only the refresh_token
+  // ACC-19: public (the access token has usually just expired). Reads only the refresh_token
   // cookie, rotates both tokens and sets them as new cookies. On any failure both cookies are
   // cleared, so a dead session never leaves stale cookies behind; the frontend then sends the
   // user to login.

@@ -3,8 +3,8 @@ import { BookingStatus } from '../common/enums';
 // Area: Payments, Holds & Booking Engine
 // GEN-11: the ONLY status changes of flight bookings and hotel reservations.
 //   pending_payment -> confirmed   payment succeeded (FLT-23, HTL-17)
-//   pending_payment -> expired     the 10-minute hold ended unpaid (FLT-22, HTL-18, NEW-01)
-//   confirmed       -> completed   the last flight departed / the check-out date passed (NEW-01)
+//   pending_payment -> expired     the 10-minute hold ended unpaid (FLT-22, HTL-18, GEN-11)
+//   confirmed       -> completed   the last flight departed / the check-out date passed (GEN-11)
 //   confirmed       -> cancelled   cancelled by the user (FLT-26, HTL-21) or the provider (FLT-06)
 // completed, expired and cancelled are final: nothing can change them.
 //

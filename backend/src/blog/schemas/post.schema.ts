@@ -8,9 +8,26 @@ export enum PostStatus {
 
 export type PostDocument = HydratedDocument<Post>;
 
+// Matches UploadsService.StoredImage. storageKey remains internal and is never
+// copied into Blog API response objects.
+@Schema({ _id: false })
+export class PostImageReference {
+  @Prop({ required: true })
+  id: string;
+
+  @Prop({ required: true })
+  url: string;
+
+  @Prop({ required: true, select: false })
+  storageKey: string;
+}
+
+const PostImageReferenceSchema =
+  SchemaFactory.createForClass(PostImageReference);
+
 // Area: Community & Cross-cutting
 // BLG-01 creates posts; the fields below also provide a stable base for later Blog requirements.
-// Image references are managed by BLG-10/GEN-08 and are deliberately not part of this schema yet.
+// Image uploads are managed by BLG-10/GEN-08; this field stores their references for cleanup.
 @Schema({ timestamps: true })
 export class Post {
   @Prop({
@@ -32,6 +49,16 @@ export class Post {
 
   @Prop({ type: [String], default: [] })
   tags: string[];
+
+  @Prop({ type: [PostImageReferenceSchema], default: [] })
+  images: PostImageReference[];
+
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Itinerary',
+    required: false,
+  })
+  itinerary?: Types.ObjectId | null;
 
   @Prop({ required: true, default: false, index: true })
   hidden: boolean;

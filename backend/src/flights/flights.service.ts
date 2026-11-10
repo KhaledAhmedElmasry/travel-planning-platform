@@ -25,6 +25,16 @@ import { CreateCabinDto } from './dto/create-cabin.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
 import { UpdateCabinDto } from './dto/update-cabin.dto';
 import { UpdateFlightDto } from './dto/update-flight.dto';
+import {
+  FlightManifestStatus,
+  ListFlightManifestQueryDto,
+} from './dto/list-flight-manifest-query.dto';
+import {
+  DEFAULT_PAGE_SIZE,
+  getPaginationOffset,
+  PaginatedList,
+  paginate,
+} from '../common/dto';
 import { flightTimeChangedText } from './flight-change-notification';
 import { isOpenFlight } from './flight-status.job';
 import {
@@ -89,11 +99,28 @@ export interface CancelledFlightResponse {
   expiredHolds: number;
 }
 
+export interface FlightManifestItem {
+  id: string;
+  reference: string | null;
+  passengerNames: string[];
+  cabinClass: string;
+  seats: number;
+  status: BookingStatus;
+}
+
+export interface FlightManifestResponse extends PaginatedList<FlightManifestItem> {
+  seatsRemaining: { cabinClass: string; seatsRemaining: number }[];
+}
+
 const DUPLICATE_FLIGHT =
   'The airline already has this flight number on that departure date.';
 
+function csvCell(value: string): string {
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
 // Area: Airlines & Flight Inventory
-// Business logic and database access for: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06, NEW-02
+// Business logic and database access for: FLT-03, FLT-04, FLT-05, FLT-06, FLT-17, FLT-29, FLT-30, GEN-06
 // FLT-30: flights are marked Departed every minute by FlightStatusJob (flight-status.job.ts).
 @Injectable()
 export class FlightsService {
@@ -110,6 +137,99 @@ export class FlightsService {
     private readonly airlinesService: AirlinesService,
     private readonly referenceData: ReferenceDataService,
   ) {}
+
+  // FLT-29: view confirmed/cancelled bookings for a managed flight, with remaining inventory.
+  async listFlightBookings(
+    user: AuthUser,
+    flightId: Types.ObjectId,
+    query: ListFlightManifestQueryDto,
+  ): Promise<FlightManifestResponse> {
+    const flight = await this.findManagedFlight(user, flightId);
+    const filter = {
+      'segments.flightId': flight._id,
+      status: query.status
+        ? query.status
+        : { $in: [BookingStatus.Confirmed, BookingStatus.Cancelled] },
+    };
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [bookings, total] = await Promise.all([
+      this.bookingModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.bookingModel.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      ...paginate(
+        bookings.map((booking) => this.toManifestItem(booking, flight._id)),
+        total,
+        page,
+        DEFAULT_PAGE_SIZE,
+      ),
+      seatsRemaining: flight.cabins.map((cabin) => ({
+        cabinClass: cabin.cabinClass,
+        seatsRemaining: Math.max(0, cabin.total - cabin.booked - cabin.held),
+      })),
+    };
+  }
+
+  private toManifestItem(
+    booking: FlightBookingDocument,
+    flightId: Types.ObjectId,
+  ): FlightManifestItem {
+    const segment = booking.segments.find((item) =>
+      item.flightId.equals(flightId),
+    );
+    if (!segment) throw new Error('Booking segment not found.');
+    return {
+      id: booking._id.toString(),
+      reference: booking.reference ?? null,
+      passengerNames: booking.passengers.map((passenger) => passenger.fullName),
+      cabinClass: segment.cabinClass,
+      seats: booking.seats,
+      status: booking.status,
+    };
+  }
+
+  // FLT-29: export one row per passenger from confirmed bookings only.
+  async exportPassengers(
+    user: AuthUser,
+    flightId: Types.ObjectId,
+  ): Promise<string> {
+    const flight = await this.findManagedFlight(user, flightId);
+    const bookings = await this.bookingModel
+      .find({
+        'segments.flightId': flight._id,
+        status: FlightManifestStatus.Confirmed,
+      })
+      .sort({ createdAt: 1 })
+      .exec();
+    const rows = ['reference,passengerName,type,cabin,status'];
+    for (const booking of bookings) {
+      const segment = booking.segments.find((item) =>
+        item.flightId.equals(flight._id),
+      );
+      if (!segment) continue;
+      for (const passenger of booking.passengers) {
+        rows.push(
+          [
+            booking.reference ?? '',
+            passenger.fullName,
+            passenger.type,
+            segment.cabinClass,
+            booking.status,
+          ]
+            .map(csvCell)
+            .join(','),
+        );
+      }
+    }
+    return `${rows.join('\n')}\n`;
+  }
 
   // FLT-03: an airline moderator creates a flight for their own airline. Local times are
   // converted to UTC with each airport's time zone (GEN-06). The flight starts as Scheduled
@@ -182,7 +302,7 @@ export class FlightsService {
   // FLT-05: the moderator edits the airports and local times of a Scheduled flight of their
   // airline. Send only the fields to change; the FLT-03 rules still apply. Airports cannot
   // change once the flight has any booking.
-  // NEW-02: a time change is copied to the bookings' segments in the same transaction, then the
+  // FLT-05: a time change is copied to the bookings' segments in the same transaction, then the
   // passengers with Confirmed bookings get an in-app notification (GEN-01). Fares and seat counts
   // are edited per cabin (updateCabin).
   async update(
@@ -320,7 +440,7 @@ export class FlightsService {
           );
         }
 
-        // NEW-02: the bookings keep a copy of the times (e-ticket, before-departure check,
+        // FLT-05: the bookings keep a copy of the times (e-ticket, before-departure check,
         // refund tier), so update it together with the flight.
         if (timesChange) {
           await this.bookingModel.updateMany(
@@ -348,7 +468,7 @@ export class FlightsService {
     return this.toResponse(saved);
   }
 
-  // GEN-01, NEW-02: exactly one in-app notification per affected user: the users with a
+  // GEN-01, FLT-05: exactly one in-app notification per affected user: the users with a
   // Confirmed booking on this flight, with all their booking references in one message. Runs
   // after the transaction; a failed notification is logged and never undoes the change.
   private async notifyTimeChange(
@@ -363,7 +483,7 @@ export class FlightsService {
       .select('userId reference')
       .lean()
       .exec();
-    // NEW-02: group the bookings by user, so a user with two bookings gets one notification.
+    // FLT-05: group the bookings by user, so a user with two bookings gets one notification.
     const referencesByUser = new Map<string, (string | undefined)[]>();
     for (const booking of bookings) {
       const userId = booking.userId.toString();
@@ -388,7 +508,7 @@ export class FlightsService {
     }
   }
 
-  // FLT-06, NEW-02: the moderator cancels a Scheduled flight of their airline (the frontend asks
+  // FLT-06: the moderator cancels a Scheduled flight of their airline (the frontend asks
   // for confirmation first, GEN-03). As agreed with Area 1 (flight.schema.ts), in ONE transaction:
   //   - the flight becomes Cancelled (only if still Scheduled), which also stops new seat holds
   //     and hides it from search (FLT-30, openFlightFilter);
@@ -492,7 +612,7 @@ export class FlightsService {
 
   // FLT-04, FLT-05: the moderator edits a cabin's seat count, price and baggage allowance on a
   // Scheduled flight. The seat count cannot go below the seats already booked or held. A new
-  // price only applies to new bookings; existing bookings keep their agreed price (NEW-02).
+  // price only applies to new bookings; existing bookings keep their agreed price (FLT-05).
   async updateCabin(
     user: AuthUser,
     flightId: Types.ObjectId,

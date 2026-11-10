@@ -24,7 +24,7 @@ import { platformCurrency } from './platform-currency';
 export interface PoliciesResponse {
   bookingType: BookingType;
   bookingId: string;
-  // Currency of every price in the policies (extraBagPrice), PAY-04 / NEW-04.
+  // Currency of every price in the policies (extraBagPrice), PAY-04.
   currency: string;
   policies: BookingPolicies;
   acceptedAt: Date | null;

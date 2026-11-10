@@ -4,7 +4,7 @@ import { ClientSession, Model, Types } from 'mongoose';
 import { RoomNight, RoomNightStatus } from './schemas/room-night.schema';
 
 // Area: Payments, Holds & Booking Engine
-// Requirements: HTL-17, HTL-18, HTL-21, NEW-01
+// Requirements: HTL-17, HTL-18, HTL-21, GEN-11
 // Which room is taken on which night (one RoomNight document per room and night). Every change
 // is part of the caller's transaction, so a reservation and its nights always change together.
 //
@@ -43,7 +43,7 @@ export class RoomInventoryService implements OnModuleInit {
   ): Promise<void> {
     const { bookingId, hotelId, roomIds, nights, expiresAt, now } = hold;
     // Holds that have ended but that the expiry job has not released yet do not block anyone
-    // (NEW-01): remove them first. Their reservation can no longer be confirmed anyway.
+    // (GEN-11): remove them first. Their reservation can no longer be confirmed anyway.
     await this.nightModel.deleteMany(
       {
         roomId: { $in: roomIds },
@@ -89,7 +89,7 @@ export class RoomInventoryService implements OnModuleInit {
     return true;
   }
 
-  // Hold expired (HTL-18, NEW-01): the held nights are free again. Some may already be gone if a
+  // Hold expired (HTL-18, GEN-11): the held nights are free again. Some may already be gone if a
   // later hold removed them (see hold()); that is fine.
   async releaseHeld(
     bookingId: Types.ObjectId,

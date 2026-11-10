@@ -11,10 +11,10 @@ import { PASSWORD_PATTERN, PASSWORD_RULE_MESSAGE } from '../password-rule';
 
 // Area: Auth & Accounts
 // Used by: POST /api/auth/register (body), openapi.yaml "RegisterRequest"
-// Requirements: ACC-01, ACC-03
+// Requirements: ACC-01
 //
 // There is no role field: a role sent in the body is stripped by the ValidationPipe
-// (whitelist: true), so nobody can register as an admin or moderator (ACC-03, ACC-18).
+// (whitelist: true), so nobody can register as an admin or moderator (ACC-01, ACC-18).
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;

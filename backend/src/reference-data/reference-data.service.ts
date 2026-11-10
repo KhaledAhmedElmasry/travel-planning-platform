@@ -68,16 +68,16 @@ function escapeRegex(text: string): string {
 }
 
 // Area: Reference Data & Seeding
-// Business logic and database access for: FLT-02, GEN-12, NEW-05
+// Business logic and database access for: FLT-02, GEN-12
 //
 // All reference data is read-only: it is loaded by the seed script (npm run seed) and never
 // changed through the API.
 //
 // Lookups for other modules (import ReferenceDataModule, inject ReferenceDataService):
 //   assertSupportedCurrency(code)               GEN-12, e.g. preferred currency (ACC-09)
-//   assertCountry(code) / assertCountries(codes)  NEW-05, e.g. itinerary countries (ITN-01)
-//   assertCity(cityId)                          NEW-05, e.g. itinerary day city (ITN-05)
-//   assertCityInCountry(cityId, countryCode)    NEW-05, e.g. hotel city and country (HTL-01)
+//   assertCountry(code) / assertCountries(codes)  GEN-12, e.g. itinerary countries (ITN-01)
+//   assertCity(cityId)                          GEN-12, e.g. itinerary day city (ITN-05)
+//   assertCityInCountry(cityId, countryCode)    GEN-12, e.g. hotel city and country (HTL-01)
 //   assertAirport(iataCode)                     FLT-02, e.g. flight airports (FLT-03, FLT-11)
 //   findAirport(iataCode)                       FLT-02, the airport with its IANA time zone (GEN-06)
 // Each one throws 400 (BadRequestException) with a clear message for an unknown value.
@@ -123,7 +123,7 @@ export class ReferenceDataService {
     return paginate(items, total, page, DEFAULT_PAGE_SIZE);
   }
 
-  // NEW-05: the countries, sorted by name, optionally searched by code or name.
+  // GEN-12: the countries, sorted by name, optionally searched by code or name.
   async listCountries(
     query: ListCountriesQueryDto,
   ): Promise<PaginatedList<CountryItem>> {
@@ -155,7 +155,7 @@ export class ReferenceDataService {
     return paginate(items, total, page, DEFAULT_PAGE_SIZE);
   }
 
-  // NEW-05: the cities, sorted by name, optionally of one country and searched by id or name.
+  // GEN-12: the cities, sorted by name, optionally of one country and searched by id or name.
   // An unknown country code is rejected with 400, so a typo is not shown as "no cities".
   async listCities(
     query: ListCitiesQueryDto,
@@ -253,7 +253,7 @@ export class ReferenceDataService {
     return paginate(items, total, page, DEFAULT_PAGE_SIZE);
   }
 
-  // NEW-05: the attractions, sorted by name, optionally of one city.
+  // GEN-12: the attractions, sorted by name, optionally of one city.
   // An unknown city id is rejected with 400.
   async listAttractions(
     query: ListAttractionsQueryDto,
@@ -308,7 +308,7 @@ export class ReferenceDataService {
     }
   }
 
-  // NEW-05: the country with this code (e.g. EG), or null.
+  // GEN-12: the country with this code (e.g. EG), or null.
   async findCountry(code: string): Promise<Country | null> {
     if (typeof code !== 'string' || code.trim() === '') return null;
     return this.countryModel
@@ -317,13 +317,13 @@ export class ReferenceDataService {
       .exec();
   }
 
-  // NEW-05: the city with this id (e.g. cairo), or null.
+  // GEN-12: the city with this id (e.g. cairo), or null.
   async findCity(cityId: string): Promise<City | null> {
     if (typeof cityId !== 'string' || cityId.trim() === '') return null;
     return this.cityModel.findById(cityId.trim()).lean<City>().exec();
   }
 
-  // NEW-05: throws 400 when the country is not in the official list.
+  // GEN-12: throws 400 when the country is not in the official list.
   async assertCountry(code: string): Promise<Country> {
     const country = await this.findCountry(code);
     if (!country) {
@@ -332,7 +332,7 @@ export class ReferenceDataService {
     return country;
   }
 
-  // NEW-05: throws 400 when any of the countries is not in the official list (e.g. ITN-01).
+  // GEN-12: throws 400 when any of the countries is not in the official list (e.g. ITN-01).
   async assertCountries(codes: string[]): Promise<void> {
     const wanted = [
       ...new Set(
@@ -353,7 +353,7 @@ export class ReferenceDataService {
     }
   }
 
-  // NEW-05: throws 400 when the city is not in the official list.
+  // GEN-12: throws 400 when the city is not in the official list.
   async assertCity(cityId: string): Promise<City> {
     const city = await this.findCity(cityId);
     if (!city) {
@@ -383,7 +383,7 @@ export class ReferenceDataService {
     return airport;
   }
 
-  // NEW-05: throws 400 when the country or city is unknown, or the city is not in the country.
+  // GEN-12: throws 400 when the country or city is unknown, or the city is not in the country.
   async assertCityInCountry(
     cityId: string,
     countryCode: string,

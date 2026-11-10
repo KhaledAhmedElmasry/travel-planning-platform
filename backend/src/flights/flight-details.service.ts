@@ -1,5 +1,5 @@
 // Area: Flight Search & Booking
-// Requirements: FLT-17, GEN-06, FLT-08, FLT-09, PAY-04, NEW-04.
+// Requirements: FLT-17, GEN-06, FLT-08, FLT-09, PAY-04.
 //
 // GET /api/flights/:id (everyone, including guests): airline, flight number, airports, local
 // departure and arrival times with time zones and UTC offsets (GEN-06), duration, status, each

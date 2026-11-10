@@ -38,6 +38,8 @@ import { UpdateActivityDto } from './dto/update-activity.dto';
 import { CreateBudgetEntryDto } from './dto/create-budget-entry.dto';
 import { UpdateBudgetEntryDto } from './dto/update-budget-entry.dto';
 import { BudgetSummaryQueryDto } from './dto/budget-summary-query.dto';
+import { ItineraryHotelsQueryDto } from './dto/itinerary-hotels-query.dto';
+import { ItineraryFlightsQueryDto } from './dto/itinerary-flights-query.dto';
 import {
   ActivityResponse,
   ActivityImageResponse,
@@ -78,7 +80,7 @@ import {
 //   GET    /api/itineraries/public/search                  ITN-20, ITN-21
 //   GET    /api/itineraries/public/:id                     ITN-21
 //   POST   /api/itineraries/:id/clone                      ITN-21
-//   GET    /api/itineraries/:id/hotels                     ITN-09
+//   GET    /api/itineraries/:id/hotels                     ITN-25
 //   GET    /api/itineraries/:id/flights                    ITN-26
 // Notes:
 //   Private itineraries are visible only to their owner (ACC-11): check ownership in the service.
@@ -129,6 +131,30 @@ export class ItinerariesController {
     @Query('currency') currency?: string,
   ): Promise<PublicItineraryResponse> {
     return this.itinerariesService.getPublic(id, currency);
+  }
+
+  // ITN-25: search hotels for the selected city group, using the group's stay dates.
+  @Get('itineraries/:id/hotels')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  findHotels(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Query() query: ItineraryHotelsQueryDto,
+  ) {
+    return this.itinerariesService.findHotels(id, user.id, query);
+  }
+
+  // ITN-26: search flights from the chosen origin to an airport in the first city.
+  @Get('itineraries/:id/flights')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  findFlights(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Query() query: ItineraryFlightsQueryDto,
+  ) {
+    return this.itinerariesService.findFlights(id, user.id, query);
   }
 
   // ITN-03 / ACC-11: ownership is checked by the service; invalid ids are rejected at the edge.

@@ -1,6 +1,6 @@
 // Area: Flight Search & Booking
 // Response of GET /api/flights/:id (FLT-17, GEN-06, FLT-08, FLT-09).
-// All prices are integer cents of `currency` (the platform currency, PAY-04, NEW-04).
+// All prices are integer cents of `currency` (the platform currency, PAY-04).
 import type { CabinClass } from '../../common/enums';
 import type { FlightStatus } from '../schemas/flight.schema';
 import type {

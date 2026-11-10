@@ -22,7 +22,7 @@ import { Session } from './schemas/session.schema';
 interface TokenPayload {
   sub: string; // user id
   sid: string; // session id
-  jti?: string; // unique per token, so a rotated refresh token never equals the old one (NEW-07)
+  jti?: string; // unique per token, so a rotated refresh token never equals the old one (ACC-19)
 }
 
 const SESSION_ENDED = 'Your session has ended. Please log in again';
@@ -33,7 +33,7 @@ export const ACCOUNT_SUSPENDED = 'Account suspended';
 const ACTIVITY_WRITE_INTERVAL_MS = 60 * 1000;
 
 // Area: Auth & Accounts
-// Token-based sessions (NEW-07) and the check behind JwtAuthGuard (ACC-04, ACC-19).
+// Token-based sessions (ACC-19) and the check behind JwtAuthGuard (ACC-04, ACC-19).
 // Exported by AuthModule, which is global, so the guard works in every module.
 @Injectable()
 export class SessionsService {
@@ -44,7 +44,7 @@ export class SessionsService {
     private readonly usersService: UsersService,
   ) {}
 
-  // ACC-04, NEW-07: a new session for a successful login, with its access and refresh tokens.
+  // ACC-04, ACC-19: a new session for a successful login, with its access and refresh tokens.
   async start(userId: string): Promise<AuthTokens> {
     const sessionId = new Types.ObjectId();
     const { accessToken, refreshToken } = await this.signTokens(
@@ -64,7 +64,7 @@ export class SessionsService {
     return { accessToken, refreshToken };
   }
 
-  // NEW-07: exchange a refresh token for a new access token and a rotated refresh token.
+  // ACC-19: exchange a refresh token for a new access token and a rotated refresh token.
   // 401 (the controller then clears the cookies) when the token is invalid, the session is revoked,
   // or it has been idle for 30 minutes. A refresh token that was already rotated away means it was
   // copied: the whole session is revoked, so neither copy works any more.

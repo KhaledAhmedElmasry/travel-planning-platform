@@ -4,7 +4,7 @@ import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 
 // Area: Reference Data & Seeding
 // Used by: GET /api/cities (query), filtered by country (e.g. EG)
-// Requirements: NEW-05, GEN-12, GEN-05
+// Requirements: GEN-12, GEN-05
 
 export class ListCitiesQueryDto extends PaginationQueryDto {
   // Country code from the official countries dataset, e.g. EG (any letter case).
