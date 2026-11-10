@@ -1,31 +1,16 @@
-// Runs once after the system tests: stops the Stripe CLI and drops the throwaway database.
-import { ChildProcess } from 'child_process';
-import { existsSync, readFileSync, rmSync } from 'fs';
+// Runs once after the system tests: stops this run's Stripe CLI and drops this run's throwaway
+// database. The state comes from global-setup.ts in the same process, so runs that overlap
+// never touch each other's database.
+import { rmSync } from 'fs';
 import { connect, connection, disconnect } from 'mongoose';
-import { tmpdir } from 'os';
 import { join } from 'path';
-
-const STATE_FILE = join(tmpdir(), 'tp-systest-state.json');
+import type { SystemTestState } from './global-setup';
 
 export default async function globalTeardown(): Promise<void> {
-  const listener = (globalThis as { __STRIPE_LISTENER__?: ChildProcess })
-    .__STRIPE_LISTENER__;
-  listener?.kill();
+  const state = (globalThis as { __SYSTEST__?: SystemTestState }).__SYSTEST__;
+  if (!state) return;
+  state.listener.kill();
 
-  if (!existsSync(STATE_FILE)) return;
-  const state = JSON.parse(readFileSync(STATE_FILE, 'utf8')) as {
-    database: string;
-    uri: string;
-    pid?: number;
-    workDir?: string;
-  };
-  if (state.pid) {
-    try {
-      process.kill(state.pid);
-    } catch {
-      // already stopped
-    }
-  }
   // Safety: only a database created by global-setup.ts is ever dropped.
   if (/^tp_systest_\d+$/.test(state.database)) {
     await connect(state.uri);
@@ -34,7 +19,7 @@ export default async function globalTeardown(): Promise<void> {
     }
     await disconnect();
   }
-  if (state.workDir && state.workDir.includes('tp-systest-')) {
+  if (state.workDir.includes('tp-systest-')) {
     // The tests ran inside this folder; leave it before removing it.
     process.chdir(join(__dirname, '..', '..'));
     try {
@@ -43,5 +28,4 @@ export default async function globalTeardown(): Promise<void> {
       // Windows may still hold the folder; the operating system cleans its temp folder.
     }
   }
-  rmSync(STATE_FILE, { force: true });
 }
