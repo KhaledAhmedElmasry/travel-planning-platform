@@ -640,9 +640,10 @@ paths:
         **Access:** admin. `type` is `hotel` or `airline`.
 
         A deactivated hotel or airline is hidden from search and cannot be booked; its existing Confirmed
-        bookings remain valid. The assigned moderator receives an in-app notification (GEN-01) and the action is
-        written to the audit log (GEN-07). Deactivating a provider is separate from suspending its
-        moderator account (`PATCH /api/admin/accounts/{id}/suspend`).
+        bookings remain valid. The assigned moderator and every user who has a Confirmed booking with the
+        provider (one message per user, with the number of their bookings) receive an in-app notification
+        (GEN-01), and the action is written to the audit log (GEN-07). Deactivating a provider is separate
+        from suspending its moderator account (`PATCH /api/admin/accounts/{id}/suspend`).
       security: *auth
       parameters:
         - $ref: '#/components/parameters/ProviderTypePath'

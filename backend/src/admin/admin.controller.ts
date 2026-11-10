@@ -34,8 +34,8 @@ import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 //   PATCH /api/admin/providers/:type/:id/deactivate   ACC-15   (:type = hotel | airline)
 //   PATCH /api/admin/providers/:type/:id/reactivate   ACC-15
 //   GET   /api/admin/bookings                   ACC-17
-// Deactivating / reactivating a provider notifies its moderator (GEN-01) and writes an audit
-// entry (GEN-07).
+// Deactivating a provider notifies its moderator and every user with a Confirmed booking with it
+// (GEN-01); deactivating and reactivating both write an audit entry (GEN-07).
 // Notes:
 //   Admin only. Suspending an account or resetting its password revokes its sessions (ACC-19).
 //   Admin accounts are seeded, never registered (ACC-18).
