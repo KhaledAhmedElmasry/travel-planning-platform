@@ -46,7 +46,7 @@ import { UsersModule } from './users/users.module';
     // TODO: register app-wide providers as they are built, for example the
     // authentication and role guards (PDF section 6.1).
 
-    // Feature modules (one folder each, see docs/TEAM_PLAN.md for the work areas)
+    // Feature modules (one folder each)
     ReferenceDataModule,
     AuthModule,
     UsersModule,

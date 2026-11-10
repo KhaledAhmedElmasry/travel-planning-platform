@@ -81,7 +81,6 @@ The official datasets ([docs/requirements/Mock Data.xlsx](docs/requirements/Mock
 | Document | Contents |
 |---|---|
 | [docs/requirements/](docs/requirements/) | Official requirements workbook, reference datasets, and [assumed requirements](docs/requirements/ASSUMED_REQUIREMENTS.md) |
-| [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md) | Work areas, dependencies, timeline and design decisions |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | Git workflow, code structure and API conventions |
 | [docs/api/openapi.yaml](docs/api/openapi.yaml) | Swagger documentation of every endpoint (shown at `/api/docs`) |
 | [AI_PROMPTS.txt](AI_PROMPTS.txt) | AI usage log (mandatory) |

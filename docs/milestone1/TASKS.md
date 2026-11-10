@@ -2,7 +2,7 @@
 
 **Milestone 1:** NestJS backend + MongoDB, graded through Swagger UI.
 
-Each work area has a printable handout with the same content: `area-<n>-*.pdf` in this folder. The usual workflow is in [WORKFLOW.pdf](WORKFLOW.pdf), and every dependency between areas, with requirement codes, is in [DEPENDENCIES.pdf](DEPENDENCIES.pdf). Design decisions and the timeline: [TEAM_PLAN.md](../TEAM_PLAN.md).
+Each work area has a handout with the same content: `area-<n>-*.md` in this folder. Every dependency between areas, with requirement codes, is in [DEPENDENCIES.pdf](DEPENDENCIES.pdf).
 
 > The **Assigned to** tags are intentionally empty: the repository never names who works on what. Fill them in on your own copy or on the printed handouts.
 
