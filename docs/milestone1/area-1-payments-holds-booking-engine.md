@@ -27,7 +27,6 @@ REQUIREMENTS
 |#53|**PAY-02**|Before payment, the system shall show the provider's policies (airline…|**low**|
 |#54|**PAY-03**|For every cancellation with a positive refund amount (user…|**medium**|
 |#93|**PAY-04**|All flight and hotel prices, payments and refunds shall use a single…|**low**|
-|#116|**NEW-04**|Booking amounts stay in the platform currency; only itinerary budgets…|**low**|
 |#27|**FLT-22**|When a user proceeds to payment, the system shall atomically reserve…|**high**|
 |#44|**HTL-16**|Book one or more available rooms in the same hotel for the same dates…|**high**|
 |#46|**HTL-18**|When a user proceeds to payment, the system shall hold all selected…|**high**|
@@ -36,7 +35,6 @@ REQUIREMENTS
 |#30|**FLT-26**|Cancel their own Confirmed flight booking any time before departure…|**medium**|
 |#48|**HTL-21**|Cancel their own Confirmed reservation as a whole before the check-in…|**medium**|
 |#90|**GEN-11**|Flight bookings and hotel reservations shall follow the lifecycle…|**medium**|
-|#114|**NEW-01**|Booking status automation: expire holds, mark stays/flights Completed|**medium**|
 
 
 
@@ -67,7 +65,7 @@ REQUIREMENTS
 
 ## **3. Your tasks** 
 
-- Stripe in test mode: PaymentsService creates a PaymentIntent for a Pending Payment flight booking or hotel reservation. All amounts are integer cents of the platform currency USD (PAY-01, PAY-04, NEW-04). Never store card data. 
+- Stripe in test mode: PaymentsService creates a PaymentIntent for a Pending Payment flight booking or hotel reservation. All amounts are integer cents of the platform currency USD (PAY-01, PAY-04). Never store card data. 
 
 - Policies before payment: show the airline or hotel policies for a booking and store the acceptance with a timestamp; refuse payment without it (PAY-02). 
 
@@ -79,7 +77,7 @@ REQUIREMENTS
 
 - Confirmation (FLT-23, HTL-17): the webhook moves Pending Payment -> Confirmed, generates the unique booking reference, and the flight e-ticket PDF download (add pdfkit or similar to package.json). 
 
-- Booking lifecycle (GEN-11) and automation (NEW-01): a @Cron job every minute expires holds and releases seats / room-nights, and marks finished trips and stays Completed. Expiry is re-checked at payment time. 
+- Booking lifecycle and automation (GEN-11): a @Cron job every minute expires holds and releases seats / room-nights, and marks finished trips and stays Completed. Expiry is re-checked at payment time. 
 
 - Cancellation + refunds (FLT-26, HTL-21, PAY-03): apply the cancellation tier rule (Area 5 tiers for flights, Area 7 tiers for hotels), release the inventory, create the Stripe refund and expose its status. Booking details show the refund the user would get before cancelling. 
 
@@ -93,8 +91,8 @@ REQUIREMENTS
 |---|---|---|---|
 |**Who**|**What**|**From**|**What**|
 |Areas 3, 6|Flight booking + hotel reservation schemas<br>(admin overview, my bookings, flight manifest,<br>reservation list) (GEN-11, ACC-17, FLT-29, HTL-<br>22)|Area 3<br>Area 2|Error format, ValidationPipe, pagination, shared<br>enums (GEN-02, GEN-05, GEN-13)<br>User schema, login, cookies, JwtAuthGuard /<br>RolesGuard / @CurrentUser, ownership helper (ACC-|
-|Area 5|Flight booking schema (no airport change or seat<br>cut below booked; notify affected bookings)<br>(GEN-11, FLT-05, NEW-02)|Area 3|04, ACC-11, ACC-19)<br>Raw request body for the Stripe webhook (main.ts)<br>(PAY-01)|
-|Area 7<br>Area 4|Reservation + hold data (Booked in the room<br>calendar, free rooms and search; no blocking<br>over reservations) (HTL-18, HTL-06, HTL-08, HTL-<br>11, HTL-15)<br>Reservation schema with the Completed status<br>(reviews only after a stay) (GEN-11, NEW-01,|Area 5<br>Area 7|Flight + cabin schemas with total / booked / held<br>seat counters and flight status (FLT-03, FLT-04, FLT-<br>30)<br>Room + availability schemas (HTL-03, HTL-04, HTL-<br>06)|
+|Area 5|Flight booking schema (no airport change or seat<br>cut below booked; notify affected bookings)<br>(GEN-11, FLT-05, FLT-30)|Area 3|04, ACC-11, ACC-19)<br>Raw request body for the Stripe webhook (main.ts)<br>(PAY-01)|
+|Area 7<br>Area 4|Reservation + hold data (Booked in the room<br>calendar, free rooms and search; no blocking<br>over reservations) (HTL-18, HTL-06, HTL-08, HTL-<br>11, HTL-15)<br>Reservation schema with the Completed status<br>(reviews only after a stay) (GEN-11,|Area 5<br>Area 7|Flight + cabin schemas with total / booked / held<br>seat counters and flight status (FLT-03, FLT-04, FLT-<br>30)<br>Room + availability schemas (HTL-03, HTL-04, HTL-<br>06)|
 ||HTL-23)|Area 3|NotificationsService (GEN-01)|
 |Area 6|Refund preview in booking details (FLT-26, HTL-<br>21)|Area 5|Airline baggage + cancellation policies and the<br>shared tier rule (shown before payment, used for<br>refunds) (FLT-08, FLT-09, PAY-02)|
 

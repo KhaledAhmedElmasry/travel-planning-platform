@@ -41,7 +41,6 @@ The hardest and most critical part of the platform: concurrency-safe seat and ro
 | #53 | PAY-02 | Before payment, the system shall show the provider's policies (airline… |
 | #54 | PAY-03 | For every cancellation with a positive refund amount (user… |
 | #93 | PAY-04 | All flight and hotel prices, payments and refunds shall use a single… |
-| #116 | NEW-04 | Booking amounts stay in the platform currency; only itinerary budgets… |
 | #27 | FLT-22 | When a user proceeds to payment, the system shall atomically reserve… |
 | #44 | HTL-16 | Book one or more available rooms in the same hotel for the same dates… |
 | #46 | HTL-18 | When a user proceeds to payment, the system shall hold all selected… |
@@ -50,7 +49,6 @@ The hardest and most critical part of the platform: concurrency-safe seat and ro
 | #30 | FLT-26 | Cancel their own Confirmed flight booking any time before departure… |
 | #48 | HTL-21 | Cancel their own Confirmed reservation as a whole before the check-in… |
 | #90 | GEN-11 | Flight bookings and hotel reservations shall follow the lifecycle… |
-| #114 | NEW-01 | Booking status automation: expire holds, mark stays/flights Completed |
 
 ### Endpoints
 
@@ -69,13 +67,13 @@ The hardest and most critical part of the platform: concurrency-safe seat and ro
 
 ### Tasks
 
-- [ ] Stripe in test mode: PaymentsService creates a PaymentIntent for a Pending Payment flight booking or hotel reservation. All amounts are integer cents of the platform currency USD (PAY-01, PAY-04, NEW-04). Never store card data.
+- [ ] Stripe in test mode: PaymentsService creates a PaymentIntent for a Pending Payment flight booking or hotel reservation. All amounts are integer cents of the platform currency USD (PAY-01, PAY-04). Never store card data.
 - [ ] Policies before payment: show the airline or hotel policies for a booking and store the acceptance with a timestamp; refuse payment without it (PAY-02).
 - [ ] Webhook: raw request body + Stripe signature verification. Only a verified successful payment confirms a booking; failed or expired payments leave it unconfirmed. Retry endpoint (PAY-01).
 - [ ] Flight seat hold (FLT-22): ONE atomic findOneAndUpdate on the cabin that increments held only if total - booked - held >= n. holdExpiresAt = now + 10 minutes. Prove that two holds on the last seat cannot both succeed.
 - [ ] Hotel booking + hold (HTL-16, HTL-18): one or more rooms of the same hotel for the same dates, all rooms or none, never overlapping (MongoDB transaction or a room-night collection with a unique index on roomId + date).
 - [ ] Confirmation (FLT-23, HTL-17): the webhook moves Pending Payment -> Confirmed, generates the unique booking reference, and the flight e-ticket PDF download (add pdfkit or similar to package.json).
-- [ ] Booking lifecycle (GEN-11) and automation (NEW-01): a @Cron job every minute expires holds and releases seats / room-nights, and marks finished trips and stays Completed. Expiry is re-checked at payment time.
+- [ ] Booking lifecycle and automation (GEN-11): a @Cron job every minute expires holds and releases seats / room-nights, and marks finished trips and stays Completed. Expiry is re-checked at payment time.
 - [ ] Cancellation + refunds (FLT-26, HTL-21, PAY-03): apply the cancellation tier rule (Area 5 tiers for flights, Area 7 tiers for hotels), release the inventory, create the Stripe refund and expose its status. Booking details show the refund the user would get before cancelling.
 - [ ] Expose confirm / release / refund functions for Area 5 (flight cancellation by the airline gives 100% refunds) and call NotificationsService (Area 3) on confirmation, cancellation and refund.
 - [ ] Rehearse demo scenarios 3-8 end to end in Swagger with the Stripe CLI forwarding webhooks.
@@ -85,9 +83,9 @@ The hardest and most critical part of the platform: concurrency-safe seat and ro
 | Direction | Area | What |
 |---|---|---|
 | You give | Areas 3, 6 | Flight booking + hotel reservation schemas (admin overview, my bookings, flight manifest, reservation list) (GEN-11, ACC-17, FLT-29, HTL-22) |
-| You give | Area 5 | Flight booking schema (no airport change or seat cut below booked; notify affected bookings) (GEN-11, FLT-05, NEW-02) |
+| You give | Area 5 | Flight booking schema (no airport change or seat cut below booked; notify affected bookings) (GEN-11, FLT-05, FLT-30) |
 | You give | Area 7 | Reservation + hold data (Booked in the room calendar, free rooms and search; no blocking over reservations) (HTL-18, HTL-06, HTL-08, HTL-11, HTL-15) |
-| You give | Area 4 | Reservation schema with the Completed status (reviews only after a stay) (GEN-11, NEW-01, HTL-23) |
+| You give | Area 4 | Reservation schema with the Completed status (reviews only after a stay) (GEN-11, HTL-23) |
 | You give | Area 6 | Refund preview in booking details (FLT-26, HTL-21) |
 | You give | Area 5 | Refund function (airline cancels a flight: 100% refunds) (PAY-03, FLT-06) |
 | You need | Area 3 | Error format, ValidationPipe, pagination, shared enums (GEN-02, GEN-05, GEN-13) |
@@ -115,7 +113,6 @@ Registration, login with secure cookies, sessions, roles and ownership checks fo
 | Issue | Id | Requirement |
 |---|---|---|
 | #1 | ACC-01 | Register by entering name, unique email, password and a mandatory… |
-| #112 | ACC-03 | Account creation on registration: role Registered User, status Active… |
 | #120 | ACC-04 | Allow a registered user, admin or moderator to log in with email and… |
 | #2 | ACC-05 | After 5 consecutive failed login attempts, the system shall lock the… |
 | #3 | ACC-06 | Log out, which clears the authentication cookies and revokes the… |
@@ -125,12 +122,11 @@ Registration, login with secure cookies, sessions, roles and ownership checks fo
 | #8 | ACC-11 | Access to bookings and private itineraries to their owner, except that… |
 | #121 | ACC-12 | Deactivate their own account after confirmation |
 | #96 | ACC-19 | Never store authentication tokens or user credentials in localStorage… |
-| #118 | NEW-07 | Token-based sessions: access + rotating refresh token in httpOnly… |
 
 ### Endpoints
 
 - [ ] `POST /api/admin/users/:id/reset-password` ACC-07a
-- [ ] `POST /api/auth/register` ACC-01, ACC-03
+- [ ] `POST /api/auth/register` ACC-01
 - [ ] `POST /api/auth/login` ACC-04, ACC-05
 - [ ] `POST /api/auth/logout` ACC-06
 - [ ] `PATCH /api/auth/change-password` ACC-08
@@ -138,13 +134,13 @@ Registration, login with secure cookies, sessions, roles and ownership checks fo
 - [ ] `GET /api/users/me` ACC-11
 - [ ] `PATCH /api/users/me` ACC-09
 - [ ] `DELETE /api/users/me` ACC-12
-- [ ] An extra endpoint may be needed (not in the PDF tables) for: refreshing the session (NEW-07)
+- [ ] An extra endpoint may be needed (not in the PDF tables) for: refreshing the session (ACC-19)
 
 ### Tasks
 
 - [ ] User schema: name, unique lowercase email, bcrypt password hash, role, status (active / suspended / deactivated), preferred currency, failedLoginAttempts + lockUntil, assigned airline or hotel for moderators.
-- [ ] Register (ACC-01, ACC-03): password rules, new account = Registered User + Active; admins can never self-register.
-- [ ] Login / logout / session refresh (ACC-04, ACC-06, NEW-07): 15-minute access JWT + rotating, hashed refresh token in httpOnly, Secure, SameSite cookies only (ACC-19); 30-minute idle expiry; logout revokes the session.
+- [ ] Register (ACC-01): password rules, new account = Registered User + Active; admins can never self-register.
+- [ ] Login / logout / session refresh (ACC-04, ACC-06, ACC-19): 15-minute access JWT + rotating, hashed refresh token in httpOnly, Secure, SameSite cookies only (ACC-19); 30-minute idle expiry; logout revokes the session.
 - [ ] Lockout after 5 failed logins for 15 minutes; a successful login resets the counter (ACC-05).
 - [ ] Guards for the whole team: JwtAuthGuard, RolesGuard + @Roles(), @CurrentUser(), and an ownership helper: users only see their own data, moderators only their provider (ACC-11). Suspended accounts are rejected on every request.
 - [ ] Profile: GET / PATCH /api/users/me with validation of every field (ACC-09); change password with the current one (ACC-08).
@@ -156,9 +152,9 @@ Registration, login with secure cookies, sessions, roles and ownership checks fo
 | Direction | Area | What |
 |---|---|---|
 | You give | Every area | User schema, login, cookies, JwtAuthGuard / RolesGuard / @CurrentUser, ownership helper (ACC-04, ACC-11, ACC-19) |
-| You give | Area 3 | Session revocation (used when an account is suspended) (NEW-07, ACC-15) |
+| You give | Area 3 | Session revocation (used when an account is suspended) (ACC-19, ACC-15) |
 | You need | Area 3 | Error format, ValidationPipe, pagination, shared enums (GEN-02, GEN-05, GEN-13) |
-| You need | Area 5 | Seed data (countries, cities, airports with time zones, attractions, supported currencies) + lookups (GEN-12, NEW-05, FLT-02) |
+| You need | Area 5 | Seed data (countries, cities, airports with time zones, attractions, supported currencies) + lookups (GEN-12, FLT-02) |
 
 **Bonus (only after every mandatory requirement is done):** ACC-02 (#101), ACC-07 (#102)
 
@@ -230,7 +226,7 @@ The shared base every module stands on (validation, error format, pagination) an
 | You need | Area 5 | Seed script where the admin account is added (GEN-12, ACC-18) |
 | You need | Area 5 | Airline schema (a moderator is linked to one airline; airlines can be deactivated) (FLT-01, ACC-13, ACC-15) |
 | You need | Area 7 | Hotel schema (a moderator is linked to one hotel; hotels can be deactivated) (HTL-01, ACC-13, ACC-15) |
-| You need | Area 2 | Session revocation (used when an account is suspended) (NEW-07, ACC-15) |
+| You need | Area 2 | Session revocation (used when an account is suspended) (ACC-19, ACC-15) |
 | You need | Area 1 | Flight booking + hotel reservation schemas (admin overview, my bookings, flight manifest, reservation list) (GEN-11, ACC-17, FLT-29, HTL-22) |
 | You need | Area 4 | Post, comment and review schemas with a hidden flag (GEN-09, GEN-10) |
 | You need | Area 8 | Itinerary schema with a hidden flag (GEN-09, GEN-10) |
@@ -261,7 +257,6 @@ All community content: the blog (posts, drafts, tags, search, comments, likes, a
 | #77 | BLG-08 | Add up to 5 tags (max 30 characters each) to a post and edit them later |
 | #122 | BLG-09 | Search published posts by keyword in title, tags or author name… |
 | #78 | BLG-10 | Attach images to a post under the shared media-upload rule (GEN-08) and… |
-| #113 | BLG-11 | Browse published posts by tag (case-insensitive, paginated, newest… |
 | #79 | BLG-12 | A public author page showing the author's name, join date, published… |
 | #87 | GEN-08 | Image uploads in JPG or PNG format, up to 5 MB each, with up to 5… |
 | #50 | HTL-23 | A Confirmed reservation becomes Completed once its check-out date has… |
@@ -270,7 +265,7 @@ All community content: the blog (posts, drafts, tags, search, comments, likes, a
 ### Endpoints
 
 - [ ] `POST /api/posts` BLG-01
-- [ ] `GET /api/posts` BLG-02, BLG-09, BLG-11
+- [ ] `GET /api/posts` BLG-02, BLG-09
 - [ ] `GET /api/posts/:id` BLG-02
 - [ ] `GET /api/posts/mine` BLG-03
 - [ ] `PATCH /api/posts/:id` BLG-04, BLG-08
@@ -282,7 +277,7 @@ All community content: the blog (posts, drafts, tags, search, comments, likes, a
 - [ ] `DELETE /api/posts/:id/like` BLG-06
 - [ ] `POST /api/posts/:id/images` BLG-10, GEN-08
 - [ ] `DELETE /api/posts/:id/images/:imageId` BLG-10
-- [ ] `GET /api/tags/:tag/posts` BLG-08, BLG-11
+- [ ] `GET /api/tags/:tag/posts` BLG-08
 - [ ] `GET /api/authors/:id` BLG-12
 - [ ] `POST /api/hotel-bookings/:id/review` HTL-23
 - [ ] `PATCH /api/reviews/:id` HTL-23
@@ -294,7 +289,7 @@ All community content: the blog (posts, drafts, tags, search, comments, likes, a
 - [ ] Upload validation shared by everyone: JPG / PNG only, max 5 MB, max 5 images per item, stored in backend/uploads/ and served at /uploads (GEN-08).
 - [ ] Post schema + create as Draft or Published with a required title and body (BLG-01).
 - [ ] Public paginated list and detail of published posts (BLG-02); my posts including drafts (BLG-03); edit / delete own posts (BLG-04).
-- [ ] Tags: up to 5 per post, max 30 characters, normalised (BLG-08); browse by tag, case-insensitive (BLG-11); keyword search in title, tags or author (BLG-09).
+- [ ] Tags: up to 5 per post, max 30 characters, normalised; browse by tag, case-insensitive (BLG-08); keyword search in title, tags or author (BLG-09).
 - [ ] Post images with the shared upload rule: add and remove (BLG-10).
 - [ ] Comments: add, edit / delete own (BLG-05, BLG-07). Likes: at most one per user per post with a unique index (BLG-06).
 - [ ] Public author page (BLG-12); hidden posts and comments (GEN-10, Area 3) are excluded from public lists.
@@ -309,7 +304,7 @@ All community content: the blog (posts, drafts, tags, search, comments, likes, a
 | You need | Area 3 | Error format, ValidationPipe, pagination, shared enums (GEN-02, GEN-05, GEN-13) |
 | You need | Area 2 | User schema, login, cookies, JwtAuthGuard / RolesGuard / @CurrentUser, ownership helper (ACC-04, ACC-11, ACC-19) |
 | You need | Area 7 | Hotel schema (reviews and the reservation list belong to a hotel) (HTL-01, HTL-22, HTL-24) |
-| You need | Area 1 | Reservation schema with the Completed status (reviews only after a stay) (GEN-11, NEW-01, HTL-23) |
+| You need | Area 1 | Reservation schema with the Completed status (reviews only after a stay) (GEN-11, HTL-23) |
 
 **Bonus (only after every mandatory requirement is done):** BLG-13 (#109), HTL-26 (#106)
 
@@ -328,7 +323,6 @@ The official reference data every module relies on, airline profiles and policie
 | Issue | Id | Requirement |
 |---|---|---|
 | #94 | GEN-12 | Reference data at setup: airports, cities, countries and supported… |
-| #117 | NEW-05 | Shared reference data (countries, cities) with read endpoints and… |
 | #15 | FLT-02 | A predefined, read-only list of airports (IATA code, name, city… |
 | #14 | FLT-01 | Create an airline profile and an airline moderator to edit their… |
 | #16 | FLT-03 | Create a flight with flight number, departure and arrival airports, and… |
@@ -339,7 +333,6 @@ The official reference data every module relies on, airline profiles and policie
 | #21 | FLT-09 | Define cancellation tiers, each with a unique days-before-departure… |
 | #91 | FLT-30 | Flights shall have a status of Scheduled, Cancelled or Departed |
 | #85 | GEN-06 | Flight times in each airport's local time zone |
-| #115 | NEW-02 | Impact of flight changes/cancellation on existing bookings |
 
 ### Endpoints
 
@@ -354,24 +347,24 @@ The official reference data every module relies on, airline profiles and policie
 - [ ] `POST /api/flights/:id/cabins` FLT-04
 - [ ] `PATCH /api/flights/:id/cabins/:cabinId` FLT-04, FLT-05
 - [ ] `GET /api/airports` FLT-03, FLT-11
-- [ ] An extra endpoint may be needed (not in the PDF tables) for: reading countries, cities, attractions and the supported currency list (NEW-05, GEN-12, ACC-09, ITN-18)
+- [ ] An extra endpoint may be needed (not in the PDF tables) for: reading countries, cities, attractions and the supported currency list (GEN-12, ACC-09, ITN-18)
 
 ### Tasks
 
 - [ ] Seed script (npm run seed): countries, cities, airports and attractions from the official datasets with the official ids (EG, cairo, CAI, att-1), an IANA time zone added to every airport (FLT-02), and the supported currencies (GEN-12). Running it twice creates no duplicates.
-- [ ] Exported reference lookups so other modules reject unknown countries, cities and airports (NEW-05).
+- [ ] Exported reference lookups so other modules reject unknown countries, cities and airports (GEN-12).
 - [ ] Airline schema + endpoints: admin creates, the airline's moderator edits; logo as multipart, 1 per airline (FLT-01).
 - [ ] Extra-baggage rules (FLT-08) and cancellation tiers (FLT-09); the shared tier rule in common/utils/ for Area 1.
 - [ ] Flight schema with airports validated by the lookups, times stored in UTC and shown in each airport's local zone with luxon (FLT-03, GEN-06).
 - [ ] Cabins with prices and total / booked / held seat counters, so Area 1 can hold seats atomically (FLT-04).
-- [ ] Edit the schedule and notify affected bookings (FLT-05, NEW-02); cancel a flight: its bookings are cancelled with 100% refunds through Area 1 (FLT-06).
+- [ ] Edit the schedule and notify affected bookings (FLT-05, FLT-30); cancel a flight: its bookings are cancelled with 100% refunds through Area 1 (FLT-06).
 - [ ] Flight status Scheduled / Cancelled / Departed, with a cron job that marks flights Departed (FLT-30). Rehearse demo scenarios 2 and 7.
 
 ### Dependencies
 
 | Direction | Area | What |
 |---|---|---|
-| You give | Areas 2, 6, 7, 8 | Seed data (countries, cities, airports with time zones, attractions, supported currencies) + lookups (GEN-12, NEW-05, FLT-02) |
+| You give | Areas 2, 6, 7, 8 | Seed data (countries, cities, airports with time zones, attractions, supported currencies) + lookups (GEN-12, FLT-02) |
 | You give | Area 3 | Seed script where the admin account is added (GEN-12, ACC-18) |
 | You give | Area 3 | Airline schema (a moderator is linked to one airline; airlines can be deactivated) (FLT-01, ACC-13, ACC-15) |
 | You give | Area 1 | Flight + cabin schemas with total / booked / held seat counters and flight status (FLT-03, FLT-04, FLT-30) |
@@ -381,7 +374,7 @@ The official reference data every module relies on, airline profiles and policie
 | You need | Area 2 | User schema, login, cookies, JwtAuthGuard / RolesGuard / @CurrentUser, ownership helper (ACC-04, ACC-11, ACC-19) |
 | You need | Area 3 | Admin creates the airline / hotel moderator (ACC-13) |
 | You need | Area 3 | NotificationsService (GEN-01) |
-| You need | Area 1 | Flight booking schema (no airport change or seat cut below booked; notify affected bookings) (GEN-11, FLT-05, NEW-02) |
+| You need | Area 1 | Flight booking schema (no airport change or seat cut below booked; notify affected bookings) (GEN-11, FLT-05, FLT-30) |
 | You need | Area 4 | Image upload validation (GEN-08) |
 | You need | Area 1 | Refund function (airline cancels a flight: 100% refunds) (PAY-03, FLT-06) |
 
@@ -445,7 +438,7 @@ Everything around finding and listing bookings: flight search, flight details, t
 | You give | Area 1 | Booking summary (passengers, baggage) that hands off to the seat hold (FLT-19, FLT-21) |
 | You need | Area 3 | Error format, ValidationPipe, pagination, shared enums (GEN-02, GEN-05, GEN-13) |
 | You need | Area 2 | User schema, login, cookies, JwtAuthGuard / RolesGuard / @CurrentUser, ownership helper (ACC-04, ACC-11, ACC-19) |
-| You need | Area 5 | Seed data (countries, cities, airports with time zones, attractions, supported currencies) + lookups (GEN-12, NEW-05, FLT-02) |
+| You need | Area 5 | Seed data (countries, cities, airports with time zones, attractions, supported currencies) + lookups (GEN-12, FLT-02) |
 | You need | Area 7 | Hotel schema (reviews and the reservation list belong to a hotel) (HTL-01, HTL-22, HTL-24) |
 | You need | Area 5 | Flight + cabin schemas, baggage allowance and the local-time helper (search and flight details) (FLT-03, FLT-04, FLT-08, GEN-06) |
 | You need | Area 1 | Flight booking + hotel reservation schemas (admin overview, my bookings, flight manifest, reservation list) (GEN-11, ACC-17, FLT-29, HTL-22) |
@@ -519,7 +512,7 @@ Hotel profiles and photos, individually bookable rooms, availability and blocked
 | You give | Area 6 | Exported hotel search service (HTL-11, ITN-25) |
 | You need | Area 3 | Error format, ValidationPipe, pagination, shared enums (GEN-02, GEN-05, GEN-13) |
 | You need | Area 2 | User schema, login, cookies, JwtAuthGuard / RolesGuard / @CurrentUser, ownership helper (ACC-04, ACC-11, ACC-19) |
-| You need | Area 5 | Seed data (countries, cities, airports with time zones, attractions, supported currencies) + lookups (GEN-12, NEW-05, FLT-02) |
+| You need | Area 5 | Seed data (countries, cities, airports with time zones, attractions, supported currencies) + lookups (GEN-12, FLT-02) |
 | You need | Area 3 | Admin creates the airline / hotel moderator (ACC-13) |
 | You need | Area 1 | Reservation + hold data (Booked in the room calendar, free rooms and search; no blocking over reservations) (HTL-18, HTL-06, HTL-08, HTL-11, HTL-15) |
 | You need | Area 4 | Image upload validation (GEN-08) |
@@ -600,7 +593,7 @@ Day-by-day itineraries with activities, images, budgets and transport costs, cur
 | You give | Area 3 | Itinerary schema with a hidden flag (GEN-09, GEN-10) |
 | You need | Area 3 | Error format, ValidationPipe, pagination, shared enums (GEN-02, GEN-05, GEN-13) |
 | You need | Area 2 | User schema, login, cookies, JwtAuthGuard / RolesGuard / @CurrentUser, ownership helper (ACC-04, ACC-11, ACC-19) |
-| You need | Area 5 | Seed data (countries, cities, airports with time zones, attractions, supported currencies) + lookups (GEN-12, NEW-05, FLT-02) |
+| You need | Area 5 | Seed data (countries, cities, airports with time zones, attractions, supported currencies) + lookups (GEN-12, FLT-02) |
 | You need | Area 4 | Image upload validation (GEN-08) |
 
 **Bonus (only after every mandatory requirement is done):** ITN-27 (#107), ITN-28 (#108)

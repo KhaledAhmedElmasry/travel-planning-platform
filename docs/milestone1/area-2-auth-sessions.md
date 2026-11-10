@@ -17,7 +17,6 @@ Milestone 1 task sheet · backend + Swagger
 |**Issue**|**Id**|**Requirement**|**Complexity**|
 |---|---|---|---|
 |#1|**ACC-01**|Register by entering name, unique email, password and a mandatory…|**low**|
-|#112|**ACC-03**|Account creation on registration: role Registered User, status Active…|**low**|
 |#120|**ACC-04**|Allow a registered user, admin or moderator to log in with email and…|**medium**|
 |#2|**ACC-05**|After 5 consecutive failed login attempts, the system shall lock the…|**medium**|
 |#3|**ACC-06**|Log out, which clears the authentication cookies and revokes the…|**medium**|
@@ -27,7 +26,6 @@ Milestone 1 task sheet · backend + Swagger
 |#8|**ACC-11**|Access to bookings and private itineraries to their owner, except that…|**medium**|
 |#121|**ACC-12**|Deactivate their own account after confirmation|**medium**|
 |#96|**ACC-19**|Never store authentication tokens or user credentials in localStorage…|**medium**|
-|#118|**NEW-07**|Token-based sessions: access + rotating refresh token in httpOnly…|**medium**|
 
 
 
@@ -36,7 +34,7 @@ Milestone 1 task sheet · backend + Swagger
 |**Method**|**Path**<br>|**Requirements**|
 |---|---|---|
 |**`POST`**|`/api/admin/users/:id/reset-password`<br>|ACC-07a|
-|**`POST`**|`/api/auth/register`<br>|ACC-01, ACC-03|
+|**`POST`**|`/api/auth/register`<br>|ACC-01|
 |**`POST`**|`/api/auth/login`<br>|ACC-04, ACC-05|
 |**`POST`**|`/api/auth/logout`<br>|ACC-06|
 |**`PATCH`**|`/api/auth/change-password`<br>|ACC-08|
@@ -44,7 +42,7 @@ Milestone 1 task sheet · backend + Swagger
 |**`GET`**|`/api/users/me`<br>|ACC-11|
 |**`PATCH`**|`/api/users/me`<br>|ACC-09|
 |**`DELETE`**|`/api/users/me`<br>|ACC-12|
-|**_`?`_**|_An extra endpoint may be needed (not in the PDF tables) for: refreshing the session (NEW-07)_||
+|**_`?`_**|_An extra endpoint may be needed (not in the PDF tables) for: refreshing the session (ACC-19)_||
 
 
 
@@ -54,9 +52,9 @@ Milestone 1 task sheet · backend + Swagger
 
 - User schema: name, unique lowercase email, bcrypt password hash, role, status (active / suspended / deactivated), preferred currency, failedLoginAttempts + lockUntil, assigned airline or hotel for moderators. 
 
-- Register (ACC-01, ACC-03): password rules, new account = Registered User + Active; admins can never self-register. 
+- Register (ACC-01): password rules, new account = Registered User + Active; admins can never self-register. 
 
-- Login / logout / session refresh (ACC-04, ACC-06, NEW-07): 15-minute access JWT + rotating, hashed refresh token in httpOnly, Secure, SameSite cookies only (ACC-19); 30-minute idle expiry; logout revokes the session. 
+- Login / logout / session refresh (ACC-04, ACC-06, ACC-19): 15-minute access JWT + rotating, hashed refresh token in httpOnly, Secure, SameSite cookies only (ACC-19); 30-minute idle expiry; logout revokes the session. 
 
 - Lockout after 5 failed logins for 15 minutes; a successful login resets the counter (ACC-05). 
 
@@ -77,7 +75,7 @@ Milestone 1 task sheet · backend + Swagger
 ||RolesGuard / @CurrentUser, ownership helper||enums (GEN-02, GEN-05, GEN-13)|
 ||(ACC-04, ACC-11, ACC-19)|Area 5|Seed data (countries, cities, airports with time zones,|
 |Area 3|Session revocation (used when an account is||attractions, supported currencies) + lookups (GEN-|
-||suspended) (NEW-07, ACC-15)||12, NEW-05, FLT-02)|
+||suspended) (ACC-19, ACC-15)||12, FLT-02)|
 |||Until it is<br>documen|merged, code against the agreed interface (e.g. insert test<br>ts directly in Atlas).|
 
 

@@ -83,7 +83,7 @@ TASKS
 ||belong to a hotel) (HTL-01, HTL-22, HTL-24)||04, ACC-11, ACC-19)|
 |Area 1|Room + availability schemas (HTL-03, HTL-04,|Area 5|Seed data (countries, cities, airports with time zones,|
 ||HTL-06)||attractions, supported currencies) + lookups (GEN-|
-|Area 1|Hotel check-in / check-out times + cancellation||12, NEW-05, FLT-02)|
+|Area 1|Hotel check-in / check-out times + cancellation||12, FLT-02)|
 ||tiers (shown before payment, used for refunds)|Area 3|Admin creates the airline / hotel moderator (ACC-13)|
 ||(HTL-09, HTL-10, PAY-02)|Area 1|Reservation + hold data (Booked in the room|
 |Area 6|Exported hotel search service (HTL-11, ITN-25)|Area 4|calendar, free rooms and search; no blocking over<br>reservations) (HTL-18, HTL-06, HTL-08, HTL-11, HTL-<br>15)<br>Image upload validation (GEN-08)|

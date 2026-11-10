@@ -33,7 +33,6 @@ TASKS
 |#77|**BLG-08**|Add up to 5 tags (max 30 characters each) to a post and edit them later|**low**|
 |#122|**BLG-09**|Search published posts by keyword in title, tags or author name…|**medium**|
 |#78|**BLG-10**|Attach images to a post under the shared media-upload rule (GEN-08) and…|**medium**|
-|#113|**BLG-11**|Browse published posts by tag (case-insensitive, paginated, newest…|**low**|
 |#79|**BLG-12**|A public author page showing the author's name, join date, published…|**low**|
 |#87|**GEN-08**|Image uploads in JPG or PNG format, up to 5 MB each, with up to 5…|**medium**|
 |#50|**HTL-23**|A Confirmed reservation becomes Completed once its check-out date has…|**medium**|
@@ -46,7 +45,7 @@ TASKS
 |**Method**|**Path**|**Requirements**|
 |---|---|---|
 |**`POST`**|`/api/posts`|BLG-01|
-|**`GET`**|`/api/posts`|BLG-02, BLG-09, BLG-11|
+|**`GET`**|`/api/posts`|BLG-02, BLG-09|
 |**`GET`**|`/api/posts/:id`|BLG-02|
 |**`GET`**|`/api/posts/mine`|BLG-03|
 |**`PATCH`**|`/api/posts/:id`|BLG-04, BLG-08|
@@ -67,7 +66,7 @@ TASKS
 |---|---|---|
 |**`POST`**|`/api/posts/:id/images`|BLG-10, GEN-08|
 |**`DELETE`**|`/api/posts/:id/images/:imageId`|BLG-10|
-|**`GET`**|`/api/tags/:tag/posts`|BLG-08, BLG-11|
+|**`GET`**|`/api/tags/:tag/posts`|BLG-08|
 |**`GET`**|`/api/authors/:id`|BLG-12|
 |**`POST`**|`/api/hotel-bookings/:id/review`|HTL-23|
 |**`PATCH`**|`/api/reviews/:id`|HTL-23|
@@ -84,7 +83,7 @@ Post schema + create as Draft or Published with a required title and body (BLG-0
 
 - Public paginated list and detail of published posts (BLG-02); my posts including drafts (BLG-03); edit / delete own posts (BLG-04). 
 
-- Tags: up to 5 per post, max 30 characters, normalised (BLG-08); browse by tag, case-insensitive (BLG-11); keyword search in title, tags or author (BLG-09). 
+- Tags: up to 5 per post, max 30 characters, normalised; browse by tag, case-insensitive (BLG-08); keyword search in title, tags or author (BLG-09). 
 
 Post images with the shared upload rule: add and remove (BLG-10). 
 
@@ -104,7 +103,7 @@ Public author page (BLG-12); hidden posts and comments (GEN-10, Area 3) are excl
 ||hidden flag (GEN-09, GEN-10)|Area 2|User schema, login, cookies, JwtAuthGuard /|
 ||||RolesGuard / @CurrentUser, ownership helper (ACC-<br>04, ACC-11, ACC-19)|
 |||Area 7|Hotel schema (reviews and the reservation list<br>belong to a hotel) (HTL-01, HTL-22, HTL-24)|
-|||Area 1|Reservation schema with the Completed status<br>(reviews only after a stay) (GEN-11, NEW-01, HTL-23)|
+|||Area 1|Reservation schema with the Completed status<br>(reviews only after a stay) (GEN-11, HTL-23)|
 
 
 

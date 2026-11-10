@@ -97,7 +97,7 @@ Milestone 1 task sheet · backend + Swagger
 |Area 3|Itinerary schema with a hidden flag (GEN-09, GEN-|Area 2|User schema, login, cookies, JwtAuthGuard /|
 ||10)||RolesGuard / @CurrentUser, ownership helper (ACC-|
 ||||04, ACC-11, ACC-19)|
-|||Area 5|Seed data (countries, cities, airports with time zones,<br>attractions, supported currencies) + lookups (GEN-<br>12, NEW-05, FLT-02)|
+|||Area 5|Seed data (countries, cities, airports with time zones,<br>attractions, supported currencies) + lookups (GEN-<br>12, FLT-02)|
 |||Area 4|Image upload validation (GEN-08)|
 
 

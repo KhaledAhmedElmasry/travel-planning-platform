@@ -85,7 +85,7 @@ Milestone 1 task sheet · backend + Swagger
 |Area 2|User schema, login, cookies, JwtAuthGuard /|
 ||RolesGuard / @CurrentUser, ownership helper (ACC-<br>04, ACC-11, ACC-19)|
 |Area 5|Seed data (countries, cities, airports with time zones,|
-||attractions, supported currencies) + lookups (GEN-<br>12, NEW-05, FLT-02)|
+||attractions, supported currencies) + lookups (GEN-<br>12, FLT-02)|
 |Area 7|Hotel schema (reviews and the reservation list<br>belong to a hotel) (HTL-01, HTL-22, HTL-24)|
 |Area 5|Flight + cabin schemas, baggage allowance and the|
 ||local-time helper (search and flight details) (FLT-03,<br>FLT-04, FLT-08, GEN-06)|
