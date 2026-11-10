@@ -114,7 +114,7 @@ Hotels follow the same steps: the moderator adds rooms (`POST /api/hotels/{id}/r
 | Document | Contents |
 |---|---|
 | [docs/requirements/](docs/requirements/) | Official requirements workbook, mock data and the GitHub issue list |
-| [docs/milestone1/](docs/milestone1/) | Project description, task sheets per work area and the dependencies between areas |
+| [docs/milestone1/](docs/milestone1/) | Project description and task sheets per work area (with the dependencies between areas) |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | Git workflow, code structure and API conventions |
 | [docs/api/openapi.yaml](docs/api/openapi.yaml) | Swagger documentation of every endpoint (shown at `/api/docs`) |
 | [AI_PROMPTS.txt](AI_PROMPTS.txt) | AI usage log (mandatory) |

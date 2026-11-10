@@ -2,7 +2,7 @@
 
 **Milestone 1:** NestJS backend + MongoDB, graded through Swagger UI.
 
-Each work area has a handout with the same content: `area-<n>-*.md` in this folder. Every dependency between areas, with requirement codes, is in [DEPENDENCIES.pdf](DEPENDENCIES.pdf).
+Each work area has a handout with the same content: `area-<n>-*.md` in this folder. The dependencies between areas are in each area's "You give / You need" table below.
 
 > The **Assigned to** tags are intentionally empty: the repository never names who works on what. Fill them in on your own copy or on the printed handouts.
 
