@@ -221,6 +221,7 @@ export class SessionsService {
           ? user.hotelId.toString()
           : null,
       mustChangePassword: user.mustChangePassword,
+      emailVerified: user.emailVerified !== false,
     };
   }
 

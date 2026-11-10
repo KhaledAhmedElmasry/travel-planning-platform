@@ -58,6 +58,11 @@ export class User {
   @Prop({ type: Date, default: null })
   lockUntil: Date | null;
 
+  // ACC-02 (bonus): false after registration until the link is opened. Accounts created before
+  // ACC-02 (and the seeded admin) have no value and count as verified.
+  @Prop({ type: Boolean })
+  emailVerified?: boolean;
+
   // ACC-12: when the account was deactivated by its owner.
   @Prop({ type: Date, default: null })
   deactivatedAt: Date | null;

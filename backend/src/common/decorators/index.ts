@@ -37,3 +37,11 @@ export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
 export const ALLOW_PENDING_PASSWORD_CHANGE_KEY = 'allowPendingPasswordChange';
 export const AllowPendingPasswordChange = () =>
   SetMetadata(ALLOW_PENDING_PASSWORD_CHANGE_KEY, true);
+
+// ACC-02 (bonus): routes that need a verified email address, e.g. creating a booking. JwtAuthGuard
+// answers 403 for an account that has not opened its verification link yet.
+//   @UseGuards(JwtAuthGuard)
+//   @RequireVerifiedEmail()
+export const REQUIRE_VERIFIED_EMAIL_KEY = 'requireVerifiedEmail';
+export const RequireVerifiedEmail = () =>
+  SetMetadata(REQUIRE_VERIFIED_EMAIL_KEY, true);

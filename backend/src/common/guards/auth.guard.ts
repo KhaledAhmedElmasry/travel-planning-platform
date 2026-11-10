@@ -3,13 +3,18 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ACCESS_COOKIE } from '../../auth/auth-cookies';
 import { SessionsService } from '../../auth/sessions.service';
-import { ALLOW_PENDING_PASSWORD_CHANGE_KEY } from '../decorators';
+import {
+  ALLOW_PENDING_PASSWORD_CHANGE_KEY,
+  REQUIRE_VERIFIED_EMAIL_KEY,
+} from '../decorators';
 import type { AuthUser } from '../interfaces';
 
 // Authentication guard: reads the access token from the httpOnly cookie.
@@ -27,6 +32,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly sessions: SessionsService,
     private readonly reflector: Reflector,
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -47,6 +53,24 @@ export class JwtAuthGuard implements CanActivate {
       if (!allowed) {
         throw new ForbiddenException(
           'You must change your temporary password before continuing',
+        );
+      }
+    }
+
+    // ACC-02 (bonus): booking needs a verified email address. Switched on with
+    // REQUIRE_EMAIL_VERIFICATION=true (off by default, so a new account can book without an
+    // email inbox, for example when the API is tried in Swagger).
+    if (
+      !user.emailVerified &&
+      this.config?.get<string>('REQUIRE_EMAIL_VERIFICATION') === 'true'
+    ) {
+      const required = this.reflector.getAllAndOverride<boolean | undefined>(
+        REQUIRE_VERIFIED_EMAIL_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (required) {
+        throw new ForbiddenException(
+          'Verify your email address before booking. Open the link we sent you',
         );
       }
     }

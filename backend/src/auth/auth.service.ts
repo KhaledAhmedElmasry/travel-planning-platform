@@ -23,6 +23,7 @@ import {
 } from './login-lockout';
 import { RegisterDto } from './dto/register.dto';
 import { BCRYPT_ROUNDS } from './password-rule';
+import { EmailVerificationService } from './email-verification.service';
 import { ACCOUNT_SUSPENDED, SessionsService } from './sessions.service';
 
 // openapi.yaml POST /api/auth/register 201: the profile without any password fields.
@@ -44,6 +45,8 @@ export interface AccountResponse {
   airlineId?: string;
   hotelId?: string;
   mustChangePassword: boolean;
+  // ACC-02 (bonus): false until the verification link is opened.
+  emailVerified: boolean;
 }
 
 // openapi.yaml GET /api/auth/me 200: the account plus its status.
@@ -93,6 +96,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly sessionsService: SessionsService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   // ACC-01: create a Registered User account with status Active.
@@ -113,6 +117,10 @@ export class AuthService {
         passwordHash,
         termsAcceptedAt: new Date(),
       });
+      // ACC-02 (bonus): a failed email never undoes the registration.
+      await this.emailVerification
+        .sendVerification(user._id, user.email)
+        .catch(() => undefined);
       return {
         id: user._id.toString(),
         name: user.name,
@@ -262,6 +270,11 @@ export class AuthService {
     await this.sessionsService.revokeAllForUser(userId);
   }
 
+  // ACC-02 (bonus): the link from the verification email.
+  verifyEmail(token: string): Promise<void> {
+    return this.emailVerification.verify(token);
+  }
+
   // ACC-04, ACC-19: the account of the current session, for GET /api/auth/me.
   async me(userId: string): Promise<MeResponse> {
     const user = await this.usersService.findById(userId);
@@ -278,6 +291,7 @@ function toAccount(user: UserDocument): AccountResponse {
     email: user.email,
     role: user.role,
     mustChangePassword: user.mustChangePassword,
+    emailVerified: user.emailVerified !== false,
   };
   if (user.role === Role.AirlineModerator && user.airlineId) {
     account.airlineId = user.airlineId.toString();

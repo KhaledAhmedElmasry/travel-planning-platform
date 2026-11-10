@@ -1742,3 +1742,56 @@ the server-side idle expiry decides, so an active user is not cut off 30 minutes
 Verified with npm run lint, npm run build, local tests (including checks that fail when the
 rotation, the reuse revoke or the unique token id is removed), and in Swagger.
 ================================================
+
+================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-02 (bonus)
+
+Prompt:
+After all mandatory Area 2 requirements were done, I asked the assistant to implement the bonus
+GitHub issue #101 (ACC-02): send a verification link by email after registration and block
+booking until the email is verified, following GET /api/auth/verify-email in
+docs/api/openapi.yaml. Because MailService (GEN-01-B) is still empty, I chose to log the link in
+development for now, and to add the booking block through JwtAuthGuard with a decorator on the
+two booking routes.
+
+How the output was used:
+Used as the base for the EmailToken schema, EmailVerificationService, GET /api/auth/verify-email,
+the emailVerified field, the @RequireVerifiedEmail() decorator and its check in JwtAuthGuard, and
+one decorator line on POST /api/flight-bookings/hold and POST /api/hotel-bookings. I checked it:
+registration creates a one-time link valid for 24 hours and stores only its SHA-256 hash; the link
+is logged only in development and never in production; it works once (atomic update, so two
+clicks cannot both succeed); expired, wrong and empty tokens give 400; an unverified account gets
+403 on the two booking routes but can use everything else; accounts created before ACC-02 and the
+seeded admin count as verified. openapi.yaml is updated (emailVerified, the 200 body, the new
+403). Verified with npm run lint, npm run build, local tests (including checks that fail when the
+booking block, the one-time use or the rule for older accounts is removed), and in Swagger.
+================================================
+
+================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-07 (bonus)
+
+Prompt:
+After ACC-02, I asked the assistant to implement the bonus GitHub issue #102 (ACC-07): a user who
+forgot their password requests a reset link by email; the link expires after 30 minutes, is
+single-use, is invalidated by a newer request, and the response does not reveal whether the email
+exists. I asked it to follow POST /api/auth/forgot-password and POST /api/auth/reset-password in
+docs/api/openapi.yaml (reset revokes all sessions) and to reuse the email tokens from ACC-02,
+logging the link in development until MailService (GEN-01-B) exists.
+
+How the output was used:
+Used as the base for ForgotPasswordDto, ResetPasswordDto, PasswordResetService and the two routes.
+I checked it against the requirement: forgot-password always answers the same message; only an
+active account gets a link; a new request invalidates every older unused link; the link lasts 30
+minutes, works once (atomic update, so two requests cannot both use it) and only its hash is
+stored; a verification token cannot be used as a reset token; reset sets the new password (it must
+meet the rules), revokes every session, clears a login lockout and marks the email verified. The
+link is logged only in development, never in production. Verified with npm run lint, npm run
+build, local tests (including checks that fail when the older-link invalidation, the one-time use,
+the session revoke or the active-account check is removed), and in Swagger.
+================================================

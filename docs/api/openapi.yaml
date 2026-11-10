@@ -134,7 +134,9 @@ paths:
       description: |
         **Access:** guests (the user opens the link sent by email after registration).
 
-        Marks the email as verified. Booking is blocked until the email is verified (ACC-02).
+        Marks the email as verified. When the server runs with `REQUIRE_EMAIL_VERIFICATION=true`, booking is blocked until the email is verified (ACC-02); by default (the setting is off) a new account can book at once, so the API can be tried in Swagger without an email inbox.
+        Registration sends the link; it works once, for 24 hours. Until email sending (GEN-01-B)
+        exists, the link is printed in the server log in development.
       security: []
       parameters:
         - name: token
@@ -146,6 +148,14 @@ paths:
       responses:
         '200':
           description: Email verified.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Email verified. You can now book flights and hotels
         '400':
           description: The token is invalid, expired or already used.
           content:
@@ -279,7 +289,15 @@ paths:
               $ref: '#/components/schemas/ForgotPasswordRequest'
       responses:
         '200':
-          description: Always the same message, e.g. "If the email exists, a reset link was sent".
+          description: Always the same message, whether or not the email exists.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: If an account with this email exists, a password reset link was sent
         '400':
           $ref: '#/components/responses/ValidationError'
 
@@ -291,7 +309,10 @@ paths:
       description: |
         **Access:** guests (with the token from the reset email).
 
-        Sets the new password and revokes all sessions of the account.
+        Sets the new password and revokes all sessions of the account. Also clears a login lockout
+        (ACC-05) and marks the email as verified (ACC-02), because the link was opened from the inbox.
+        Until email sending (GEN-01-B) exists, the link and token are printed in the server log in
+        development.
       security: []
       requestBody:
         required: true
@@ -302,6 +323,14 @@ paths:
       responses:
         '200':
           description: Password changed. The user logs in with the new password.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Password changed. Log in with your new password
         '400':
           description: The token is invalid, expired or already used, or the new password breaks the rules.
           content:
@@ -2180,7 +2209,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not a registered user.
+          description: Not a registered user, or [Bonus] the email is not verified yet (ACC-02, only when `REQUIRE_EMAIL_VERIFICATION=true`).
           content:
             application/json:
               schema:
@@ -3503,7 +3532,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not a registered user.
+          description: Not a registered user, or [Bonus] the email is not verified yet (ACC-02, only when `REQUIRE_EMAIL_VERIFICATION=true`).
           content:
             application/json:
               schema:
@@ -6513,6 +6542,10 @@ components:
           type: boolean
           example: false
           description: true after an admin reset (ACC-07a) or for a new moderator (ACC-13).
+        emailVerified:
+          type: boolean
+          example: true
+          description: '[Bonus] false for a new account until it opens the verification link; booking is blocked until then only when the server runs with `REQUIRE_EMAIL_VERIFICATION=true` (ACC-02). Accounts created before ACC-02 are verified.'
 
     Me:
       description: The account of the current session plus its status (ACC-04).

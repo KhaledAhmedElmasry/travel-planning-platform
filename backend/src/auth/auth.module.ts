@@ -7,6 +7,9 @@ import { UsersModule } from '../users/users.module';
 import { AdminUsersController } from './admin-users.controller';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { EmailVerificationService } from './email-verification.service';
+import { PasswordResetService } from './password-reset.service';
+import { EmailToken, EmailTokenSchema } from './schemas/email-token.schema';
 import { Session, SessionSchema } from './schemas/session.schema';
 import { SessionsService } from './sessions.service';
 
@@ -18,10 +21,20 @@ import { SessionsService } from './sessions.service';
   imports: [
     UsersModule,
     JwtModule.register({}),
-    MongooseModule.forFeature([{ name: Session.name, schema: SessionSchema }]),
+    MongooseModule.forFeature([
+      { name: Session.name, schema: SessionSchema },
+      { name: EmailToken.name, schema: EmailTokenSchema },
+    ]),
   ],
   controllers: [AuthController, AdminUsersController],
-  providers: [AuthService, SessionsService, JwtAuthGuard, RolesGuard],
+  providers: [
+    AuthService,
+    SessionsService,
+    EmailVerificationService,
+    PasswordResetService,
+    JwtAuthGuard,
+    RolesGuard,
+  ],
   exports: [AuthService, SessionsService, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}

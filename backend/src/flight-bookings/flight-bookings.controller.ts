@@ -11,7 +11,7 @@ import {
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentUser } from '../common/decorators';
+import { CurrentUser, RequireVerifiedEmail } from '../common/decorators';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import type { AuthUser } from '../common/interfaces';
 import { RegisteredUserGuard } from '../payments/registered-user.guard';
@@ -116,6 +116,7 @@ export class FlightBookingsController {
   // FLT-22: hold the seats for 10 minutes and create the booking (pending_payment).
   @Post('hold')
   @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  @RequireVerifiedEmail() // ACC-02 (bonus): booking needs a verified email
   hold(
     @CurrentUser() user: AuthUser,
     @Body() dto: FlightBookingRequestDto,
