@@ -4243,7 +4243,8 @@ paths:
           description: |
             Title, countries, start date, visibility, the days in order (id, number, date, city, notes,
             activities, budget entries), the city groups (city, first and last day, day count, budget
-            subtotal), the transport costs, and the original author if it is a clone (ITN-21).
+            subtotal), the transport costs, and the original author if it is a clone (ITN-21), and `linkedBookings`, the
+            bookings linked to its days (ITN-27, bonus).
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -4820,7 +4821,10 @@ paths:
         the activity costs from ITN-10), by day, intercity transport (ITN-16) separately, and the grand
         total (ITN-14). `convertedTotal` contains the same category, day, intercity and grand totals
         converted to the authenticated user's preferred currency (ACC-09), rounded to two decimals,
-        and the date of the rates used (ITN-18). Booking prices are not included or converted (PAY-04).
+        and the date of the rates used (ITN-18). Booking prices are never converted (PAY-04). Bookings linked
+        to the itinerary's days (ITN-27, bonus) are listed apart in `linkedBookings` in the platform currency
+        with their own total, and `grandTotalWithBookings` adds them to `grandTotal`; `grandTotal` and
+        `convertedTotal` contain only budget entries, activity costs and intercity transport.
 
         Each total is an object keyed by currency; amounts in different currencies are never added
         together in the original totals. The optional `currency` query parameter requests a supported
@@ -5125,7 +5129,10 @@ paths:
       description: |
         **Access:** the owner, for the owner's own Confirmed bookings.
 
-        The linked booking's price is added to the itinerary budget.
+        The linked booking's price feeds the itinerary budget: `GET /api/itineraries/{id}/budget-summary` lists it
+        in `linkedBookings` and adds it in `grandTotalWithBookings`, in the platform currency and never converted
+        (ITN-18, PAY-04). The day must belong to the itinerary, and a booking can be linked once, to one day of
+        one itinerary. A cancelled or expired booking no longer counts; deleting the day or the itinerary unlinks it.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -5138,6 +5145,10 @@ paths:
       responses:
         '201':
           description: The booking is linked to the day.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkedBooking'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -7123,12 +7134,59 @@ components:
           $ref: '#/components/schemas/CurrencyTotals'
         grandTotal:
           $ref: '#/components/schemas/CurrencyTotals'
+        linkedBookings:
+          type: object
+          description: '[Bonus, ITN-27] Confirmed or Completed bookings linked to the itinerary days, in the platform currency (never converted). Owner only.'
+          required: [items, total]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/LinkedBooking'
+            total:
+              $ref: '#/components/schemas/CurrencyTotals'
+        grandTotalWithBookings:
+          allOf:
+            - $ref: '#/components/schemas/CurrencyTotals'
+          description: '[Bonus, ITN-27] grandTotal plus the linked bookings (same currency key adds up). Owner only.'
         convertedTotal:
           type: object
           allOf:
             - $ref: '#/components/schemas/ConvertedBudgetSummary'
           nullable: true
           description: Converted totals in the requested or preferred currency, using rates from rateDate.
+    LinkedBooking:
+      type: object
+      required: [id, bookingType, bookingId, dayId, reference, description, amount, currency, status]
+      properties:
+        id:
+          type: string
+          example: 665f1c2a9b1e8a00123400b1
+        bookingType:
+          $ref: '#/components/schemas/BookingType'
+        bookingId:
+          type: string
+          example: 665f1c2a9b1e8a0012345678
+        dayId:
+          type: string
+          example: 665f1c2a9b1e8a0012345680
+        reference:
+          type: string
+          nullable: true
+          example: K7M2QX
+        description:
+          type: string
+          example: Flight MS777 CAI-DXB
+        amount:
+          type: number
+          description: The booking total as a decimal amount (the booking's integer cents / 100).
+          example: 250.5
+        currency:
+          type: string
+          example: USD
+        status:
+          type: string
+          enum: [confirmed, completed]
     ConvertedBudgetSummary:
       type: object
       required: [currency, rateDate, ratesStale, ratesNotice, totalsByCategory, totalsByDay, intercityTransport, grandTotal]

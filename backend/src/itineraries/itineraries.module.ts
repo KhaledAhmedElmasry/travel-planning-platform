@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ItinerariesController } from './itineraries.controller';
 import { ItinerariesService } from './itineraries.service';
+import { ItineraryBookingsService } from './itinerary-bookings.service';
 import { Itinerary, ItinerarySchema } from './schemas/itinerary.schema';
 import { UploadsModule } from '../uploads/uploads.module';
 import { UsersModule } from '../users/users.module';
@@ -21,7 +22,7 @@ import { FlightsModule } from '../flights/flights.module';
     ]),
   ],
   controllers: [ItinerariesController],
-  providers: [ItinerariesService],
+  providers: [ItinerariesService, ItineraryBookingsService],
   exports: [ItinerariesService],
 })
 export class ItinerariesModule {}

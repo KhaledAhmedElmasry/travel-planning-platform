@@ -40,6 +40,8 @@ import { UpdateBudgetEntryDto } from './dto/update-budget-entry.dto';
 import { BudgetSummaryQueryDto } from './dto/budget-summary-query.dto';
 import { ItineraryHotelsQueryDto } from './dto/itinerary-hotels-query.dto';
 import { ItineraryFlightsQueryDto } from './dto/itinerary-flights-query.dto';
+import { AttachBookingDto } from './dto/attach-booking.dto';
+import { LinkedBookingResponse } from './itinerary-bookings.service';
 import {
   ActivityResponse,
   ActivityImageResponse,
@@ -146,6 +148,18 @@ export class ItinerariesController {
   }
 
   // ITN-26: search flights from the chosen origin to an airport in the first city.
+  // ITN-27 (bonus): link a Confirmed booking of the user to a day of the itinerary.
+  @Post('itineraries/:id/bookings')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  linkBooking(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AttachBookingDto,
+  ): Promise<LinkedBookingResponse> {
+    return this.itinerariesService.linkBooking(id, user.id, dto);
+  }
+
   @Get('itineraries/:id/flights')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User)

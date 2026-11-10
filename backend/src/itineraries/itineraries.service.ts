@@ -51,6 +51,11 @@ import { FlightSearchService } from '../flights/flight-search.service';
 import { TripType } from '../flights/dto/search-flights-query.dto';
 import { ItineraryHotelsQueryDto } from './dto/itinerary-hotels-query.dto';
 import { ItineraryFlightsQueryDto } from './dto/itinerary-flights-query.dto';
+import { AttachBookingDto } from './dto/attach-booking.dto';
+import {
+  ItineraryBookingsService,
+  LinkedBookingResponse,
+} from './itinerary-bookings.service';
 
 // Area: Itineraries
 // Business logic and database access for: ITN-01..ITN-26
@@ -65,6 +70,7 @@ export class ItinerariesService {
     @Optional() private readonly uploadsService?: UploadsService,
     @Optional() private readonly usersService?: UsersService,
     @Optional() private readonly exchangeRatesService?: ExchangeRatesService,
+    @Optional() private readonly bookingLinks?: ItineraryBookingsService,
   ) {}
 
   async create(
@@ -222,6 +228,8 @@ export class ItinerariesService {
       }
       throw error;
     }
+    // ITN-27: the bookings linked to the deleted day are unlinked.
+    await this.bookingLinks?.removeForDay(itinerary._id, day._id);
   }
 
   // ITN-08: moves one day to a new position (1-based). The day is moved as a whole, so everything
@@ -526,7 +534,35 @@ export class ItinerariesService {
     itineraryId: string | Types.ObjectId,
     userId: string,
   ): Promise<ItineraryResponse> {
-    return this.toResponse(await this.findOwnedOrThrow(itineraryId, userId));
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    const response = this.toResponse(itinerary);
+    if (!this.bookingLinks) return response;
+    // ITN-27: the bookings linked to its days.
+    return {
+      ...response,
+      linkedBookings: await this.bookingLinks.list(
+        itinerary._id,
+        itinerary.days.map((day) => day._id),
+      ),
+    };
+  }
+
+  // ITN-27 (bonus): link one of the user's Confirmed bookings to a day of the itinerary.
+  async linkBooking(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+    dto: AttachBookingDto,
+  ): Promise<LinkedBookingResponse> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    if (!itinerary.days.id(dto.dayId)) {
+      throw new NotFoundException(
+        'Itinerary, day or booking not found, or they belong to another user.',
+      );
+    }
+    if (!this.bookingLinks) {
+      throw new Error('The itinerary booking links are not configured.');
+    }
+    return this.bookingLinks.link(itinerary._id, userId, dto);
   }
 
   async addBudgetEntry(
@@ -630,6 +666,24 @@ export class ItinerariesService {
     const grandTotal = sumTotals(
       Object.values(byCategory).concat(intercityTransport),
     );
+    // ITN-27: linked bookings feed the budget in the platform currency. They are listed and
+    // summed apart from the entries above and are NEVER converted (ITN-18, PAY-04).
+    const linkedItems = this.bookingLinks
+      ? await this.bookingLinks.list(
+          itinerary._id,
+          itinerary.days.map((day) => day._id),
+        )
+      : [];
+    const bookingTotals = emptyTotals();
+    for (const item of linkedItems) {
+      addAmount(bookingTotals, item.currency, item.amount);
+    }
+    const bookingFields = {
+      linkedBookings: { items: linkedItems, total: roundTotals(bookingTotals) },
+      grandTotalWithBookings: roundTotals(
+        sumTotals([grandTotal, bookingTotals]),
+      ),
+    };
     const targetCurrency =
       currency ??
       (this.usersService
@@ -674,6 +728,7 @@ export class ItinerariesService {
         totalsByDay: byDay,
         intercityTransport,
         grandTotal,
+        ...bookingFields,
         convertedTotal: {
           currency: targetCurrency,
           rateDate: rateDate,
@@ -691,6 +746,7 @@ export class ItinerariesService {
       totalsByDay: byDay,
       intercityTransport,
       grandTotal,
+      ...bookingFields,
       convertedTotal: null,
     };
   }
@@ -919,6 +975,8 @@ export class ItinerariesService {
       .deleteOne({ _id: itineraryId, userId: new Types.ObjectId(userId) })
       .exec();
     if (result.deletedCount !== 1) throw itineraryNotFound();
+    // ITN-27: its linked bookings are unlinked.
+    await this.bookingLinks?.removeForItinerary(itinerary._id);
   }
 
   async findHotels(
@@ -1393,6 +1451,8 @@ export interface ItineraryResponse {
   // ITN-09: consecutive days in the same city, in day order.
   cityGroups: CityGroup[];
   transportCosts: TransportCostResponse[];
+  // ITN-27 (bonus): the bookings linked to its days (owner's view only).
+  linkedBookings?: LinkedBookingResponse[];
   createdAt?: Date;
   updatedAt?: Date;
   originalItineraryId?: string | null;
@@ -1438,6 +1498,10 @@ export interface BudgetSummaryResponse {
   totalsByDay: BudgetDayTotal[];
   intercityTransport: CurrencyTotals;
   grandTotal: CurrencyTotals;
+  // ITN-27 (bonus), owner's budget only: linked bookings in the platform currency (never
+  // converted) and the grand total including them.
+  linkedBookings?: { items: LinkedBookingResponse[]; total: CurrencyTotals };
+  grandTotalWithBookings?: CurrencyTotals;
   convertedTotal: ConvertedBudgetSummary | null;
 }
 
@@ -1560,6 +1624,15 @@ function addAmount(
   amount: number,
 ): void {
   totals[currency] = (totals[currency] ?? 0) + amount;
+}
+
+function roundTotals(totals: CurrencyTotals): CurrencyTotals {
+  return Object.fromEntries(
+    Object.entries(totals).map(([currency, amount]) => [
+      currency,
+      Math.round(amount * 100) / 100,
+    ]),
+  );
 }
 
 function sumTotals(totals: CurrencyTotals[]): CurrencyTotals {
