@@ -1795,3 +1795,25 @@ link is logged only in development, never in production. Verified with npm run l
 build, local tests (including checks that fail when the older-link invalidation, the one-time use,
 the session revoke or the active-account check is removed), and in Swagger.
 ================================================
+
+================================================
+Date: 2026-11-10
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: HTL-26 (bonus)
+
+Prompt:
+Review and finalize the existing HTL-26 hotel moderator reply at POST /api/reviews/{id}/reply.
+Preserve supported behavior, cover role and hotel ownership, hidden/missing reviews, duplicate and
+simultaneous reply attempts, validation, response privacy, and optional reply schema behavior. Add
+the missing documented 201 response body and test the changes without claiming mocked concurrency
+as live MongoDB verification.
+
+How output was used:
+Used Codex to review the existing reply implementation, add focused service/controller/DTO/schema
+tests, require the moderator reference in the reply subdocument, and document the 201 ReviewResponse
+example and trim-before-validation rule in OpenAPI. The complete backend suite passed (10 suites,
+101 tests), changed-file ESLint passed, the production build passed, OpenAPI YAML parsed, and
+git diff --check passed. The simultaneous-attempt test uses mocked conditional-update outcomes;
+no live MongoDB, replica-set, HTTP end-to-end, or Swagger UI verification was performed.
+================================================

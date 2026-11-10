@@ -34,7 +34,11 @@ export class Review {
     type: {
       _id: false,
       text: { type: String, required: true, trim: true, maxlength: 1000 },
-      moderator: { type: MongooseSchema.Types.ObjectId, ref: 'User' },
+      moderator: {
+        type: MongooseSchema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+      },
       createdAt: { type: Date, required: true },
     },
     required: false,

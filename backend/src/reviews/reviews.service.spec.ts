@@ -8,12 +8,14 @@ import { Types } from 'mongoose';
 import { AccountStatus, BookingStatus, Role } from '../common/enums';
 import { AuthUser } from '../common/interfaces';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { ReplyReviewDto } from './dto/reply-review.dto';
 import { ReviewsService } from './reviews.service';
 
 const userId = new Types.ObjectId('665f1c2a9b1e8a0012340001');
 const hotelId = new Types.ObjectId('665f1c2a9b1e8a0012340002');
 const bookingId = new Types.ObjectId('665f1c2a9b1e8a0012340003');
 const reviewId = new Types.ObjectId('665f1c2a9b1e8a0012340004');
+const moderatorId = new Types.ObjectId('665f1c2a9b1e8a0012340005');
 const session = {};
 
 function query<T>(value: T) {
@@ -174,7 +176,9 @@ function setup(listRows?: ReturnType<typeof makeReview>[]) {
     review: {
       create: jest.fn().mockResolvedValue([review]),
       findById: jest.fn(() => query(review)),
+      findOne: jest.fn(() => query(review)),
       findOneAndUpdate: jest.fn(() => query(review)),
+      exists: jest.fn().mockResolvedValue(review),
       deleteOne: jest.fn(() => query({ deletedCount: 1 })),
       find: jest.fn(() => {
         const listQuery = paginatedQuery(reviews);
@@ -389,6 +393,141 @@ describe('ReviewsService', () => {
           pipelineFrom(models.hotel.updateOne),
         ),
       ).toEqual({ averageRating: 0, ratingCount: 0 });
+    });
+  });
+
+  describe('replyToReview', () => {
+    const moderator = {
+      id: moderatorId.toString(),
+      hotelId: hotelId.toString(),
+    };
+    const dto: ReplyReviewDto = { text: 'Thank you for staying with us!' };
+
+    it("adds one reply for the moderator's hotel and omits the moderator ID from the response", async () => {
+      const { service, models, review } = setup();
+      const replyDate = new Date('2026-11-10T12:30:00.000Z');
+      const updated = {
+        ...review,
+        reply: {
+          text: dto.text,
+          moderator: moderatorId,
+          createdAt: replyDate,
+        },
+      };
+      models.review.findOneAndUpdate.mockReturnValue(query(updated) as never);
+
+      const response = await service.replyToReview(reviewId, moderator, dto);
+
+      expect(models.review.findOne).toHaveBeenCalledWith({
+        _id: reviewId,
+        hidden: false,
+      });
+      expect(models.review.findOneAndUpdate).toHaveBeenCalledTimes(1);
+      expect(models.review.findOneAndUpdate.mock.calls[0]?.[0]).toEqual({
+        _id: reviewId,
+        hidden: false,
+        reply: { $exists: false },
+      });
+      const update: unknown = models.review.findOneAndUpdate.mock.calls[0]?.[1];
+      expect(update).toBeDefined();
+      if (typeof update !== 'object' || update === null) {
+        throw new Error('Expected a reply update object.');
+      }
+      const set = (update as Record<string, unknown>).$set;
+      if (typeof set !== 'object' || set === null) {
+        throw new Error('Expected a $set update object.');
+      }
+      const reply = (set as Record<string, unknown>).reply;
+      if (typeof reply !== 'object' || reply === null) {
+        throw new Error('Expected a reply object in the update.');
+      }
+      expect(reply).toMatchObject({ text: dto.text, moderator: moderatorId });
+      expect((reply as Record<string, unknown>).createdAt).toBeInstanceOf(Date);
+      expect(models.review.findOneAndUpdate.mock.calls[0]?.[2]).toEqual({
+        new: true,
+        runValidators: true,
+      });
+      expect(response.reply).toEqual({ text: dto.text, date: replyDate });
+      expect(response.reply).not.toHaveProperty('moderator');
+      expect(JSON.stringify(response)).not.toContain(moderatorId.toString());
+    });
+
+    it('rejects a moderator assigned to a different hotel with 403', async () => {
+      const { service, models } = setup();
+      await expect(
+        service.replyToReview(
+          reviewId,
+          { ...moderator, hotelId: new Types.ObjectId().toString() },
+          dto,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(models.review.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it.each(['missing', 'hidden'])('returns 404 for a %s review', async () => {
+      const { service, models } = setup();
+      models.review.findOne.mockReturnValue(query(null) as never);
+
+      await expect(
+        service.replyToReview(reviewId, moderator, dto),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(models.review.findOne).toHaveBeenCalledWith({
+        _id: reviewId,
+        hidden: false,
+      });
+      expect(models.review.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('returns 409 when the conditional update finds an existing reply', async () => {
+      const { service, models, review } = setup();
+      models.review.findOneAndUpdate.mockReturnValue(query(null) as never);
+      models.review.exists.mockResolvedValue(review);
+
+      await expect(
+        service.replyToReview(reviewId, moderator, dto),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(models.review.exists).toHaveBeenCalledWith({
+        _id: reviewId,
+        hidden: false,
+      });
+    });
+
+    it('handles two simultaneous attempts when only one conditional update succeeds', async () => {
+      const { service, models, review } = setup();
+      const updated = {
+        ...review,
+        reply: {
+          text: dto.text,
+          moderator: moderatorId,
+          createdAt: new Date(),
+        },
+      };
+      let updateCount = 0;
+      models.review.findOneAndUpdate.mockImplementation(() =>
+        query(updateCount++ === 0 ? updated : null),
+      );
+      models.review.exists.mockResolvedValue(review);
+
+      const outcomes = await Promise.allSettled([
+        service.replyToReview(reviewId, moderator, dto),
+        service.replyToReview(reviewId, moderator, dto),
+      ]);
+
+      expect(
+        outcomes.filter(({ status }) => status === 'fulfilled'),
+      ).toHaveLength(1);
+      const rejected = outcomes.filter(
+        (outcome): outcome is PromiseRejectedResult =>
+          outcome.status === 'rejected',
+      );
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0]?.reason).toBeInstanceOf(ConflictException);
+      expect(models.review.findOneAndUpdate).toHaveBeenCalledTimes(2);
+      expect(models.review.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: reviewId, hidden: false, reply: { $exists: false } },
+        expect.any(Object),
+        { new: true, runValidators: true },
+      );
     });
   });
 

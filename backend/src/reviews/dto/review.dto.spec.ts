@@ -4,10 +4,47 @@ import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { CreateReviewDto } from './create-review.dto';
 import { ListReviewsQueryDto } from './list-reviews-query.dto';
+import { ReplyReviewDto } from './reply-review.dto';
 import { UpdateReviewDto } from './update-review.dto';
 import { globalValidationPipeOptions } from '../../common/pipes/validation.pipe';
 
 describe('review DTOs', () => {
+  describe('ReplyReviewDto', () => {
+    it('trims a valid reply before validation', () => {
+      const dto = plainToInstance(ReplyReviewDto, {
+        text: '  Thank you for staying with us!  ',
+      });
+
+      expect(dto.text).toBe('Thank you for staying with us!');
+      expect(validateSync(dto)).toHaveLength(0);
+    });
+
+    it.each([
+      ['missing text', {}],
+      ['empty text', { text: '' }],
+      ['whitespace-only text', { text: ' \t\n ' }],
+      ['a non-string value', { text: 42 }],
+      ['null text', { text: null }],
+    ])('rejects %s', (_description, value) => {
+      const dto = plainToInstance(ReplyReviewDto, value);
+      expect(validateSync(dto).some((error) => error.property === 'text')).toBe(
+        true,
+      );
+    });
+
+    it('accepts exactly 1000 characters and rejects more', () => {
+      const valid = plainToInstance(ReplyReviewDto, { text: 'x'.repeat(1000) });
+      const invalid = plainToInstance(ReplyReviewDto, {
+        text: 'x'.repeat(1001),
+      });
+
+      expect(validateSync(valid)).toHaveLength(0);
+      expect(
+        validateSync(invalid).some((error) => error.property === 'text'),
+      ).toBe(true);
+    });
+  });
+
   it.each([0, 6, 2.5, '5', null])('rejects invalid rating %p', (rating) => {
     const dto = plainToInstance(CreateReviewDto, { rating });
     expect(validateSync(dto).some((error) => error.property === 'rating')).toBe(

@@ -3844,6 +3844,20 @@ paths:
       responses:
         '201':
           description: The review with its reply.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+              example:
+                id: 665f1c2a9b1e8a00123400a1
+                rating: 5
+                text: Great view of the Nile and very friendly staff.
+                author:
+                  name: Ibrahim Alalamy
+                date: '2026-11-10T10:00:00.000Z'
+                reply:
+                  text: Thank you for staying with us!
+                  date: '2026-11-11T09:00:00.000Z'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -8420,6 +8434,7 @@ components:
           minLength: 1
           maxLength: 1000
           example: Thank you for staying with us!
+          description: Trimmed before validation; whitespace-only input is rejected, and the trimmed text must be 1-1000 characters.
 
     # --- Payments and Refunds ---
 
