@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -10,6 +11,8 @@ import {
   Patch,
   Post,
   Query,
+  Req,
+  UnauthorizedException,
   UseGuards,
   UploadedFile,
   UseInterceptors,
@@ -18,6 +21,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
+import type { Request } from 'express';
+import { ACCESS_COOKIE } from '../auth/auth-cookies';
+import { SessionsService } from '../auth/sessions.service';
 import { CurrentUser, Roles } from '../common/decorators';
 import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
@@ -96,7 +102,10 @@ import {
 //   GET  /api/itineraries/:id/pdf        ITN-28 (Optional)
 @Controller()
 export class ItinerariesController {
-  constructor(private readonly itinerariesService: ItinerariesService) {}
+  constructor(
+    private readonly itinerariesService: ItinerariesService,
+    private readonly sessionsService: SessionsService,
+  ) {}
 
   // ITN-01: registered users create private itineraries only. Visibility changes are ITN-20.
   @Post('itineraries')
@@ -129,11 +138,18 @@ export class ItinerariesController {
   }
 
   @Get('itineraries/public/:id')
-  getPublic(
+  async getPublic(
     @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Req() request: Request,
     @Query('currency') currency?: string,
   ): Promise<PublicItineraryResponse> {
-    return this.itinerariesService.getPublic(id, currency);
+    // Public route; a logged-in viewer is identified only so that the author and admins can
+    // still open a hidden itinerary (GEN-10).
+    return this.itinerariesService.getPublic(
+      id,
+      currency,
+      await optionalViewer(this.sessionsService, request),
+    );
   }
 
   // ITN-25: search hotels for the selected city group, using the group's stay dates.
@@ -432,5 +448,26 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
     await this.itinerariesService.deleteTransportCost(id, user.id);
+  }
+}
+
+// The account of the access cookie, or undefined for a guest or an ended session.
+async function optionalViewer(
+  sessions: SessionsService,
+  request: Request,
+): Promise<AuthUser | undefined> {
+  const cookies = request.cookies as Record<string, unknown> | undefined;
+  const token = cookies?.[ACCESS_COOKIE];
+  if (typeof token !== 'string') return undefined;
+  try {
+    return await sessions.authenticate(token);
+  } catch (error) {
+    if (
+      error instanceof UnauthorizedException ||
+      error instanceof ForbiddenException
+    ) {
+      return undefined;
+    }
+    throw error;
   }
 }

@@ -777,6 +777,12 @@ describe('Blog, moderation and administration', () => {
       expect(
         (await author.client.get(`/api/itineraries/${created.body.id}`)).status,
       ).toBe(200);
+      // GEN-10: "Hidden content is visible only to its author and admins": the read-only public
+      // view still opens for the author and for an admin, for nobody else.
+      const publicView = `/api/itineraries/public/${created.body.id}`;
+      expect((await admin.get(publicView)).status).toBe(200);
+      expect((await author.client.get(publicView)).status).toBe(200);
+      expect((await reader.client.get(publicView)).status).toBe(404);
       expect(
         (
           await admin.patch(

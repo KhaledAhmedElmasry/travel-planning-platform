@@ -373,6 +373,15 @@ export class ReferenceDataService {
 
   // FLT-02: throws 400 when the airport is not in the airport list. Flight creation and flight
   // search accept only these airports (FLT-03, FLT-11).
+  // The airports of a city (ITN-26: any airport in the city of an itinerary's first day).
+  findAirportsInCity(cityId: string): Promise<Airport[]> {
+    return this.airportModel
+      .find({ cityId })
+      .sort({ _id: 1 })
+      .lean<Airport[]>()
+      .exec();
+  }
+
   async assertAirport(iataCode: string): Promise<Airport> {
     const airport = await this.findAirport(iataCode);
     if (!airport) {

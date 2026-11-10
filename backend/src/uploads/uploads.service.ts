@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { mkdir, unlink, writeFile } from 'fs/promises';
+import { copyFile, mkdir, unlink, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { Types } from 'mongoose';
 
@@ -53,6 +53,20 @@ export class UploadsService {
       id: new Types.ObjectId().toHexString(),
       url: `/uploads/images/${storageKey}`,
       storageKey,
+    };
+  }
+
+  // ITN-21: a clone is independent of the original, so it gets its own copy of every image file.
+  async copyImage(storageKey: string): Promise<StoredImage> {
+    const match = /^[\w-]+\.(png|jpg)$/.exec(storageKey);
+    if (!match) throw new Error(`Invalid image storage key: ${storageKey}`);
+    const directory = join(process.cwd(), 'uploads', 'images');
+    const newKey = `${randomUUID()}.${match[1]}`;
+    await copyFile(join(directory, storageKey), join(directory, newKey));
+    return {
+      id: new Types.ObjectId().toHexString(),
+      url: `/uploads/images/${newKey}`,
+      storageKey: newKey,
     };
   }
 

@@ -63,8 +63,9 @@ type LeanAirline = Pick<Airline, 'name' | 'code' | 'logoUrl'> & {
 type LeanCabin = Cabin & { _id: Types.ObjectId };
 
 interface LegSearch extends PriceRange {
-  origin: Airport;
-  destination: Airport;
+  // The departure and arrival airports a flight of this leg may use.
+  origins: Airport[];
+  destinations: Airport[];
   date: string;
   page: number;
   passengers: PassengerCounts;
@@ -85,6 +86,42 @@ export class FlightSearchService {
 
   async search(
     query: SearchFlightsQueryDto,
+  ): Promise<FlightSearchPage | RoundTripFlightSearchResult> {
+    if (query.origin === query.destination) {
+      throw new BadRequestException(
+        'origin and destination must be different airports.',
+      );
+    }
+    // 400 "Airport ... is not in the airport list." (FLT-02).
+    const [origin, destination] = await Promise.all([
+      this.referenceData.assertAirport(query.origin),
+      this.referenceData.assertAirport(query.destination),
+    ]);
+    return this.searchBetween(query, [origin], [destination]);
+  }
+
+  // ITN-26: flights from one airport to ANY airport of a city (the city of an itinerary's first
+  // day), with the same rules as the flight search (FLT-11, FLT-12, FLT-15).
+  async searchToCity(
+    query: Omit<SearchFlightsQueryDto, 'destination'>,
+    cityId: string,
+  ): Promise<FlightSearchPage | RoundTripFlightSearchResult> {
+    const origin = await this.referenceData.assertAirport(query.origin);
+    const destinations = (
+      await this.referenceData.findAirportsInCity(cityId)
+    ).filter((airport) => airport.iataCode !== origin.iataCode);
+    if (destinations.length === 0) {
+      throw new BadRequestException(
+        'The city has no airport other than the origin.',
+      );
+    }
+    return this.searchBetween(query, [origin], destinations);
+  }
+
+  private async searchBetween(
+    query: Omit<SearchFlightsQueryDto, 'origin' | 'destination'>,
+    origins: Airport[],
+    destinations: Airport[],
   ): Promise<FlightSearchPage | RoundTripFlightSearchResult> {
     validatePriceRange(query);
     const passengers = validatePassengerCounts(
@@ -109,18 +146,6 @@ export class FlightSearchService {
         'returnDate is only allowed for a round trip.',
       );
     }
-    if (query.origin === query.destination) {
-      throw new BadRequestException(
-        'origin and destination must be different airports.',
-      );
-    }
-
-    // 400 "Airport ... is not in the airport list." (FLT-02).
-    const [origin, destination] = await Promise.all([
-      this.referenceData.assertAirport(query.origin),
-      this.referenceData.assertAirport(query.destination),
-    ]);
-
     const common = {
       page: query.page ?? 1,
       passengers,
@@ -138,8 +163,8 @@ export class FlightSearchService {
     if (tripType === TripType.OneWay) {
       return this.searchLeg({
         ...common,
-        origin,
-        destination,
+        origins,
+        destinations,
         date: query.departureDate,
         emptyMessage: `No flights found${priceFilter}.`,
       });
@@ -148,15 +173,15 @@ export class FlightSearchService {
     const [outbound, inbound] = await Promise.all([
       this.searchLeg({
         ...common,
-        origin,
-        destination,
+        origins,
+        destinations,
         date: query.departureDate,
         emptyMessage: `No outbound flights found${priceFilter}.`,
       }),
       this.searchLeg({
         ...common,
-        origin: destination,
-        destination: origin,
+        origins: destinations,
+        destinations: origins,
         date: query.returnDate as string,
         emptyMessage: `No return flights found${priceFilter}.`,
       }),
@@ -168,8 +193,8 @@ export class FlightSearchService {
     const flights = await this.flightModel
       .find({
         ...openFlightFilter(),
-        departureAirport: leg.origin.iataCode,
-        arrivalAirport: leg.destination.iataCode,
+        departureAirport: { $in: leg.origins.map((a) => a.iataCode) },
+        arrivalAirport: { $in: leg.destinations.map((a) => a.iataCode) },
         departureDate: leg.date,
       })
       .lean<LeanFlight[]>()
@@ -250,8 +275,14 @@ export class FlightSearchService {
       id: flight._id.toString(),
       flightNumber: flight.flightNumber,
       airline: toAirline(airline),
-      departureAirport: toAirport(leg.origin),
-      arrivalAirport: toAirport(leg.destination),
+      departureAirport: toAirport(
+        leg.origins.find((a) => a.iataCode === flight.departureAirport) ??
+          leg.origins[0],
+      ),
+      arrivalAirport: toAirport(
+        leg.destinations.find((a) => a.iataCode === flight.arrivalAirport) ??
+          leg.destinations[0],
+      ),
       departureLocal: utcToLocal(flight.departureAt, flight.departureTimeZone),
       arrivalLocal: utcToLocal(flight.arrivalAt, flight.arrivalTimeZone),
       departureUtcOffset: utcOffset(

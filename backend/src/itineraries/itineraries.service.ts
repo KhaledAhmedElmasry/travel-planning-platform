@@ -45,7 +45,8 @@ import {
 } from './schemas/itinerary.schema';
 import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service';
 import { UsersService } from '../users/users.service';
-import { AccountStatus } from '../common/enums';
+import { AccountStatus, Role } from '../common/enums';
+import type { AuthUser } from '../common/interfaces';
 import { HotelSearchService } from '../hotels/hotel-search.service';
 import { FlightSearchService } from '../flights/flight-search.service';
 import { TripType } from '../flights/dto/search-flights-query.dto';
@@ -429,17 +430,23 @@ export class ItinerariesService {
   async getPublic(
     itineraryId: string | Types.ObjectId,
     currency?: string,
+    viewer?: AuthUser,
   ): Promise<PublicItineraryResponse> {
     if (!isValidObjectId(itineraryId)) throw publicItineraryNotFound();
     if (currency !== undefined) await this.assertCurrencyExists(currency);
     const itinerary = await this.itineraryModel
-      .findOne({
-        _id: itineraryId,
-        visibility: 'public',
-        hidden: { $ne: true },
-      })
+      .findOne({ _id: itineraryId, visibility: 'public' })
       .exec();
     if (!itinerary) throw publicItineraryNotFound();
+    // GEN-10: hidden content is visible only to its author and admins.
+    const hidden = (itinerary.get('hidden') as boolean | undefined) === true;
+    if (
+      hidden &&
+      viewer?.role !== Role.Admin &&
+      viewer?.id !== String(itinerary.userId)
+    ) {
+      throw publicItineraryNotFound();
+    }
     const author = this.usersService
       ? await this.usersService.findById(String(itinerary.userId))
       : null;
@@ -489,46 +496,71 @@ export class ItinerariesService {
     if (!source || (await this.isDeactivatedUser(source.userId))) {
       throw publicItineraryNotFound(); // ACC-12
     }
-    const dayIds = new Map<string, Types.ObjectId>();
-    const days = source.days.map((day) => {
-      const id = new Types.ObjectId();
-      dayIds.set(String(day._id), id);
-      return {
-        _id: id,
-        number: day.number,
-        date: new Date(day.date),
-        cityId: day.cityId,
-        notes: day.notes,
-        activities: (day.activities ?? []).map((activity) => ({
-          ...activity.toObject(),
-          _id: new Types.ObjectId(),
-          images: (activity.images ?? []).map((image) => ({
-            ...image.toObject(),
+    // ITN-21: the clone is independent of the original, so every activity image is copied to a
+    // new file. Deleting an image (or the whole itinerary) on one side never breaks the other.
+    const copiedKeys: string[] = [];
+    try {
+      const dayIds = new Map<string, Types.ObjectId>();
+      const days = [];
+      for (const day of source.days) {
+        const id = new Types.ObjectId();
+        dayIds.set(String(day._id), id);
+        const activities = [];
+        for (const activity of day.activities ?? []) {
+          const images = [];
+          for (const image of activity.images ?? []) {
+            if (!this.uploadsService) {
+              throw new Error(
+                'The shared GEN-08 upload service is not configured.',
+              );
+            }
+            const copy = await this.uploadsService.copyImage(image.storageKey);
+            copiedKeys.push(copy.storageKey);
+            images.push({
+              _id: new Types.ObjectId(copy.id),
+              url: copy.url,
+              storageKey: copy.storageKey,
+            });
+          }
+          activities.push({
+            ...activity.toObject(),
+            _id: new Types.ObjectId(),
+            images,
+          });
+        }
+        days.push({
+          _id: id,
+          number: day.number,
+          date: new Date(day.date),
+          cityId: day.cityId,
+          notes: day.notes,
+          activities,
+          budgets: (day.budgets ?? []).map((budget) => ({
+            ...budget.toObject(),
             _id: new Types.ObjectId(),
           })),
-        })),
-        budgets: (day.budgets ?? []).map((budget) => ({
-          ...budget.toObject(),
+        });
+      }
+      const clone = await this.itineraryModel.create({
+        userId: new Types.ObjectId(userId),
+        title: source.title,
+        countryCodes: [...source.countryCodes],
+        startDate: new Date(source.startDate),
+        visibility: 'private',
+        originalItineraryId: source._id,
+        originalAuthorId: source.userId,
+        days,
+        transportCosts: source.transportCosts.map((cost) => ({
+          ...cost.toObject(),
           _id: new Types.ObjectId(),
+          dayId: dayIds.get(String(cost.dayId)) ?? new Types.ObjectId(),
         })),
-      };
-    });
-    const clone = await this.itineraryModel.create({
-      userId: new Types.ObjectId(userId),
-      title: source.title,
-      countryCodes: [...source.countryCodes],
-      startDate: new Date(source.startDate),
-      visibility: 'private',
-      originalItineraryId: source._id,
-      originalAuthorId: source.userId,
-      days,
-      transportCosts: source.transportCosts.map((cost) => ({
-        ...cost.toObject(),
-        _id: new Types.ObjectId(),
-        dayId: dayIds.get(String(cost.dayId)) ?? new Types.ObjectId(),
-      })),
-    });
-    return this.toResponse(clone);
+      });
+      return this.toResponse(clone);
+    } catch (error) {
+      await this.removeImages(copiedKeys);
+      throw error;
+    }
   }
 
   async getOne(
@@ -1062,31 +1094,26 @@ export class ItinerariesService {
         "Invalid parameters, the itinerary has no days, or the first day's city has no airport.",
       );
     }
-    const destination = await this.connection
-      .collection<{ _id: string }>('airports')
-      .findOne({ cityId: firstDay.cityId });
-    if (!destination) {
-      throw new BadRequestException(
-        "Invalid parameters, the itinerary has no days, or the first day's city has no airport.",
-      );
-    }
     const lastDay = itinerary.days[itinerary.days.length - 1];
     const departureDate =
       query.departureDate ?? formatItineraryDate(itinerary.startDate);
     const returnDate = query.returnDate ?? formatItineraryDate(lastDay.date);
-    return this.flightSearchService.search({
-      origin: query.origin,
-      destination: destination._id,
-      departureDate,
-      returnDate:
-        query.tripType === TripType.RoundTrip ? returnDate : undefined,
-      tripType: query.tripType ?? TripType.OneWay,
-      adults: query.adults ?? 1,
-      children: query.children ?? 0,
-      infants: query.infants ?? 0,
-      cabinClass: query.cabinClass,
-      page: query.page ?? 1,
-    });
+    // Any airport in the city of the first day (ITN-26).
+    return this.flightSearchService.searchToCity(
+      {
+        origin: query.origin,
+        departureDate,
+        returnDate:
+          query.tripType === TripType.RoundTrip ? returnDate : undefined,
+        tripType: query.tripType ?? TripType.OneWay,
+        adults: query.adults ?? 1,
+        children: query.children ?? 0,
+        infants: query.infants ?? 0,
+        cabinClass: query.cabinClass,
+        page: query.page ?? 1,
+      },
+      firstDay.cityId,
+    );
   }
 
   private async findOwnedOrThrow(
