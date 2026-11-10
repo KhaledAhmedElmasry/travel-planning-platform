@@ -29,6 +29,18 @@ export class Review {
   @Prop({ type: Boolean, required: true, default: false, index: true })
   hidden: boolean;
 
+  // HTL-26 (bonus): the hotel moderator's one reply. Absent until a reply exists.
+  @Prop({
+    type: {
+      _id: false,
+      text: { type: String, required: true, trim: true, maxlength: 1000 },
+      moderator: { type: MongooseSchema.Types.ObjectId, ref: 'User' },
+      createdAt: { type: Date, required: true },
+    },
+    required: false,
+  })
+  reply?: { text: string; moderator: Types.ObjectId; createdAt: Date };
+
   createdAt?: Date;
   updatedAt?: Date;
 }
