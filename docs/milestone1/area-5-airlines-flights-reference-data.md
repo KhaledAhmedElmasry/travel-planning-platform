@@ -29,7 +29,6 @@ TASKS
 |**Issue**|**Id**|**Requirement**|**Complexity**|
 |---|---|---|---|
 |#94|**GEN-12**|Reference data at setup: airports, cities, countries and supported…|**low**|
-|#117|**NEW-05**|Shared reference data (countries, cities) with read endpoints and…|**low**|
 |#15|**FLT-02**|A predefined, read-only list of airports (IATA code, name, city…|**low**|
 |#14|**FLT-01**|Create an airline profile and an airline moderator to edit their…|**low**|
 |#16|**FLT-03**|Create a flight with flight number, departure and arrival airports, and…|**medium**|
@@ -40,7 +39,6 @@ TASKS
 |#21|**FLT-09**|Define cancellation tiers, each with a unique days-before-departure…|**medium**|
 |#91|**FLT-30**|Flights shall have a status of Scheduled, Cancelled or Departed|**low**|
 |#85|**GEN-06**|Flight times in each airport's local time zone|**medium**|
-|#115|**NEW-02**|Impact of flight changes/cancellation on existing bookings|**medium**|
 |**. Your**<br>**Method**|**endpoint**<br><br>**Path**|**s**|**Requirements**|
 |**`POST`**|`/api/air`|`lines`|FLT-01|
 |**`GET`**|`/api/air`|`lines/:id`|FLT-01|
@@ -68,13 +66,13 @@ FLT-03, FLT-11
 /api/airports
 ```
 
-**_`?`_** _An extra endpoint may be needed (not in the PDF tables) for: reading countries, cities, attractions and the supported currency list (NEW-05, GEN-12, ACC-09, ITN-18)_ 
+**_`?`_** _An extra endpoint may be needed (not in the PDF tables) for: reading countries, cities, attractions and the supported currency list (GEN-12, ACC-09, ITN-18)_ 
 
 ## **3. Your tasks** 
 
 Seed script (npm run seed): countries, cities, airports and attractions from the official datasets with the official ids (EG, cairo, CAI, att-1), an IANA time zone added to every airport (FLT-02), and the supported currencies (GEN-12). Running it twice creates no duplicates. 
 
-Exported reference lookups so other modules reject unknown countries, cities and airports (NEW-05). 
+Exported reference lookups so other modules reject unknown countries, cities and airports (GEN-12). 
 
 - Airline schema + endpoints: admin creates, the airline's moderator edits; logo as multipart, 1 per airline (FLT-01). Extra-baggage rules (FLT-08) and cancellation tiers (FLT-09); the shared tier rule in common/utils/ for Area 1. 
 
@@ -82,7 +80,7 @@ Exported reference lookups so other modules reject unknown countries, cities and
 
 - Cabins with prices and total / booked / held seat counters, so Area 1 can hold seats atomically (FLT-04). 
 
-- Edit the schedule and notify affected bookings (FLT-05, NEW-02); cancel a flight: its bookings are cancelled with 100% refunds through Area 1 (FLT-06). 
+- Edit the schedule and notify affected bookings (FLT-05, FLT-30); cancel a flight: its bookings are cancelled with 100% refunds through Area 1 (FLT-06). 
 
 - Flight status Scheduled / Cancelled / Departed, with a cron job that marks flights Departed (FLT-30). Rehearse demo scenarios 2 and 7. 
 
@@ -92,12 +90,12 @@ Exported reference lookups so other modules reject unknown countries, cities and
 |---|---|---|---|
 |**Who**|**What**|**From**|**What**|
 |Areas 2, 6, 7, 8|Seed data (countries, cities, airports with<br>time zones, attractions, supported|Area 3|Error format, ValidationPipe, pagination, shared<br>enums (GEN-02, GEN-05, GEN-13)|
-||currencies) + lookups (GEN-12, NEW-05,<br>FLT-02)|Area 2|User schema, login, cookies, JwtAuthGuard /<br>RolesGuard / @CurrentUser, ownership helper (ACC-|
+||currencies) + lookups (GEN-12,<br>FLT-02)|Area 2|User schema, login, cookies, JwtAuthGuard /<br>RolesGuard / @CurrentUser, ownership helper (ACC-|
 |Area 3|Seed script where the admin account is||04, ACC-11, ACC-19)|
 ||added (GEN-12, ACC-18)|Area 3|Admin creates the airline / hotel moderator (ACC-13)|
 |Area 3|Airline schema (a moderator is linked to one<br>airline; airlines can be deactivated) (FLT-01,|Area 3|NotificationsService (GEN-01)|
 ||ACC-13, ACC-15)|Area 1|Flight booking schema (no airport change or seat|
-|Area 1|Flight + cabin schemas with total / booked /<br>held seat counters and flight status (FLT-03,||cut below booked; notify affected bookings) (GEN-<br>11, FLT-05, NEW-02)|
+|Area 1|Flight + cabin schemas with total / booked /<br>held seat counters and flight status (FLT-03,||cut below booked; notify affected bookings) (GEN-<br>11, FLT-05, FLT-30)|
 ||FLT-04, FLT-30)|Area 4|Image upload validation (GEN-08)|
 |Area 6|Flight + cabin schemas, baggage allowance<br>and the local-time helper (search and flight<br>details) (FLT-03, FLT-04, FLT-08, GEN-06)|Area 1<br>Until it is|Refund function (airline cancels a flight: 100%<br>refunds) (PAY-03, FLT-06)<br>merged, code against the agreed interface (e.g. insert test|
 |Area 1|Airline baggage + cancellation policies and<br>the shared tier rule (shown before payment,<br>used for refunds) (FLT-08, FLT-09, PAY-02)|documen|ts directly in Atlas).|

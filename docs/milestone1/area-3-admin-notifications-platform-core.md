@@ -97,7 +97,7 @@ TASKS
 |Areas 5, 7|Admin creates the airline / hotel moderator||12, ACC-18)|
 |Areas 1, 5|(ACC-13)<br>NotificationsService (GEN-01)|Area 5|Airline schema (a moderator is linked to one airline;<br>airlines can be deactivated) (FLT-01, ACC-13, ACC-<br>15)|
 |||Area 7|Hotel schema (a moderator is linked to one hotel;<br>hotels can be deactivated) (HTL-01, ACC-13, ACC-15)|
-|||Area 2|Session revocation (used when an account is<br>suspended) (NEW-07, ACC-15)|
+|||Area 2|Session revocation (used when an account is<br>suspended) (ACC-19, ACC-15)|
 |||Area 1|Flight booking + hotel reservation schemas (admin<br>overview, my bookings, flight manifest, reservation<br>list) (GEN-11, ACC-17, FLT-29, HTL-22)|
 |||Area 4<br>Area 8|Post, comment and review schemas with a hidden<br>flag (GEN-09, GEN-10)<br>Itinerary schema with a hidden flag (GEN-09, GEN-<br>10)|
 
