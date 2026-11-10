@@ -673,6 +673,126 @@ describe('Blog, moderation and administration', () => {
       ).toBe(true);
     });
 
+    it('GEN-10, BLG-03, BLG-09: a comment deleted by an admin no longer counts on its post', async () => {
+      const admin = await t.admin();
+      const writer = await t.user('Count Keeper');
+      const mine = await post(writer);
+      const kept = await comment(reader, mine.id, 'Fine comment');
+      const rude = await comment(reader, mine.id, 'Rude comment');
+      const reported = await comment(reader, mine.id, 'Reported comment');
+      expect(kept).toBeDefined();
+      const count = async () =>
+        (await writer.client.get('/api/posts/mine')).body.items.find(
+          (p: any) => p.id === mine.id,
+        ).commentCount as number;
+      expect(await count()).toBe(3);
+      // Deleted directly.
+      expect(
+        (await admin.delete(`/api/admin/content/comment/${rude.id}`)).status,
+      ).toBe(204);
+      expect(await count()).toBe(2);
+      // Deleted through a report.
+      const report = (await t.user()).client.post('/api/reports', {
+        contentType: 'comment',
+        contentId: reported.id,
+        reason: 'Insult',
+      });
+      const created = (await report).body;
+      expect(
+        (
+          await admin.patch(`/api/admin/reports/${created.id}`, {
+            action: 'delete',
+          })
+        ).status,
+      ).toBe(200);
+      expect(await count()).toBe(1);
+      const shown = await detail(mine.id);
+      expect(shown.body.commentCount).toBe(1);
+      expect((shown.body.comments as any[]).map((c) => c.text)).toEqual([
+        'Fine comment',
+      ]);
+    });
+
+    it('GEN-10: a post deleted by an admin takes its comments, likes and images with it', async () => {
+      const admin = await t.admin();
+      const writer = await t.user('Deleted Writer');
+      const mine = await post(writer);
+      await comment(reader, mine.id, 'Will go too');
+      await reader.client.post(`/api/posts/${mine.id}/like`);
+      const image = (
+        await writer.client.post(`/api/posts/${mine.id}/images`, undefined, {
+          files: [
+            {
+              field: 'image',
+              content: PNG,
+              filename: 'a.png',
+              contentType: 'image/png',
+            },
+          ],
+        })
+      ).body;
+      expect((await t.guest().get(image.url as string)).status).toBe(200);
+      expect(
+        (await admin.delete(`/api/admin/content/post/${mine.id}`)).status,
+      ).toBe(204);
+      expect(
+        await t.collection('comments').countDocuments({ post: t.oid(mine.id) }),
+      ).toBe(0);
+      expect(
+        await t.collection('likes').countDocuments({ post: t.oid(mine.id) }),
+      ).toBe(0);
+      expect((await t.guest().get(image.url as string)).status).toBe(404);
+    });
+
+    it('GEN-10: an itinerary deleted by an admin takes its activity images with it', async () => {
+      const admin = await t.admin();
+      const writer = await t.user('Trip Writer');
+      const trip = (
+        await writer.client.post('/api/itineraries', {
+          title: 'To be removed',
+          countryCodes: ['EG'],
+          startDate: '2030-01-01',
+        })
+      ).body;
+      const tripDay = (
+        await writer.client.post(`/api/itineraries/${trip.id}/days`, {
+          cityId: 'cairo',
+        })
+      ).body;
+      const activity = (
+        await writer.client.post(
+          `/api/itineraries/${trip.id}/days/${tripDay.id}/activities`,
+          { name: 'Walk', description: 'Corniche' },
+        )
+      ).body;
+      const image = (
+        await writer.client.post(
+          `/api/activities/${activity.id}/images`,
+          undefined,
+          {
+            files: [
+              {
+                field: 'image',
+                content: PNG,
+                filename: 'a.png',
+                contentType: 'image/png',
+              },
+            ],
+          },
+        )
+      ).body;
+      await writer.client.patch(`/api/itineraries/${trip.id}`, {
+        visibility: 'public',
+      });
+      expect(
+        (await admin.delete(`/api/admin/content/itinerary/${trip.id}`)).status,
+      ).toBe(204);
+      expect(
+        (await writer.client.get(`/api/itineraries/${trip.id}`)).status,
+      ).toBe(404);
+      expect((await t.guest().get(image.url as string)).status).toBe(404);
+    });
+
     it('the admin hides or deletes any post or comment directly; deletions are in the audit log', async () => {
       const admin = await t.admin();
       const mine = await post(author);
