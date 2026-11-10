@@ -148,13 +148,18 @@ describe('RefundsService (PAY-03)', () => {
     });
   });
 
-  it('rounds down to whole cents', async () => {
+  it('rounds a fraction of a cent down (team rule; the spec does not say how to round)', async () => {
     stripe.refunds.create.mockResolvedValue({ id: 're_1', status: 'pending' });
     const result = await service.refundBooking({
       ...userCancellation,
-      refundPercentage: 33.3,
+      refundPercentage: 33.33,
     });
-    expect(result?.amount).toBe(8325); // 25000 * 33.3% = 8325
+    // 25000 * 33.33% = 8332.5 cents -> 8332 (rounding to nearest would give 8333).
+    expect(result?.amount).toBe(8332);
+    expect(stripe.refunds.create).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 8332 }),
+      expect.anything(),
+    );
     expect(result?.status).toBe(RefundStatus.Pending);
   });
 
