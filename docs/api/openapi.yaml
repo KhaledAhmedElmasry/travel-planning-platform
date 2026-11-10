@@ -3579,10 +3579,21 @@ paths:
       responses:
         '201':
           description: Review created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Only registered users can create reviews.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/hotel-bookings/665f1c2a9b1e8a00123400a1/review", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Reservation not found, or it belongs to another user.
           content:
@@ -3617,17 +3628,25 @@ paths:
       responses:
         '200':
           description: The updated review.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not the author of this review.
+          description: Only registered users can edit reviews, and users can edit only their own.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the author of this review.", "path": "/api/reviews/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              examples:
+                wrongRole:
+                  value: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/reviews/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+                notAuthor:
+                  value: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the author of this review.", "path": "/api/reviews/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Review not found.
           content:
@@ -3652,12 +3671,16 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Not the author of this review.
+          description: Only registered users can delete reviews, and users can delete only their own.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the author of this review.", "path": "/api/reviews/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              examples:
+                wrongRole:
+                  value: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/reviews/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+                notAuthor:
+                  value: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the author of this review.", "path": "/api/reviews/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Review not found.
           content:
@@ -3682,8 +3705,11 @@ paths:
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: The hotel's averageRating and ratingCount, and a paginated list of reviews - rating, review text, author name, date (and the moderator reply, if any).
-          content: *paginated
+          description: The hotel's averageRating and ratingCount, and a paginated list of reviews with rating, review text, author name and date. Moderator replies are handled by the separate HTL-26 requirement.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelReviewsResponse'
         '404':
           description: Hotel not found.
           content:
@@ -7954,6 +7980,56 @@ components:
         text:
           type: string
           maxLength: 1000
+
+    ReviewResponse:
+      type: object
+      required: [id, rating, text, author, date]
+      properties:
+        id:
+          type: string
+          example: 665f1c2a9b1e8a00123400a1
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        text:
+          type: string
+          nullable: true
+          maxLength: 1000
+          example: Great view of the Nile and very friendly staff.
+        author:
+          type: object
+          required: [name]
+          properties:
+            name:
+              type: string
+              example: Ibrahim Alalamy
+              description: Deactivated accounts are displayed as Deleted user.
+        date:
+          type: string
+          format: date-time
+          example: '2026-11-10T10:00:00.000Z'
+
+    HotelReviewsResponse:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          required: [averageRating, ratingCount]
+          properties:
+            averageRating:
+              type: number
+              minimum: 0
+              maximum: 5
+              example: 4.5
+            ratingCount:
+              type: integer
+              minimum: 0
+              example: 12
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ReviewResponse'
 
     ReviewReplyRequest:
       type: object

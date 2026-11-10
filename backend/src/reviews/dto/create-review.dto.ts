@@ -1,8 +1,27 @@
-// Area: Hotel Booking & Reviews
-// Used by: POST /api/hotel-bookings/:id/review (body)
-// Requirements: HTL-23
-//
-// TODO: define the DTO class with class-validator rules for the fields this endpoint needs,
-// exactly as documented in docs/api/openapi.yaml.
+import {
+  IsInt,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
+} from 'class-validator';
+import { Transform } from 'class-transformer';
 
-export {};
+function trimOptionalText(value: unknown): unknown {
+  return typeof value === 'string' ? value.trim() : value;
+}
+
+// Used by: POST /api/hotel-bookings/:id/review (body), HTL-23.
+export class CreateReviewDto {
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @Transform(({ value }) => trimOptionalText(value))
+  @IsString()
+  @MaxLength(1000)
+  text?: string;
+}
