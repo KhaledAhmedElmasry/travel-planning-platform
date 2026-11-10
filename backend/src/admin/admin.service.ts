@@ -467,6 +467,59 @@ export class AdminService {
     return this.toAccountResponse(updatedUser);
   }
 
+  // ACC-15 / PDF 8.2: "Affected parties must receive an in-app notification."
+  // Besides the provider's moderator, every user who has a Confirmed booking
+  // with the provider is told once (one message per user, with the number of
+  // their bookings). Their bookings stay valid. This runs only after the
+  // conditional deactivation above succeeded, so it happens once per
+  // deactivation. A failure here is logged and never undoes the deactivation.
+  private async notifyBookedUsers(
+    type: BookingType,
+    providerId: Types.ObjectId,
+    providerKind: 'airline' | 'hotel',
+    reason?: string,
+  ): Promise<void> {
+    try {
+      const rows: { _id: Types.ObjectId; count: number }[] =
+        type === BookingType.Flight
+          ? await this.flightBookingModel.aggregate([
+              {
+                $match: {
+                  status: BookingStatus.Confirmed,
+                  'segments.airlineId': providerId,
+                },
+              },
+              { $group: { _id: '$userId', count: { $sum: 1 } } },
+            ])
+          : await this.hotelBookingModel.aggregate([
+              {
+                $match: {
+                  status: BookingStatus.Confirmed,
+                  hotelId: providerId,
+                },
+              },
+              { $group: { _id: '$userId', count: { $sum: 1 } } },
+            ]);
+      const label = providerKind === 'airline' ? 'Airline' : 'Hotel';
+      for (const row of rows) {
+        const what =
+          row.count === 1
+            ? `Your Confirmed ${providerKind === 'airline' ? 'flight booking' : 'hotel reservation'} with this ${providerKind} stays valid.`
+            : `Your ${row.count} Confirmed ${providerKind === 'airline' ? 'flight bookings' : 'hotel reservations'} with this ${providerKind} stay valid.`;
+        await this.notificationsService.notify(
+          row._id,
+          `${label} deactivated`,
+          `A ${providerKind} you booked has been deactivated by an administrator${reason ? `: ${reason}` : ''}. It can no longer be booked. ${what}`,
+          'provider_deactivated',
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Could not notify the booked users of the deactivated ${providerKind} ${providerId.toString()}: ${String(error)}`,
+      );
+    }
+  }
+
   // ACC-15: Deactivate an airline
   async deactivateAirline(
     admin: AuthUser,
@@ -510,6 +563,13 @@ export class AdminService {
           : 'Your assigned airline has been deactivated by an administrator.',
       );
     }
+
+    await this.notifyBookedUsers(
+      BookingType.Flight,
+      objectId,
+      'airline',
+      dto?.reason,
+    );
 
     await this.auditService.record({
       adminId: admin.id,
@@ -616,6 +676,13 @@ export class AdminService {
           : 'Your assigned hotel has been deactivated by an administrator.',
       );
     }
+
+    await this.notifyBookedUsers(
+      BookingType.Hotel,
+      objectId,
+      'hotel',
+      dto?.reason,
+    );
 
     await this.auditService.record({
       adminId: admin.id,
