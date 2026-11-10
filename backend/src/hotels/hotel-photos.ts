@@ -4,7 +4,8 @@ import { mkdir, unlink, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { NewHotelPhoto } from './hotels.service';
 
-// TEMPORARY (GEN-08): replace with the shared uploads module once Area 4 merges it.
+// Hotel photos (HTL-01) under the shared upload rule (GEN-08): JPG or PNG, at most 5 MB, at most 5
+// per hotel, saved in backend/uploads/hotels/ and served by URL at /uploads/hotels/.
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
 

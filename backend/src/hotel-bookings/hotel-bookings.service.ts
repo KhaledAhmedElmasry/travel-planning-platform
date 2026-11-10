@@ -64,13 +64,10 @@ import {
 // job and cancellation (HTL-21) are in hotel-booking-lifecycle.service.ts.
 // The hotels and rooms are Area 7's documents, read with the field names agreed in
 // hotels/schemas/hotel.schema.ts and room.schema.ts.
-// WAITING FOR: HotelsService.getBookingPolicies() (Area 7, HTL-09, HTL-10); until then
-// GET /api/bookings/hotel/:id/policies answers 501 (accepting them and paying work).
+// The policies come from HotelsService.getBookingPolicies() (HTL-09, HTL-10).
 // GEN-01: the user is notified on confirmation (see tryConfirm).
-// TODO(HTL-20; Area 6): the list and the details go here too. The details must include
-// RefundsService.findRefundForBooking() and the refund preview (HTL-21):
-// HotelBookingLifecycleService.previewCancellation(booking), the same function the cancellation
-// uses. For the Upcoming group of the list use upcomingHotelBookings() below (GEN-11).
+// HTL-20: listOwned() and the details; the details include the refund, the payment status and the
+// refund preview (HotelBookingLifecycleService.previewCancellation, the same function cancel uses).
 
 // HTL-18: all rooms are held together for 10 minutes.
 export const HOLD_MINUTES = 10;

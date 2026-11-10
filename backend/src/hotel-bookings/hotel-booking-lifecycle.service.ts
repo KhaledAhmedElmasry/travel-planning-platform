@@ -36,8 +36,7 @@ import { daysBeforeCheckIn, todayUtc } from './stay-dates';
 // Used by Area 6: previewCancellation(), the refund shown in the reservation details (HTL-20,
 // HTL-21).
 //
-// WAITING FOR: HotelsService.getRefundTier() (Area 7, HTL-10); until then cancel and the preview
-// of a confirmed reservation answer 501 before changing anything.
+// The refund tier comes from HotelsService.getRefundTier() (HTL-10).
 // GEN-01: the user is notified of the cancellation (with the refund); RefundsService notifies
 // when the refund is refunded or failed.
 // GEN-11: every status change below uses allowedFrom() / canTransition() from

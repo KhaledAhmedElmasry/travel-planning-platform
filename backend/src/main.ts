@@ -23,6 +23,7 @@ async function bootstrap() {
 
   // Reads the httpOnly auth cookies (access_token, refresh_token) into req.cookies (ACC-19).
   app.use(cookieParser());
+  // GEN-08: uploaded images are served by URL at /uploads/...
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
   // GEN-02: Global validation pipe — validates every @Body() and @Query() using
@@ -35,9 +36,7 @@ async function bootstrap() {
   // docs/api/openapi.yaml (statusCode, error, message, fieldErrors?, path, timestamp).
   app.useGlobalFilters(new GlobalHttpExceptionFilter());
 
-  // TODO: register app-wide setup here as it is built, for example:
-  //   - CORS with credentials for the Next.js frontend (Milestone 2)
-  //   - serving uploaded images (GEN-08)
+  // Milestone 2: enable CORS with credentials for the Next.js frontend here.
 
   const document = load(readFileSync(OPENAPI_FILE, 'utf8')) as OpenAPIObject;
   SwaggerModule.setup('api/docs', app, document, {

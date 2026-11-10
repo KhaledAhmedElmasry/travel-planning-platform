@@ -22,8 +22,8 @@ export const INVALID_RESET =
 // Area: Auth & Accounts (bonus)
 // Requirements: ACC-07 (depends on GEN-01-B for the email itself)
 //
-// WAITING FOR (GEN-01-B): like ACC-02, the link is written to the server log in development only
-// (never in production, ACC-19) until MailService can send it. Then only sendLink() changes.
+// The link is emailed with MailService (GEN-01-B). Outside production it is also written to the
+// server log, so the flow can be tested in Swagger without an email account.
 @Injectable()
 export class PasswordResetService {
   private readonly logger = new Logger(PasswordResetService.name);
