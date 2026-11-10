@@ -17,6 +17,7 @@ import {
 import { AuditAction, ContentType, ReportStatus } from '../common/enums';
 import type { AuthUser } from '../common/interfaces';
 import { NotificationsService } from '../notifications/notifications.service';
+import { removeRatingPipeline } from '../reviews/reviews.service';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { CreateReportDto } from './dto/create-report.dto';
 import { ListReportsQueryDto } from './dto/list-reports-query.dto';
@@ -130,6 +131,33 @@ export class ReportsService {
     }
 
     return true;
+  }
+
+  // GEN-10 + HTL-23: delete one content document. When it is a review, the
+  // hotel's averageRating / ratingCount are updated in the same transaction
+  // (the same pipeline the author's own delete uses), so an admin delete can
+  // never leave the rating out of date. Only the delete that really removed
+  // the document changes the rating, so a repeated delete changes nothing.
+  private async deleteContentDocument(
+    type: ContentType,
+    id: Types.ObjectId,
+    doc: unknown,
+  ): Promise<void> {
+    const db = this.connection.db;
+    if (!db) return;
+    await this.connection.transaction(async (session) => {
+      const result = await db
+        .collection(this.getCollectionName(type))
+        .deleteOne({ _id: id }, { session });
+      if (type !== ContentType.Review || result.deletedCount !== 1) return;
+      const review = doc as { hotel?: Types.ObjectId; rating?: number } | null;
+      if (!review?.hotel || typeof review.rating !== 'number') return;
+      await db
+        .collection('hotels')
+        .updateOne({ _id: review.hotel }, removeRatingPipeline(review.rating), {
+          session,
+        });
+    });
   }
 
   private extractAuthorId(doc: unknown): string | undefined {
@@ -404,10 +432,13 @@ export class ReportsService {
     }
 
     if (dto.action === ReportResolutionAction.Delete) {
-      // Delete content from its collection
-      await this.connection.db
-        ?.collection(collectionName)
-        .deleteOne({ _id: contentId });
+      // Delete content from its collection (a review also leaves the hotel's
+      // average rating, HTL-23)
+      await this.deleteContentDocument(
+        updatedReport.contentType,
+        contentId,
+        contentDoc,
+      );
 
       // Cascade resolution: resolve any other open reports about this content item
       await this.reportModel.updateMany(
@@ -479,10 +510,8 @@ export class ReportsService {
       throw new NotFoundException('Content not found.');
     }
 
-    // Delete or mark deleted in MongoDB
-    await this.connection.db
-      ?.collection(collectionName)
-      .deleteOne({ _id: contentObjectId });
+    // Delete in MongoDB (a review also leaves the hotel's average rating, HTL-23)
+    await this.deleteContentDocument(type, contentObjectId, doc);
 
     const adminObjectId = new Types.ObjectId(admin.id);
 
