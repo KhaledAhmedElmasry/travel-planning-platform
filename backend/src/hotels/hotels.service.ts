@@ -379,19 +379,52 @@ export class HotelsService {
       );
     }
 
-    // Apply only the fields that were sent.
-    if (dto.name !== undefined) hotel.name = dto.name;
-    if (dto.address !== undefined) hotel.address = dto.address;
-    if (dto.cityId !== undefined) hotel.cityId = dto.cityId;
-    if (dto.countryCode !== undefined) hotel.countryCode = dto.countryCode;
-    if (dto.description !== undefined) hotel.description = dto.description;
-    if (dto.starRating !== undefined) hotel.starRating = dto.starRating;
-    if (dto.amenities !== undefined) hotel.amenities = dto.amenities;
-    hotel.set('photos', [...kept, ...newPhotos]);
+    // Apply only the fields that were sent, as ONE atomic $set. (hotel.save()
+    // on an array field checks the document version, so several edits at the
+    // same moment threw a VersionError = 500.) Edits of different or the same
+    // scalar fields never conflict; the last one wins.
+    const set: Record<string, unknown> = {};
+    if (dto.name !== undefined) set.name = dto.name;
+    if (dto.address !== undefined) set.address = dto.address;
+    if (dto.cityId !== undefined) set.cityId = dto.cityId;
+    if (dto.countryCode !== undefined) set.countryCode = dto.countryCode;
+    if (dto.description !== undefined) set.description = dto.description;
+    if (dto.starRating !== undefined) set.starRating = dto.starRating;
+    if (dto.amenities !== undefined) set.amenities = dto.amenities;
+
+    // The photo list is only replaced when photos were added or removed, and
+    // only if it is still the list this request read (same photo ids): two
+    // photo edits at the same moment cannot overwrite each other.
+    const filter: Record<string, unknown> = { _id: hotel._id };
+    if (removeIds.size > 0 || newPhotos.length > 0) {
+      set.photos = [...kept, ...newPhotos];
+      filter.photos = {
+        $size: hotel.photos.length,
+        ...(hotel.photos.length > 0 && {
+          $not: {
+            $elemMatch: {
+              _id: { $nin: hotel.photos.map((p) => this.rawPhotoId(p)) },
+            },
+          },
+        }),
+      };
+    }
+    if (Object.keys(set).length === 0) return this.toResponse(hotel);
 
     // NOTE: files of removed photos stay on disk until the upload service can delete them.
-    await hotel.save();
-    return this.toResponse(hotel);
+    const updated = await this.hotelModel
+      .findOneAndUpdate(
+        filter,
+        { $set: set },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) {
+      throw new ConflictException(
+        'The hotel photos were changed at the same time. Reload the hotel and try again.',
+      );
+    }
+    return this.toResponse(updated);
   }
 
   // --- HTL-03: add a room (only the moderator assigned to THIS hotel) ---
