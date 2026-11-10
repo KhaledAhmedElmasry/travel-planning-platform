@@ -7,7 +7,8 @@ It documents every endpoint of PDF section 8, grouped and ordered like the PDF t
 the requirement IDs in each summary, who may call it, the rules from the requirements workbook, the parameters,
 the request body fields with examples, and the possible responses. Optional endpoints are marked `[Bonus]`.
 
-An endpoint that is not implemented yet returns `404 Cannot ...` in "Try it out".
+All 119 endpoints of PDF section 8 (110 mandatory + 9 optional) are implemented, plus the extra endpoints listed
+below; every route in the code is documented here.
 
 ## Working With the File
 
@@ -40,7 +41,7 @@ An endpoint that is not implemented yet returns `404 Cannot ...` in "Try it out"
   ```
   It must report no errors. The remaining warnings are fine: the ambiguous paths that come from the PDF
   (for example `/api/flights/search` and `/api/flights/{id}`) and `/api/health`, which has no error response.
-- Remove the `[Bonus]` endpoints you do not implement before the submission.
+- All `[Bonus]` endpoints are implemented; keep the label so the evaluators can tell them apart.
 
 ## Decisions Documented in the File
 
@@ -56,20 +57,21 @@ An endpoint that is not implemented yet returns `404 Cannot ...` in "Try it out"
 | Images | Airline logo and hotel photos are sent with the create/edit forms (`multipart/form-data`); activity and post images have their own endpoints (GEN-08). |
 | Payments from Swagger | `paymentMethodId: pm_card_visa` (test mode) lets the backend confirm a payment without card data. |
 
-## Requirements Without an Endpoint in the PDF Tables
+## Extra Endpoints (not in the PDF Tables)
 
-Extra endpoints may be needed for these requirements, which PDF section 8 does not cover ("Students may
-introduce additional endpoints when justified"). The team decides whether and how to add them; add any new
-endpoint to `openapi.yaml` in the same PR:
+PDF section 8 allows extra endpoints when justified (8.10: "These services may expose additional REST endpoints
+as needed"). These are the ones the backend adds, all documented in `openapi.yaml`:
 
-| Requirement | Feature that may need an extra endpoint |
+| Endpoint | Requirement |
 |---|---|
-| ACC-19 | Refresh the session |
-| GEN-12, ACC-09 | Countries, cities, attractions and supported currencies lists |
-| GEN-01 | Notifications: list, unread count, mark as read, mark all as read |
-| GEN-09 | A user reports content |
-| GEN-10 | An admin hides content directly (deleting already exists) |
-| BON-01, BON-02 (bonus) | Admin analytics; favourites |
+| `POST /api/auth/refresh` | ACC-06, ACC-19: rotate the refresh token, keep the session alive |
+| `GET /api/countries`, `GET /api/cities`, `GET /api/attractions`, `GET /api/currencies` | GEN-12, ACC-09, ITN-01, ITN-05: the seeded reference data |
+| `GET /api/notifications`, `GET /api/notifications/unread-count`, `PATCH /api/notifications/:id/read`, `PATCH /api/notifications/read-all` | GEN-01 |
+| `POST /api/reports` | GEN-09: a user reports content |
+| `PATCH /api/admin/content/:type/:id/hide`, `PATCH /api/admin/content/:type/:id/unhide` | GEN-10: an admin hides content directly |
+| `GET /api/admin/analytics` | BON-01 (bonus) |
+| `POST /api/favourites`, `GET /api/favourites`, `DELETE /api/favourites/:id` | BON-02 (bonus) |
+| `GET /api/health` | Not a requirement: health check |
 
 ## Shared Formats
 
