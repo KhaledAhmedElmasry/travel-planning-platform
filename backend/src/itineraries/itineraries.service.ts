@@ -447,6 +447,24 @@ export class ItinerariesService {
     };
   }
 
+  // BON-02: public summary used by the private favourites list.
+  async findPublicFavouriteSummary(
+    itineraryId: string | Types.ObjectId,
+  ): Promise<ItinerarySummary | null> {
+    if (!isValidObjectId(itineraryId)) return null;
+    const itinerary = await this.itineraryModel
+      .findOne({
+        _id: itineraryId,
+        visibility: 'public',
+        hidden: { $ne: true },
+      })
+      .exec();
+    if (!itinerary || (await this.isDeactivatedUser(itinerary.userId))) {
+      return null;
+    }
+    return this.toSummary(itinerary);
+  }
+
   async clone(
     itineraryId: string | Types.ObjectId,
     userId: string,
