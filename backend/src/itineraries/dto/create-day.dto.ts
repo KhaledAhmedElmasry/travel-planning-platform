@@ -9,7 +9,7 @@ const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
 export class CreateDayDto {
-  // city_id from the predefined city list (NEW-05); the service checks it exists.
+  // city_id from the predefined city list (GEN-12); the service checks it exists.
   @Transform(trim)
   @IsString({ message: 'cityId must be text' })
   @IsNotEmpty({ message: 'cityId is required' })

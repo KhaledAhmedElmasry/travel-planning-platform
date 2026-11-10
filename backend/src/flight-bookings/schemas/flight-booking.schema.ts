@@ -8,9 +8,9 @@ import {
 
 // Area: Payments, Holds & Booking Engine
 // Flight Booking and Passenger (PDF section 5 "Flight Bookings"): FLT-12, FLT-19, FLT-22, FLT-23,
-// FLT-26, GEN-11, NEW-01, NEW-02, PAY-01, PAY-02.
+// FLT-26, GEN-11, FLT-05, PAY-01, PAY-02.
 // The flight details and prices are copied into the booking when it is created (a snapshot), so
-// the e-ticket and cancellation rules can be applied from the booking alone. NEW-02: later PRICE
+// the e-ticket and cancellation rules can be applied from the booking alone. FLT-05: later PRICE
 // changes do not change an existing booking, but TIME changes do: FLT-05 (Area 5) must update the
 // copied departureAt / arrivalAt in the same transaction (see flights/schemas/flight.schema.ts).
 //
@@ -59,7 +59,7 @@ export class BookedSegment {
   @Prop({ required: true })
   arrivalAt: Date;
 
-  // Cabin fare per seat at booking time, integer cents (NEW-02).
+  // Cabin fare per seat at booking time, integer cents (FLT-05).
   @Prop({ required: true, min: 0, validate: Number.isInteger })
   fare: number;
 
@@ -107,6 +107,40 @@ export class BookedPassenger {
 }
 const BookedPassengerSchema = SchemaFactory.createForClass(BookedPassenger);
 
+// FLT-27 (bonus): one entry per change of a flight, newest last.
+@Schema({ _id: false })
+export class FlightChange {
+  @Prop({ required: true })
+  changeId: string;
+
+  @Prop({ type: Date, required: true })
+  at: Date;
+
+  @Prop({ type: String, enum: ['outbound', 'return'], required: true })
+  segment: 'outbound' | 'return';
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  fromFlightId: Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  toFlightId: Types.ObjectId;
+
+  @Prop({ required: true })
+  fromFlightNumber: string;
+
+  @Prop({ required: true })
+  toFlightNumber: string;
+
+  // Integer cents of the platform currency.
+  @Prop({ required: true })
+  previousTotal: number;
+
+  @Prop({ required: true })
+  newTotal: number;
+}
+
+const FlightChangeSchema = SchemaFactory.createForClass(FlightChange);
+
 export type FlightBookingDocument = HydratedDocument<FlightBooking>;
 
 @Schema({ timestamps: true })
@@ -139,14 +173,14 @@ export class FlightBooking {
   @Prop({ required: true, min: 1, validate: Number.isInteger })
   seats: number;
 
-  // Integer cents of the platform currency (PAY-04, NEW-04).
+  // Integer cents of the platform currency (PAY-04).
   @Prop({ required: true, min: 1, validate: Number.isInteger })
   totalAmount: number;
 
   @Prop({ required: true, uppercase: true, minlength: 3, maxlength: 3 })
   currency: string;
 
-  // End of the 10-minute seat hold (FLT-22, NEW-01).
+  // End of the 10-minute seat hold (FLT-22, GEN-11).
   @Prop({ required: true })
   holdExpiresAt: Date;
 
@@ -162,7 +196,7 @@ export class FlightBooking {
   @Prop({ unique: true, sparse: true })
   reference?: string;
 
-  // Time of each status change (NEW-01).
+  // Time of each status change (GEN-11).
   @Prop({ type: Date, default: null })
   confirmedAt: Date | null;
 
@@ -172,7 +206,7 @@ export class FlightBooking {
   @Prop({ type: Date, default: null })
   cancelledAt: Date | null;
 
-  // GEN-11: set when the last flight has departed (NEW-01 job).
+  // GEN-11: set when the last flight has departed (GEN-11 job).
   @Prop({ type: Date, default: null })
   completedAt: Date | null;
 
@@ -180,10 +214,14 @@ export class FlightBooking {
   @Prop({ type: PendingRefundSchema, default: null })
   pendingRefund: PendingRefund | null;
 
-  // GEN-01, NEW-02: notifications already sent for events that can be handled twice (the airline
+  // GEN-01, FLT-05, FLT-06: notifications already sent for events that can be handled twice (the airline
   // cancelling the flight), so the user gets each one once. See claimNotification().
   @Prop({ type: [String], default: [] })
   notified: string[];
+
+  // FLT-27 (bonus): the flights this booking was moved from, in order.
+  @Prop({ type: [FlightChangeSchema], default: [] })
+  changes: FlightChange[];
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -191,7 +229,7 @@ export class FlightBooking {
 
 export const FlightBookingSchema = SchemaFactory.createForClass(FlightBooking);
 
-// Finds the holds to expire quickly (NEW-01 job).
+// Finds the holds to expire quickly (GEN-11 job).
 FlightBookingSchema.index({ status: 1, holdExpiresAt: 1 });
 // Finds the bookings of one flight quickly (FLT-06 cancelBookingsForFlight, FLT-29 bookings and
 // passenger list).

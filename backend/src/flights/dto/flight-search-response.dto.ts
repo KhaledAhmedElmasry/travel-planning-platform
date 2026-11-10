@@ -1,6 +1,6 @@
 // Area: Flight Search & Booking
 // Response of GET /api/flights/search (FLT-11, FLT-12, FLT-15, GEN-05, GEN-06).
-// All prices are integer cents of `currency` (the platform currency, PAY-04, NEW-04).
+// All prices are integer cents of `currency` (the platform currency, PAY-04).
 import type { PaginatedList } from '../../common/dto';
 import type { CabinClass } from '../../common/enums';
 import type { TripType } from './search-flights-query.dto';

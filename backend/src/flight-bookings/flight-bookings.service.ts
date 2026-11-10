@@ -32,16 +32,27 @@ import { platformCurrency } from '../payments/platform-currency';
 import { flightConfirmedText } from './booking-notifications';
 import { FlightBookingQuoteService } from './booking-quote.service';
 import { FlightBookingRequestDto } from './dto/hold-flight-booking.dto';
+import {
+  FlightBookingGroup,
+  ListFlightBookingsQueryDto,
+} from './dto/list-flight-bookings-query.dto';
 import { localTime, renderETicket } from './e-ticket';
 import {
   FlightBooking,
   FlightBookingDocument,
 } from './schemas/flight-booking.schema';
+import { FlightSeatSelectionService } from './flight-seat-selection.service';
 import { SeatInventoryService } from './seat-inventory.service';
+import {
+  DEFAULT_PAGE_SIZE,
+  getPaginationOffset,
+  PaginatedList,
+  paginate,
+} from '../common/dto';
 
 // Area: Payments, Holds & Booking Engine (FLT-22, FLT-23) and Search & My Bookings (FLT-19,
 // FLT-21, FLT-25)
-// Business logic and database access for: FLT-19, FLT-21, FLT-22, FLT-23, FLT-25, FLT-26, GEN-11, NEW-01
+// Business logic and database access for: FLT-19, FLT-21, FLT-22, FLT-23, FLT-25, FLT-26, GEN-11
 //
 // Done here (Area 1): the seat hold (FLT-22), the four BookingPaymentHandler methods used by the
 // payments module (PAY-01, PAY-02), confirmation with the booking reference and the e-ticket
@@ -52,12 +63,12 @@ import { SeatInventoryService } from './seat-inventory.service';
 // TODO(FLT-19, FLT-21, FLT-25; Area 6): the summary, the list and the details go here too. The
 // details must include RefundsService.findRefundForBooking() and the refund preview (FLT-26):
 // FlightBookingLifecycleService.previewCancellation(booking), the same function the cancellation
-// uses. For the Upcoming group of the list use upcomingFlightBookings() below (NEW-01).
+// uses. For the Upcoming group of the list use upcomingFlightBookings() below (GEN-11).
 
 // FLT-22: seats are held for 10 minutes.
 export const HOLD_MINUTES = 10;
 
-// NEW-01 "upcoming" (ACC-12, Area 2; the Upcoming group of FLT-25, Area 6): Confirmed, with a
+// GEN-11 "upcoming" (ACC-12, Area 2; the Upcoming group of FLT-25, Area 6): Confirmed, with a
 // flight not yet departed. A round trip whose outbound flight has flown is still upcoming (its
 // return flight is ahead); it becomes Completed when its last flight departs (completeDeparted).
 export function upcomingFlightBookings(
@@ -108,7 +119,29 @@ export interface FlightBookingResponse {
   expiredAt: Date | null;
   cancelledAt: Date | null;
   completedAt: Date | null;
+  // FLT-27 (bonus): the flights the booking was moved from, oldest first (empty if never changed).
+  changes: {
+    at: Date;
+    segment: 'outbound' | 'return';
+    fromFlightNumber: string;
+    toFlightNumber: string;
+    previousTotal: number;
+    newTotal: number;
+  }[];
   createdAt?: Date;
+}
+
+export interface FlightBookingListItem {
+  id: string;
+  reference: string | null;
+  status: BookingStatus;
+  flightNumber: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  departureAt: Date;
+  departureLocal: string;
+  passengers: number;
+  cabinClass: string;
 }
 
 @Injectable()
@@ -124,6 +157,7 @@ export class FlightBookingsService implements BookingPaymentHandler {
     private readonly airlines: AirlinesService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly seatSelection: FlightSeatSelectionService,
   ) {}
 
   // POST /api/flight-bookings/hold (FLT-22): reserve the seats on every segment and create the
@@ -181,6 +215,10 @@ export class FlightBookingsService implements BookingPaymentHandler {
     return this.toResponse(created.booking);
   }
 
+  quote(request: FlightBookingRequestDto) {
+    return this.quotes.quote(request);
+  }
+
   // GET /api/flight-bookings/:id/e-ticket (FLT-23): only the owner, only a Confirmed booking.
   async eTicket(
     userId: string,
@@ -198,6 +236,8 @@ export class FlightBookingsService implements BookingPaymentHandler {
       passengers: booking.passengers,
       totalAmount: booking.totalAmount,
       currency: booking.currency,
+      // FLT-28: the seats the passengers chose, if any.
+      seats: await this.seatSelection.list(booking),
     });
     return { pdf, reference: booking.reference };
   }
@@ -215,7 +255,7 @@ export class FlightBookingsService implements BookingPaymentHandler {
   }
 
   // ACC-12 (Area 2): deactivating an account is blocked while the user has an upcoming flight
-  // booking (NEW-01, see upcomingFlightBookings()).
+  // booking (GEN-11, see upcomingFlightBookings()).
   async hasUpcomingBookings(
     userId: string,
     now = new Date(),
@@ -226,6 +266,65 @@ export class FlightBookingsService implements BookingPaymentHandler {
       ...upcomingFlightBookings(now),
     });
     return found !== null;
+  }
+
+  // FLT-25: list only the current user's bookings in the requested lifecycle group.
+  async listOwn(
+    userId: string,
+    query: ListFlightBookingsQueryDto,
+  ): Promise<PaginatedList<FlightBookingListItem>> {
+    const filter: FilterQuery<FlightBooking> = { userId };
+    switch (query.group) {
+      case FlightBookingGroup.Upcoming:
+        Object.assign(filter, upcomingFlightBookings());
+        break;
+      case FlightBookingGroup.Past:
+        filter.status = {
+          $in: [BookingStatus.Completed, BookingStatus.Expired],
+        };
+        break;
+      case FlightBookingGroup.Cancelled:
+        filter.status = BookingStatus.Cancelled;
+        break;
+    }
+
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [bookings, total] = await Promise.all([
+      this.bookingModel
+        .find(filter)
+        .sort({ 'segments.departureAt': 1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.bookingModel.countDocuments(filter).exec(),
+    ]);
+
+    return paginate(
+      bookings.map((booking) => this.toListItem(booking)),
+      total,
+      page,
+      DEFAULT_PAGE_SIZE,
+    );
+  }
+
+  private toListItem(booking: FlightBookingDocument): FlightBookingListItem {
+    const segment = booking.segments[0];
+    return {
+      id: booking._id.toString(),
+      reference: booking.reference ?? null,
+      status: booking.status,
+      flightNumber: segment.flightNumber,
+      departureAirport: segment.departureAirport.code,
+      arrivalAirport: segment.arrivalAirport.code,
+      departureAt: segment.departureAt,
+      departureLocal: localTime(
+        segment.departureAt,
+        segment.departureAirport.timeZone,
+      ),
+      passengers: booking.passengers.length,
+      cabinClass: segment.cabinClass,
+    };
   }
 
   // --- Used by the payments module (PAY-01, PAY-02) ---
@@ -292,7 +391,7 @@ export class FlightBookingsService implements BookingPaymentHandler {
 
   // FLT-23, called only by the verified Stripe webhook. In one transaction: pending_payment ->
   // confirmed with a unique reference, and held seats -> booked seats. A hold that has expired can
-  // never be confirmed (NEW-01): the payment is then refunded by PaymentsService.
+  // never be confirmed (GEN-11): the payment is then refunded by PaymentsService.
   async confirmPaidBooking(
     bookingId: string,
     paymentId: string,
@@ -418,6 +517,14 @@ export class FlightBookingsService implements BookingPaymentHandler {
       expiredAt: booking.expiredAt,
       cancelledAt: booking.cancelledAt,
       completedAt: booking.completedAt,
+      changes: (booking.changes ?? []).map((c) => ({
+        at: c.at,
+        segment: c.segment,
+        fromFlightNumber: c.fromFlightNumber,
+        toFlightNumber: c.toFlightNumber,
+        previousTotal: c.previousTotal,
+        newTotal: c.newTotal,
+      })),
       createdAt: booking.createdAt,
     };
   }

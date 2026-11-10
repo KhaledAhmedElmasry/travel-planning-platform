@@ -28,7 +28,7 @@ import { daysBeforeCheckIn, todayUtc } from './stay-dates';
 
 // Area: Payments, Holds & Booking Engine
 // Requirements: HTL-18 (hold expiry), HTL-21 (cancellation + refund preview), PAY-03, GEN-11
-// (completion), NEW-01, HTL-23 (Completed stays can be reviewed, Area 4)
+// (completion), GEN-11, HTL-23 (Completed stays can be reviewed, Area 4)
 // Status changes that also touch the room-nights, payments and refunds. Kept apart from
 // HotelBookingsService so that the payments module (which uses HotelBookingsService) and this
 // service (which uses the payments module) do not depend on each other in a circle.
@@ -159,7 +159,7 @@ export class HotelBookingLifecycleService {
     return { ...this.bookings.toResponse(state.cancelled), refund };
   }
 
-  // HTL-18, NEW-01: every minute, reservations still pending payment after their 10-minute hold
+  // HTL-18, GEN-11: every minute, reservations still pending payment after their 10-minute hold
   // become expired, their held room-nights are released and the Stripe PaymentIntent is
   // cancelled. Safe to run again or in parallel: each reservation changes only if still pending.
   @Cron(CronExpression.EVERY_MINUTE, { name: 'hotel-booking-hold-expiry' })
@@ -188,7 +188,7 @@ export class HotelBookingLifecycleService {
     return expired;
   }
 
-  // GEN-11, NEW-01, HTL-23: every minute, Confirmed reservations whose check-out date has passed
+  // GEN-11, HTL-23: every minute, Confirmed reservations whose check-out date has passed
   // (today is after the check-out date, UTC) become Completed; Area 4's reviews need it. One
   // update for all of them; nothing else changes. Completed is final.
   @Cron(CronExpression.EVERY_MINUTE, { name: 'hotel-booking-completion' })

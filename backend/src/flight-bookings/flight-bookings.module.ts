@@ -1,12 +1,16 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AirlinesModule } from '../airlines/airlines.module';
+import { Airline, AirlineSchema } from '../airlines/schemas/airline.schema';
+import { Flight, FlightSchema } from '../flights/schemas/flight.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { FlightBookingQuoteService } from './booking-quote.service';
+import { FlightBookingChangeService } from './flight-booking-change.service';
 import { FlightBookingLifecycleService } from './flight-booking-lifecycle.service';
 import { FlightBookingsController } from './flight-bookings.controller';
 import { FlightBookingsService } from './flight-bookings.service';
+import { FlightSeatSelectionService } from './flight-seat-selection.service';
 import {
   FlightBooking,
   FlightBookingSchema,
@@ -23,6 +27,8 @@ import { SeatInventoryService } from './seat-inventory.service';
   imports: [
     MongooseModule.forFeature([
       { name: FlightBooking.name, schema: FlightBookingSchema },
+      { name: Flight.name, schema: FlightSchema },
+      { name: Airline.name, schema: AirlineSchema },
     ]),
     AirlinesModule,
     forwardRef(() => PaymentsModule),
@@ -32,12 +38,15 @@ import { SeatInventoryService } from './seat-inventory.service';
   providers: [
     FlightBookingsService,
     FlightBookingLifecycleService,
+    FlightBookingChangeService,
     FlightBookingQuoteService,
+    FlightSeatSelectionService,
     SeatInventoryService,
   ],
   exports: [
     FlightBookingsService,
     FlightBookingLifecycleService,
+    FlightSeatSelectionService,
     SeatInventoryService,
   ],
 })

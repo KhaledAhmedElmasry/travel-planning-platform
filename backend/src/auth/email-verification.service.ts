@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { createHash, randomBytes } from 'crypto';
 import { Model, Types } from 'mongoose';
+import { MailService } from '../mail/mail.service';
 import { UsersService } from '../users/users.service';
 import { EmailToken, EmailTokenPurpose } from './schemas/email-token.schema';
 
@@ -14,9 +15,9 @@ export const INVALID_TOKEN = 'The token is invalid, expired or already used.';
 // Area: Auth & Accounts (bonus)
 // Requirements: ACC-02 (depends on GEN-01-B for the email itself)
 //
-// WAITING FOR (GEN-01-B): MailService is still empty. Until it can send email, the link is written
-// to the server log in development only (never in production, ACC-19). Then replace the body of
-// sendLink() with one MailService call; nothing else changes.
+// The link is sent with MailService (GEN-01-B). When SMTP is not configured nothing is sent, so in
+// development (never in production, ACC-19) the link is also written to the server log, which lets
+// Swagger be used without an email account.
 @Injectable()
 export class EmailVerificationService {
   private readonly logger = new Logger(EmailVerificationService.name);
@@ -26,6 +27,7 @@ export class EmailVerificationService {
     private readonly tokenModel: Model<EmailToken>,
     private readonly usersService: UsersService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   // ACC-02: after registration, create a one-time link and send it to the new account.
@@ -68,13 +70,15 @@ export class EmailVerificationService {
   }
 
   private sendLink(email: string, link: string): void {
-    if (this.config.get<string>('NODE_ENV') === 'production') {
-      this.logger.warn(
-        `Email sending is not set up yet (GEN-01-B); no link sent to ${email}`,
-      );
-      return;
+    // A failed email never undoes the registration: MailService swallows its own errors.
+    void this.mail.sendMail({
+      to: email,
+      subject: 'Verify your email address',
+      text: `Welcome! Open this link within 24 hours to verify your email address and start booking:\n\n${link}\n\nIf you did not create an account, ignore this email.`,
+    });
+    if (this.config.get<string>('NODE_ENV') !== 'production') {
+      this.logger.log(`[dev only] Verification link for ${email}: ${link}`);
     }
-    this.logger.log(`[dev only] Verification link for ${email}: ${link}`);
   }
 }
 

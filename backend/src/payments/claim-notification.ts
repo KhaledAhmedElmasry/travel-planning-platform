@@ -1,6 +1,6 @@
 import { Model, Types, UpdateQuery } from 'mongoose';
 
-// GEN-01, NEW-02: each user gets exactly one notification per event, even when the code that
+// GEN-01, FLT-05, FLT-06: each user gets exactly one notification per event, even when the code that
 // sends it can run twice (finishFlightCancellation() called again, or the Stripe reply and the
 // webhook reporting the same refund status at the same moment). The first caller adds `key` to the
 // document's `notified` list and gets true; every later caller finds it already there and gets

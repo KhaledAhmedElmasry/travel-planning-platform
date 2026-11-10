@@ -45,6 +45,18 @@ import {
 } from './schemas/itinerary.schema';
 import { ExchangeRatesService } from '../exchange-rates/exchange-rates.service';
 import { UsersService } from '../users/users.service';
+import { AccountStatus } from '../common/enums';
+import { HotelSearchService } from '../hotels/hotel-search.service';
+import { FlightSearchService } from '../flights/flight-search.service';
+import { TripType } from '../flights/dto/search-flights-query.dto';
+import { ItineraryHotelsQueryDto } from './dto/itinerary-hotels-query.dto';
+import { ItineraryFlightsQueryDto } from './dto/itinerary-flights-query.dto';
+import { AttachBookingDto } from './dto/attach-booking.dto';
+import { renderItineraryPdf } from './itinerary-pdf';
+import {
+  ItineraryBookingsService,
+  LinkedBookingResponse,
+} from './itinerary-bookings.service';
 
 // Area: Itineraries
 // Business logic and database access for: ITN-01..ITN-26
@@ -54,9 +66,12 @@ export class ItinerariesService {
     @InjectModel(Itinerary.name)
     private readonly itineraryModel: Model<Itinerary>,
     @InjectConnection() private readonly connection: Connection,
+    private readonly hotelSearchService: HotelSearchService,
+    private readonly flightSearchService: FlightSearchService,
     @Optional() private readonly uploadsService?: UploadsService,
     @Optional() private readonly usersService?: UsersService,
     @Optional() private readonly exchangeRatesService?: ExchangeRatesService,
+    @Optional() private readonly bookingLinks?: ItineraryBookingsService,
   ) {}
 
   async create(
@@ -214,6 +229,8 @@ export class ItinerariesService {
       }
       throw error;
     }
+    // ITN-27: the bookings linked to the deleted day are unlinked.
+    await this.bookingLinks?.removeForDay(itinerary._id, day._id);
   }
 
   // ITN-08: moves one day to a new position (1-based). The day is moved as a whole, so everything
@@ -301,9 +318,11 @@ export class ItinerariesService {
       throw new BadRequestException('minDays cannot be greater than maxDays.');
     }
 
+    // ACC-12: public itineraries of deactivated accounts are hidden.
     const filter: Record<string, unknown> = {
       visibility: 'public',
       hidden: { $ne: true },
+      userId: { $nin: await this.deactivatedUserIds() },
     };
     const andFilters: Record<string, unknown>[] = [];
     const keyword = query.keyword?.trim();
@@ -372,6 +391,41 @@ export class ItinerariesService {
     );
   }
 
+  /** Public itineraries owned by an active author, for the BLG-12 author page. */
+  async listPublicByAuthor(
+    authorId: string | Types.ObjectId,
+    page = 1,
+  ): Promise<PaginatedList<ItinerarySummary>> {
+    const deactivatedUserIds = await this.deactivatedUserIds();
+    const filter = {
+      userId: {
+        $eq: new Types.ObjectId(authorId),
+        $nin: deactivatedUserIds,
+      },
+      visibility: 'public',
+      hidden: { $ne: true },
+    };
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [itineraries, total] = await Promise.all([
+      this.itineraryModel
+        .find(filter)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.itineraryModel.countDocuments(filter).exec(),
+    ]);
+
+    return total === 0
+      ? emptyPaginatedList(page, DEFAULT_PAGE_SIZE)
+      : paginate(
+          itineraries.map((itinerary) => this.toSummary(itinerary)),
+          total,
+          page,
+          DEFAULT_PAGE_SIZE,
+        );
+  }
+
   async getPublic(
     itineraryId: string | Types.ObjectId,
     currency?: string,
@@ -389,7 +443,9 @@ export class ItinerariesService {
     const author = this.usersService
       ? await this.usersService.findById(String(itinerary.userId))
       : null;
-    if (!author) throw publicItineraryNotFound();
+    if (!author || author.status === AccountStatus.Deactivated) {
+      throw publicItineraryNotFound(); // ACC-12
+    }
     return {
       ...this.toResponse(itinerary),
       author: { id: String(author._id), name: author.name },
@@ -398,6 +454,24 @@ export class ItinerariesService {
         : null,
       budget: await this.calculateBudgetSummary(itinerary, currency),
     };
+  }
+
+  // BON-02: public summary used by the private favourites list.
+  async findPublicFavouriteSummary(
+    itineraryId: string | Types.ObjectId,
+  ): Promise<ItinerarySummary | null> {
+    if (!isValidObjectId(itineraryId)) return null;
+    const itinerary = await this.itineraryModel
+      .findOne({
+        _id: itineraryId,
+        visibility: 'public',
+        hidden: { $ne: true },
+      })
+      .exec();
+    if (!itinerary || (await this.isDeactivatedUser(itinerary.userId))) {
+      return null;
+    }
+    return this.toSummary(itinerary);
   }
 
   async clone(
@@ -412,7 +486,9 @@ export class ItinerariesService {
         hidden: { $ne: true },
       })
       .exec();
-    if (!source) throw publicItineraryNotFound();
+    if (!source || (await this.isDeactivatedUser(source.userId))) {
+      throw publicItineraryNotFound(); // ACC-12
+    }
     const dayIds = new Map<string, Types.ObjectId>();
     const days = source.days.map((day) => {
       const id = new Types.ObjectId();
@@ -459,7 +535,67 @@ export class ItinerariesService {
     itineraryId: string | Types.ObjectId,
     userId: string,
   ): Promise<ItineraryResponse> {
-    return this.toResponse(await this.findOwnedOrThrow(itineraryId, userId));
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    const response = this.toResponse(itinerary);
+    if (!this.bookingLinks) return response;
+    // ITN-27: the bookings linked to its days.
+    return {
+      ...response,
+      linkedBookings: await this.bookingLinks.list(
+        itinerary._id,
+        itinerary.days.map((day) => day._id),
+      ),
+    };
+  }
+
+  // ITN-28 (bonus): the owner's itinerary as a PDF (title, days, activities, budget, linked
+  // bookings). Only the owner can export it (404 otherwise, like every private itinerary).
+  async exportPdf(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+  ): Promise<{ pdf: Buffer; title: string }> {
+    const itinerary = await this.getOne(itineraryId, userId);
+    const budget = await this.getBudgetSummary(
+      itineraryId,
+      userId,
+      undefined,
+      false,
+    );
+    const cityIds = [
+      ...new Set([
+        ...itinerary.days.map((day) => day.cityId),
+        ...itinerary.transportCosts.flatMap((cost) => [
+          cost.fromCityId,
+          cost.toCityId,
+        ]),
+      ]),
+    ];
+    const cities = await this.connection
+      .collection<{ _id: string; name?: string }>('cities')
+      .find({ _id: { $in: cityIds } })
+      .toArray();
+    const cityNames: Record<string, string> = {};
+    for (const city of cities) cityNames[city._id] = city.name ?? city._id;
+    const pdf = await renderItineraryPdf({ itinerary, budget, cityNames });
+    return { pdf, title: itinerary.title };
+  }
+
+  // ITN-27 (bonus): link one of the user's Confirmed bookings to a day of the itinerary.
+  async linkBooking(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+    dto: AttachBookingDto,
+  ): Promise<LinkedBookingResponse> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    if (!itinerary.days.id(dto.dayId)) {
+      throw new NotFoundException(
+        'Itinerary, day or booking not found, or they belong to another user.',
+      );
+    }
+    if (!this.bookingLinks) {
+      throw new Error('The itinerary booking links are not configured.');
+    }
+    return this.bookingLinks.link(itinerary._id, userId, dto);
   }
 
   async addBudgetEntry(
@@ -525,6 +661,8 @@ export class ItinerariesService {
     itineraryId: string | Types.ObjectId,
     userId: string,
     currency?: string,
+    // false: only the original totals (used by the PDF export, ITN-28).
+    convert = true,
   ): Promise<BudgetSummaryResponse> {
     const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
     if (currency !== undefined) await this.assertCurrencyExists(currency);
@@ -563,13 +701,31 @@ export class ItinerariesService {
     const grandTotal = sumTotals(
       Object.values(byCategory).concat(intercityTransport),
     );
+    // ITN-27: linked bookings feed the budget in the platform currency. They are listed and
+    // summed apart from the entries above and are NEVER converted (ITN-18, PAY-04).
+    const linkedItems = this.bookingLinks
+      ? await this.bookingLinks.list(
+          itinerary._id,
+          itinerary.days.map((day) => day._id),
+        )
+      : [];
+    const bookingTotals = emptyTotals();
+    for (const item of linkedItems) {
+      addAmount(bookingTotals, item.currency, item.amount);
+    }
+    const bookingFields = {
+      linkedBookings: { items: linkedItems, total: roundTotals(bookingTotals) },
+      grandTotalWithBookings: roundTotals(
+        sumTotals([grandTotal, bookingTotals]),
+      ),
+    };
     const targetCurrency =
       currency ??
       (this.usersService
         ? (await this.usersService.findById(userId))?.preferredCurrency
         : undefined);
 
-    if (targetCurrency && this.exchangeRatesService) {
+    if (convert && targetCurrency && this.exchangeRatesService) {
       await this.assertCurrencyExists(targetCurrency);
       const convertedCategories: Record<BudgetCategory, CurrencyTotals> =
         {} as Record<BudgetCategory, CurrencyTotals>;
@@ -607,9 +763,11 @@ export class ItinerariesService {
         totalsByDay: byDay,
         intercityTransport,
         grandTotal,
+        ...bookingFields,
         convertedTotal: {
           currency: targetCurrency,
           rateDate: rateDate,
+          ...ratesStatus(convertedGrandTotal.stale, rateDate),
           totalsByCategory: convertedCategories,
           totalsByDay: convertedDays,
           intercityTransport: convertedTransport.totals,
@@ -623,6 +781,7 @@ export class ItinerariesService {
       totalsByDay: byDay,
       intercityTransport,
       grandTotal,
+      ...bookingFields,
       convertedTotal: null,
     };
   }
@@ -851,6 +1010,83 @@ export class ItinerariesService {
       .deleteOne({ _id: itineraryId, userId: new Types.ObjectId(userId) })
       .exec();
     if (result.deletedCount !== 1) throw itineraryNotFound();
+    // ITN-27: its linked bookings are unlinked.
+    await this.bookingLinks?.removeForItinerary(itinerary._id);
+  }
+
+  async findHotels(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+    query: ItineraryHotelsQueryDto,
+  ) {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    // openapi: 404 when the day is not part of this itinerary.
+    const day = itinerary.days.find((item) => String(item._id) === query.dayId);
+    const group = day
+      ? computeCityGroups(itinerary.days).find((item) =>
+          item.dayIds.includes(query.dayId),
+        )
+      : undefined;
+    if (!group) {
+      throw new NotFoundException('Itinerary or day not found.');
+    }
+    // ITN-25: reuse the hotel search (HTL-11): the group's city, check-in on the group's first day,
+    // check-out on the day after its last day. It validates the dates, rooms <= guests and the
+    // availability exactly like GET /api/hotels/search.
+    const checkOut = addOneDay(group.endDate);
+    const results = await this.hotelSearchService.search({
+      city: group.cityId,
+      checkIn: group.startDate,
+      checkOut,
+      guests: query.guests,
+      rooms: query.rooms ?? 1,
+      page: query.page ?? 1,
+    });
+    return {
+      cityId: group.cityId,
+      checkIn: group.startDate,
+      checkOut,
+      ...results,
+    };
+  }
+
+  async findFlights(
+    itineraryId: string | Types.ObjectId,
+    userId: string,
+    query: ItineraryFlightsQueryDto,
+  ) {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    const firstDay = itinerary.days[0];
+    if (!firstDay) {
+      throw new BadRequestException(
+        "Invalid parameters, the itinerary has no days, or the first day's city has no airport.",
+      );
+    }
+    const destination = await this.connection
+      .collection<{ _id: string }>('airports')
+      .findOne({ cityId: firstDay.cityId });
+    if (!destination) {
+      throw new BadRequestException(
+        "Invalid parameters, the itinerary has no days, or the first day's city has no airport.",
+      );
+    }
+    const lastDay = itinerary.days[itinerary.days.length - 1];
+    const departureDate =
+      query.departureDate ?? formatItineraryDate(itinerary.startDate);
+    const returnDate = query.returnDate ?? formatItineraryDate(lastDay.date);
+    return this.flightSearchService.search({
+      origin: query.origin,
+      destination: destination._id,
+      departureDate,
+      returnDate:
+        query.tripType === TripType.RoundTrip ? returnDate : undefined,
+      tripType: query.tripType ?? TripType.OneWay,
+      adults: query.adults ?? 1,
+      children: query.children ?? 0,
+      infants: query.infants ?? 0,
+      cabinClass: query.cabinClass,
+      page: query.page ?? 1,
+    });
   }
 
   private async findOwnedOrThrow(
@@ -865,7 +1101,7 @@ export class ItinerariesService {
     return itinerary;
   }
 
-  // NEW-05: every submitted country must be present in the predefined country data.
+  // GEN-12: every submitted country must be present in the predefined country data.
   private async assertCountriesExist(countryCodes: string[]): Promise<void> {
     const count = await this.connection
       .collection<{ _id: string }>('countries')
@@ -894,6 +1130,23 @@ export class ItinerariesService {
       )
       .toArray();
     return matches.map((match) => match._id);
+  }
+
+  // ACC-12: ids of deactivated accounts, whose public itineraries are hidden.
+  private async deactivatedUserIds(): Promise<Types.ObjectId[]> {
+    return this.connection
+      .collection<{ _id: Types.ObjectId }>('users')
+      .distinct('_id', { status: AccountStatus.Deactivated });
+  }
+
+  private async isDeactivatedUser(userId: Types.ObjectId): Promise<boolean> {
+    const found = await this.connection
+      .collection('users')
+      .findOne(
+        { _id: userId, status: AccountStatus.Deactivated },
+        { projection: { _id: 1 } },
+      );
+    return found !== null;
   }
 
   private async publicAuthor(
@@ -979,6 +1232,7 @@ export class ItinerariesService {
         convertedTotal: {
           currency,
           rateDate,
+          ...ratesStatus(convertedGrandTotal.stale, rateDate),
           totalsByCategory: convertedCategories,
           totalsByDay: convertedDays,
           intercityTransport: convertedTransport.totals,
@@ -995,7 +1249,7 @@ export class ItinerariesService {
     };
   }
 
-  // ITN-05 / NEW-05: the city must be in the seeded cities collection ({ _id: cityId }). Read
+  // ITN-05 / GEN-12: the city must be in the seeded cities collection ({ _id: cityId }). Read
   // directly, as for countries above, so this module does not depend on the reference-data module.
   private async assertCityExists(cityId: string): Promise<void> {
     const count = await this.connection
@@ -1232,6 +1486,8 @@ export interface ItineraryResponse {
   // ITN-09: consecutive days in the same city, in day order.
   cityGroups: CityGroup[];
   transportCosts: TransportCostResponse[];
+  // ITN-27 (bonus): the bookings linked to its days (owner's view only).
+  linkedBookings?: LinkedBookingResponse[];
   createdAt?: Date;
   updatedAt?: Date;
   originalItineraryId?: string | null;
@@ -1277,12 +1533,19 @@ export interface BudgetSummaryResponse {
   totalsByDay: BudgetDayTotal[];
   intercityTransport: CurrencyTotals;
   grandTotal: CurrencyTotals;
+  // ITN-27 (bonus), owner's budget only: linked bookings in the platform currency (never
+  // converted) and the grand total including them.
+  linkedBookings?: { items: LinkedBookingResponse[]; total: CurrencyTotals };
+  grandTotalWithBookings?: CurrencyTotals;
   convertedTotal: ConvertedBudgetSummary | null;
 }
 
 export interface ConvertedBudgetSummary {
   currency: string;
   rateDate: string;
+  // ITN-18: true when FXRatesAPI was unavailable and the last cached rates were used.
+  ratesStale: boolean;
+  ratesNotice: string | null;
   totalsByCategory: Record<BudgetCategory, CurrencyTotals>;
   totalsByDay: BudgetDayTotal[];
   intercityTransport: CurrencyTotals;
@@ -1300,6 +1563,16 @@ export interface ItinerarySummary {
 
 function toStartDate(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
+}
+
+function formatItineraryDate(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+function addOneDay(value: string): string {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return formatItineraryDate(date);
 }
 
 function toDayResponse(
@@ -1388,6 +1661,15 @@ function addAmount(
   totals[currency] = (totals[currency] ?? 0) + amount;
 }
 
+function roundTotals(totals: CurrencyTotals): CurrencyTotals {
+  return Object.fromEntries(
+    Object.entries(totals).map(([currency, amount]) => [
+      currency,
+      Math.round(amount * 100) / 100,
+    ]),
+  );
+}
+
 function sumTotals(totals: CurrencyTotals[]): CurrencyTotals {
   const result = emptyTotals();
   for (const totalsForCurrency of totals) {
@@ -1455,5 +1737,18 @@ function toBudgetEntryResponse(
     amount: entry.amount,
     currency: entry.currency,
     description: entry.description ?? '',
+  };
+}
+
+// ITN-18: tells the user when the last cached rates were used because the API was unavailable.
+function ratesStatus(
+  stale: boolean,
+  rateDate: string | undefined,
+): { ratesStale: boolean; ratesNotice: string | null } {
+  return {
+    ratesStale: stale,
+    ratesNotice: stale
+      ? `Live exchange rates are unavailable right now; the last saved rates from ${rateDate} were used.`
+      : null,
   };
 }

@@ -86,7 +86,7 @@ export class ItineraryDay {
   @Prop({ type: Date, required: true })
   date: Date;
 
-  // city_id from the predefined city list (NEW-05), e.g. 'cairo'.
+  // city_id from the predefined city list (GEN-12), e.g. 'cairo'.
   @Prop({ type: String, required: true })
   cityId: string;
 
@@ -142,7 +142,7 @@ export class Itinerary {
   @Prop({ required: true, trim: true, maxlength: 100 })
   title: string;
 
-  // Official country codes from the predefined reference data (NEW-05).
+  // Official country codes from the predefined reference data (GEN-12).
   @Prop({ type: [String], required: true })
   countryCodes: string[];
 

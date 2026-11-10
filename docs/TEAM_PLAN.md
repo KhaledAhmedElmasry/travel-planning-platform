@@ -8,11 +8,11 @@ The backend is split into eight work areas by requirement (some folders are shar
 
 | # | Area | Folders | Requirements |
 |---|---|---|---|
-| 1 | Payments, Holds & Booking Engine | `payments/, flight-bookings/ (hold, confirm, cancel, e-ticket), hotel-bookings/ (booking, hold, confirm, cancel), booking cron jobs` | PAY-01, PAY-02, PAY-03, PAY-04, NEW-04, FLT-22, HTL-16, HTL-18, FLT-23, HTL-17, FLT-26, HTL-21, GEN-11, NEW-01 |
-| 2 | Auth & Sessions | `auth/, users/, common/guards/, common/decorators/` | ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-07a, ACC-08, ACC-09, ACC-11, ACC-12, ACC-19, NEW-07 |
+| 1 | Payments, Holds & Booking Engine | `payments/, flight-bookings/ (hold, confirm, cancel, e-ticket), hotel-bookings/ (booking, hold, confirm, cancel), booking cron jobs` | PAY-01, PAY-02, PAY-03, PAY-04, FLT-22, HTL-16, HTL-18, FLT-23, HTL-17, FLT-26, HTL-21, GEN-11 |
+| 2 | Auth & Sessions | `auth/, users/, common/guards/, common/decorators/` | ACC-01, ACC-04, ACC-05, ACC-06, ACC-07a, ACC-08, ACC-09, ACC-11, ACC-12, ACC-19 |
 | 3 | Admin, Notifications & Platform Core | `main.ts, app.module.ts, common/ (filters, pipes, pagination, enums), config/, admin/, reports/, audit/, notifications/` | GEN-02, GEN-04, GEN-05, GEN-13, ACC-18, ACC-13, ACC-14, ACC-15, ACC-16, ACC-17, GEN-07, GEN-09, GEN-10, GEN-01 |
-| 4 | Blog, Reviews & Media | `blog/, reviews/, uploads/` | BLG-01, BLG-02, BLG-03, BLG-04, BLG-05, BLG-06, BLG-07, BLG-08, BLG-09, BLG-10, BLG-11, BLG-12, GEN-08, HTL-23, HTL-24 |
-| 5 | Airlines, Flights & Reference Data | `database/ (seed), reference-data/, airlines/, flights/ (inventory), refund-tier rule in common/utils/` | GEN-12, NEW-05, FLT-02, FLT-01, FLT-03, FLT-04, FLT-05, FLT-06, FLT-08, FLT-09, FLT-30, GEN-06, NEW-02 |
+| 4 | Blog, Reviews & Media | `blog/, reviews/, uploads/` | BLG-01, BLG-02, BLG-03, BLG-04, BLG-05, BLG-06, BLG-07, BLG-08, BLG-09, BLG-10, BLG-12, GEN-08, HTL-23, HTL-24 |
+| 5 | Airlines, Flights & Reference Data | `database/ (seed), reference-data/, airlines/, flights/ (inventory), refund-tier rule in common/utils/` | GEN-12, FLT-02, FLT-01, FLT-03, FLT-04, FLT-05, FLT-06, FLT-08, FLT-09, FLT-30, GEN-06 |
 | 6 | Search & My Bookings | `flights/flight-search.controller.ts, flights/ (details, manifest), flight-bookings/ (summary, lists), hotel-bookings/ (lists), hotels/ (reservations list)` | FLT-11, FLT-12, FLT-15, FLT-17, FLT-19, FLT-21, FLT-25, FLT-29, HTL-20, HTL-22, ITN-25, ITN-26 |
 | 7 | Hotels & Rooms | `hotels/` | HTL-01, HTL-02, HTL-03, HTL-04, HTL-05, HTL-06, HTL-08, HTL-09, HTL-10, HTL-11, HTL-12, HTL-15 |
 | 8 | Itineraries & Exchange Rates | `itineraries/, exchange-rates/` | ITN-01, ITN-03, ITN-05, ITN-07, ITN-08, ITN-09, ITN-10, ITN-12, ITN-14, ITN-16, ITN-18, ITN-20, ITN-21 |
@@ -63,14 +63,14 @@ Work starts on **31 October** (after midterms). Until then: everyone reads the r
 
 | Topic | Decision |
 |---|---|
-| Platform currency | `PLATFORM_CURRENCY` (USD). All prices, payments and refunds use it; only itinerary budgets are converted (PAY-04, NEW-04). |
+| Platform currency | `PLATFORM_CURRENCY` (USD). All prices, payments and refunds use it; only itinerary budgets are converted (PAY-04). |
 | Money | Integer minor units (cents). |
-| Sessions | 15-minute access JWT and refresh token in httpOnly cookies; refresh tokens hashed in the DB, rotated, revocable; 30-minute idle expiry (ACC-06, ACC-19, NEW-07). |
+| Sessions | 15-minute access JWT and refresh token in httpOnly cookies; refresh tokens hashed in the DB, rotated, revocable; 30-minute idle expiry (ACC-06, ACC-19). |
 | Lockout | `failedLoginAttempts` + `lockUntil` on the user: 5 failures, 15 minutes (ACC-05). |
 | Flight seat holds | One atomic `findOneAndUpdate` on the cabin that increments `held` only if `total - booked - held >= n` (FLT-22). |
 | Hotel holds | A MongoDB transaction, or a room-night collection with a unique index on (roomId, date). All rooms or nothing (HTL-18). |
-| Hold expiry | `holdExpiresAt` on the booking; a `@Cron` job every minute expires holds; expiry is also checked at payment time (NEW-01). |
-| Status updates | Cron jobs set flights to Departed (FLT-30) and bookings to Completed (HTL-23, NEW-01). |
+| Hold expiry | `holdExpiresAt` on the booking; a `@Cron` job every minute expires holds; expiry is also checked at payment time (GEN-11). |
+| Status updates | Cron jobs set flights to Departed (FLT-30) and bookings to Completed (HTL-23, GEN-11). |
 | Payments in Swagger | Backend creates the PaymentIntent. For the demo, it is confirmed with Stripe's test payment method `pm_card_visa`, so no card data reaches the backend. The webhook confirms the booking (PAY-01). |
 | Time zones | UTC in the database; local time computed with the airport's IANA zone using `luxon` (FLT-03, GEN-06). |
 | Uploads | Stored in `backend/uploads/` and served at `/uploads/...`; JPG/PNG only, 5 MB, 5 per item, 1 airline logo (GEN-08). |

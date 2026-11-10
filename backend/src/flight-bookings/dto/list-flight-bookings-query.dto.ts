@@ -1,8 +1,18 @@
-// Area: Flight Search & Booking
+import { IsEnum, IsOptional } from 'class-validator';
+import { PaginationQueryDto } from '../../common/dto';
+
+// Area: Search & My Bookings
 // Used by: GET /api/flight-bookings (query)
 // Requirements: FLT-25, GEN-05
-//
-// TODO: define the DTO class with class-validator rules for the fields this endpoint needs,
-// exactly as documented in docs/api/openapi.yaml.
 
-export {};
+export enum FlightBookingGroup {
+  Upcoming = 'upcoming',
+  Past = 'past',
+  Cancelled = 'cancelled',
+}
+
+export class ListFlightBookingsQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @IsEnum(FlightBookingGroup)
+  group: FlightBookingGroup = FlightBookingGroup.Upcoming;
+}

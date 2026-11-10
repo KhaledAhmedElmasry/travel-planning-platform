@@ -5,6 +5,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ACCESS_COOKIE } from '../../auth/auth-cookies';
@@ -16,7 +17,7 @@ import {
 import type { AuthUser } from '../interfaces';
 
 // Authentication guard: reads the access token from the httpOnly cookie.
-// Related: ACC-04, ACC-06, ACC-19, NEW-07.
+// Related: ACC-04, ACC-06, ACC-19.
 // Restricted actions by a guest (book, review, post, like, comment, report) must return 401, so the
 // frontend can send the guest to login and back to the action (ACC-10).
 //
@@ -30,6 +31,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly sessions: SessionsService,
     private readonly reflector: Reflector,
+    private readonly config: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -54,8 +56,13 @@ export class JwtAuthGuard implements CanActivate {
       }
     }
 
-    // ACC-02 (bonus): booking needs a verified email address.
-    if (!user.emailVerified) {
+    // ACC-02 (bonus): booking needs a verified email address. Switched on with
+    // REQUIRE_EMAIL_VERIFICATION=true (off by default, so a new account can book without an
+    // email inbox, for example when the API is tried in Swagger).
+    if (
+      !user.emailVerified &&
+      this.config.get<string>('REQUIRE_EMAIL_VERIFICATION') === 'true'
+    ) {
       const required = this.reflector.getAllAndOverride<boolean | undefined>(
         REQUIRE_VERIFIED_EMAIL_KEY,
         [context.getHandler(), context.getClass()],

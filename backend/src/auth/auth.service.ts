@@ -85,8 +85,8 @@ function fieldError(field: string, message: string): BadRequestException {
 const ACCOUNT_DEACTIVATED = 'This account has been deactivated';
 
 // Area: Auth & Accounts
-// Business logic and database access for: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-07a, ACC-08,
-// ACC-12, ACC-19, NEW-07
+// Business logic and database access for: ACC-01, ACC-04, ACC-05, ACC-06, ACC-07a, ACC-08,
+// ACC-12, ACC-19
 @Injectable()
 export class AuthService {
   // Compared against when the email is unknown, so a wrong email takes as long as a wrong
@@ -99,7 +99,7 @@ export class AuthService {
     private readonly emailVerification: EmailVerificationService,
   ) {}
 
-  // ACC-01, ACC-03: create a Registered User account with status Active.
+  // ACC-01: create a Registered User account with status Active.
   async register(dto: RegisterDto): Promise<RegisterResponse> {
     const email = dto.email.trim().toLowerCase();
 
@@ -137,7 +137,7 @@ export class AuthService {
     }
   }
 
-  // ACC-04: log in any role with email and password and start a session (NEW-07).
+  // ACC-04: log in any role with email and password and start a session (ACC-19).
   // ACC-05: 5 consecutive wrong passwords lock the account for 15 minutes.
   async login(dto: LoginDto): Promise<LoginResult> {
     const user = await this.usersService.findByEmailWithPassword(dto.email);
@@ -185,7 +185,7 @@ export class AuthService {
     return { account: toAccount(user), tokens };
   }
 
-  // NEW-07: rotate the session's tokens. The controller sets the new cookies.
+  // ACC-19: rotate the session's tokens. The controller sets the new cookies.
   refresh(refreshToken: string): Promise<AuthTokens> {
     return this.sessionsService.refresh(refreshToken);
   }

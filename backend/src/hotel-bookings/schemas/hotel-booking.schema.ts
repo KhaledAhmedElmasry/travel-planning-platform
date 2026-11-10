@@ -7,7 +7,7 @@ import {
 } from '../../payments/schemas/pending-refund.schema';
 
 // Area: Payments, Holds & Booking Engine
-// Hotel Booking (PDF section 5 "Hotel Bookings"): HTL-16, HTL-17, HTL-18, HTL-21, GEN-11, NEW-01,
+// Hotel Booking (PDF section 5 "Hotel Bookings"): HTL-16, HTL-17, HTL-18, HTL-21, GEN-11,
 // PAY-01, PAY-02, PAY-03. Read by Area 6 (HTL-20 my reservations, HTL-22 hotel's reservations),
 // Area 3 (ACC-17 admin overview) and Area 4 (HTL-23 reviews of Completed stays).
 // One reservation = one hotel, the same dates for every room, one payment and one reference.
@@ -99,7 +99,7 @@ export class HotelBooking {
   })
   status: BookingStatus;
 
-  // End of the 10-minute hold of all its rooms (HTL-18, NEW-01).
+  // End of the 10-minute hold of all its rooms (HTL-18, GEN-11).
   @Prop({ required: true })
   holdExpiresAt: Date;
 
@@ -115,7 +115,7 @@ export class HotelBooking {
   @Prop({ unique: true, sparse: true })
   reference?: string;
 
-  // Time of each status change (NEW-01).
+  // Time of each status change (GEN-11).
   @Prop({ type: Date, default: null })
   confirmedAt: Date | null;
 
@@ -125,7 +125,7 @@ export class HotelBooking {
   @Prop({ type: Date, default: null })
   cancelledAt: Date | null;
 
-  // GEN-11: set the day after the check-out date (NEW-01 job); then it can be reviewed (HTL-23).
+  // GEN-11: set the day after the check-out date (GEN-11 job); then it can be reviewed (HTL-23).
   @Prop({ type: Date, default: null })
   completedAt: Date | null;
 
@@ -139,7 +139,7 @@ export class HotelBooking {
 
 export const HotelBookingSchema = SchemaFactory.createForClass(HotelBooking);
 
-// Finds the holds to expire quickly (NEW-01 job).
+// Finds the holds to expire quickly (GEN-11 job).
 HotelBookingSchema.index({ status: 1, holdExpiresAt: 1 });
 // "Has this room ever been reserved?" (HTL-06 delete, Area 7).
 HotelBookingSchema.index({ 'rooms.roomId': 1 });

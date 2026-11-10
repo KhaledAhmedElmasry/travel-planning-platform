@@ -5,6 +5,7 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { Model } from 'mongoose';
 import { AccountStatus } from '../common/enums';
+import { MailService } from '../mail/mail.service';
 import { UsersService } from '../users/users.service';
 import { BCRYPT_ROUNDS } from './password-rule';
 import { EmailToken, EmailTokenPurpose } from './schemas/email-token.schema';
@@ -65,7 +66,7 @@ export class PasswordResetService {
 
   // ACC-07: set the new password with a reset token. The token is used up in the same atomic
   // update that finds it, so a link works once even with two requests at the same moment.
-  // Afterwards every session of the account is revoked (NEW-07) and a login lockout is cleared.
+  // Afterwards every session of the account is revoked (ACC-19) and a login lockout is cleared.
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const used = await this.tokenModel
       .findOneAndUpdate(
@@ -90,17 +91,21 @@ export class PasswordResetService {
   }
 
   private sendLink(email: string, token: string): void {
-    if (this.config.get<string>('NODE_ENV') === 'production') {
-      this.logger.warn(
-        `Email sending is not set up yet (GEN-01-B); no reset link sent to ${email}`,
-      );
-      return;
-    }
     const frontend =
       this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3001';
-    this.logger.log(
-      `[dev only] Password reset link for ${email}: ${frontend}/reset-password?token=${token} (token for POST /api/auth/reset-password: ${token})`,
-    );
+    const link = `${frontend}/reset-password?token=${token}`;
+    // MailService swallows its own errors: a failed email never changes the always-same answer.
+    void this.mail.sendMail({
+      to: email,
+      subject: 'Reset your password',
+      text: `Open this link within 30 minutes to choose a new password:\n\n${link}\n\nIf you did not ask for this, ignore this email.`,
+    });
+    // Development only (never in production, ACC-19): lets Swagger be used without an email account.
+    if (this.config.get<string>('NODE_ENV') !== 'production') {
+      this.logger.log(
+        `[dev only] Password reset link for ${email}: ${link} (token for POST /api/auth/reset-password: ${token})`,
+      );
+    }
   }
 }
 

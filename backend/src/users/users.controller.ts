@@ -29,7 +29,7 @@ import { NoStoreInterceptor } from '../auth/no-store.interceptor';
 //   PATCH  /api/users/me   ACC-09   done
 //   DELETE /api/users/me   ACC-12   done
 // Notes:
-//   Deactivation is blocked while the user has upcoming Confirmed bookings (ACC-12, NEW-01).
+//   Deactivation is blocked while the user has upcoming Confirmed bookings (ACC-12, GEN-11).
 //   Preferred currency must come from the supported currency list (ACC-09, GEN-12).
 //
 // DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe is registered in main.ts.

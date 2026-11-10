@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Patch,
   Post,
@@ -8,6 +9,7 @@ import {
   UploadedFiles,
   UseGuards,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -18,7 +20,11 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
+import { AvailabilityQueryDto } from './dto/availability-query.dto';
+import { HotelDetailsQueryDto } from './dto/hotel-details-query.dto';
 import { HotelPoliciesDto } from './dto/hotel-policies.dto';
+import { ListReservationsQueryDto } from './dto/list-reservations-query.dto';
+import { RoomAvailabilityDto } from './dto/room-availability.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 import {
   deleteHotelPhotos,
@@ -41,7 +47,7 @@ import { HotelsService, MAX_HOTEL_PHOTOS } from './hotels.service';
 //   POST   /api/hotels/:id/rooms/:roomId/availability   HTL-04
 //   PATCH  /api/hotels/:id/rooms/:roomId/availability   HTL-05, HTL-06
 //   GET    /api/hotels/:id/availability                 HTL-08
-//   PUT    /api/hotels/:id/policies                     HTL-08, HTL-10
+//   PUT    /api/hotels/:id/policies                     HTL-09, HTL-10
 //   GET    /api/hotels/:id/reservations                 HTL-22
 // Notes:
 //   The policies endpoint (PUT /api/hotels/:id/policies) also sets check-in / check-out times (HTL-09).
@@ -82,6 +88,27 @@ export class HotelsController {
     }
   }
 
+  // HTL-02: everyone can view an active hotel's profile and optional free rooms.
+  @Get(':id')
+  getDetails(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Query() query: HotelDetailsQueryDto,
+  ) {
+    return this.hotelsService.getHotelDetails(id, query);
+  }
+
+  // HTL-08: the moderator of a hotel can view every room's status by night.
+  @Get(':id/availability')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  getAvailability(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Query() query: AvailabilityQueryDto,
+  ) {
+    return this.hotelsService.getAvailability(id, user, query);
+  }
+
   // HTL-01: the moderator assigned to this hotel edits it (multipart).
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -114,6 +141,19 @@ export class HotelsController {
     return this.hotelsService.createRoom(id, user, dto);
   }
 
+  // HTL-04: the moderator of this hotel adds a bookable date range to one of its rooms.
+  @Post(':id/rooms/:roomId/availability')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  addAvailability(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('roomId', ParseObjectIdPipe) roomId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RoomAvailabilityDto,
+  ) {
+    return this.hotelsService.addAvailableRange(id, roomId, user, dto);
+  }
+
   // HTL-09, HTL-10: the moderator of this hotel sets check-in/out times and cancellation tiers.
   @Put(':id/policies')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -124,5 +164,16 @@ export class HotelsController {
     @Body() dto: HotelPoliciesDto,
   ) {
     return this.hotelsService.updatePolicies(id, user, dto);
+  }
+
+  @Get(':id/reservations')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  listReservations(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListReservationsQueryDto,
+  ) {
+    return this.hotelsService.listReservations(id, user, query);
   }
 }
