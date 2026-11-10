@@ -3760,7 +3760,9 @@ paths:
       tags: [Hotel Booking and Reviews]
       summary: '[Bonus] Reply to a review (HTL-26)'
       description: |
-        **Access:** the hotel moderator of the reviewed hotel. One reply per review.
+        **Access:** the hotel moderator of the reviewed hotel. One reply per review, 1-1000 characters. A hidden
+        review cannot be answered (404). The reply is shown as `reply` on the review in
+        `GET /api/hotels/{id}/reviews`.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -8161,7 +8163,7 @@ components:
 
     ReviewResponse:
       type: object
-      required: [id, rating, text, author, date]
+      required: [id, rating, text, author, date, reply]
       properties:
         id:
           type: string
@@ -8188,6 +8190,20 @@ components:
           type: string
           format: date-time
           example: '2026-11-10T10:00:00.000Z'
+        reply:
+          type: object
+          nullable: true
+          description: The hotel's reply (HTL-26, bonus); null while there is none.
+          required: [text, date]
+          properties:
+            text:
+              type: string
+              maxLength: 1000
+              example: Thank you for staying with us!
+            date:
+              type: string
+              format: date-time
+              example: '2026-11-11T09:00:00.000Z'
 
     HotelReviewsResponse:
       allOf:

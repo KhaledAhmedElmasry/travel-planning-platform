@@ -19,6 +19,7 @@ import { HotelBooking } from '../hotel-bookings/schemas/hotel-booking.schema';
 import { Hotel } from '../hotels/schemas/hotel.schema';
 import { User } from '../users/schemas/user.schema';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { ReplyReviewDto } from './dto/reply-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { Review, ReviewDocument } from './schemas/review.schema';
 
@@ -28,6 +29,8 @@ export interface ReviewResponse {
   text: string | null;
   author: { name: string };
   date: Date;
+  // HTL-26 (bonus): the hotel's reply, null while there is none.
+  reply: { text: string; date: Date } | null;
 }
 
 export interface HotelReviewsResponse extends PaginatedList<ReviewResponse> {
@@ -46,6 +49,7 @@ interface LeanReview {
   user: Types.ObjectId;
   rating: number;
   text?: string;
+  reply?: { text: string; createdAt: Date };
   createdAt?: Date;
 }
 
@@ -213,6 +217,49 @@ export class ReviewsService {
     });
   }
 
+  // HTL-26 (bonus): the moderator of the reviewed hotel answers a review, once.
+  // The reply is written by one conditional update (only while the review has
+  // no reply and is not hidden), so two replies at the same moment give one
+  // 201 and one 409.
+  async replyToReview(
+    reviewId: Types.ObjectId,
+    moderator: { id: string; hotelId?: string | null },
+    dto: ReplyReviewDto,
+  ): Promise<ReviewResponse> {
+    const review = await this.reviewModel
+      .findOne({ _id: reviewId, hidden: false })
+      .exec();
+    if (!review) throw new NotFoundException('Review not found.');
+    if (!moderator.hotelId || review.hotel.toString() !== moderator.hotelId) {
+      throw new ForbiddenException('Not the moderator of the reviewed hotel.');
+    }
+
+    const updated = await this.reviewModel
+      .findOneAndUpdate(
+        { _id: reviewId, hidden: false, reply: { $exists: false } },
+        {
+          $set: {
+            reply: {
+              text: dto.text,
+              moderator: new Types.ObjectId(moderator.id),
+              createdAt: new Date(),
+            },
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) {
+      const still = await this.reviewModel.exists({
+        _id: reviewId,
+        hidden: false,
+      });
+      if (!still) throw new NotFoundException('Review not found.');
+      throw new ConflictException('The review already has a reply.');
+    }
+    return this.toResponse(updated, await this.findAuthorName(updated.user));
+  }
+
   async listHotelReviews(
     hotelId: Types.ObjectId,
     page = 1,
@@ -276,6 +323,9 @@ export class ReviewsService {
               : author.name,
         },
         date: review.createdAt!,
+        reply: review.reply
+          ? { text: review.reply.text, date: review.reply.createdAt }
+          : null,
       };
     });
 
@@ -307,6 +357,9 @@ export class ReviewsService {
       text: review.text ?? null,
       author: { name: authorName },
       date: review.createdAt!,
+      reply: review.reply
+        ? { text: review.reply.text, date: review.reply.createdAt }
+        : null,
     };
   }
 }

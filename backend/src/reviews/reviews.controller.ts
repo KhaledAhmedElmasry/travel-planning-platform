@@ -26,6 +26,7 @@ import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { ListReviewsQueryDto } from './dto/list-reviews-query.dto';
+import { ReplyReviewDto } from './dto/reply-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import {
   ReviewsService,
@@ -40,7 +41,7 @@ import {
 //   PATCH  /api/reviews/:id                 HTL-23
 //   DELETE /api/reviews/:id                 HTL-23
 //   GET    /api/hotels/:id/reviews          HTL-24
-// HTL-26 moderator replies remain outside this implementation.
+//   POST   /api/reviews/:id/reply           HTL-26 (Optional)
 @Controller()
 export class ReviewsController {
   constructor(
@@ -80,6 +81,18 @@ export class ReviewsController {
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
     return this.reviewsService.deleteReview(reviewId, user.id);
+  }
+
+  @Post('reviews/:id/reply')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  replyToReview(
+    @Param('id', ParseObjectIdPipe) reviewId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ReplyReviewDto,
+  ): Promise<ReviewResponse> {
+    return this.reviewsService.replyToReview(reviewId, user, dto);
   }
 
   @Get('hotels/:id/reviews')
