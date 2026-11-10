@@ -195,7 +195,7 @@ export class FlightBookingQuoteService {
   }
 }
 
-function ageOnDate(dateOfBirth: string, date: string): number {
+export function ageOnDate(dateOfBirth: string, date: string): number {
   const [birthYear, birthMonth, birthDay] = dateOfBirth.split('-').map(Number);
   const [year, month, day] = date.split('-').map(Number);
   const hasHadBirthday =
@@ -203,7 +203,10 @@ function ageOnDate(dateOfBirth: string, date: string): number {
   return year - birthYear - (hasHadBirthday ? 0 : 1);
 }
 
-function matchesPassengerType(type: PassengerType, age: number): boolean {
+export function matchesPassengerType(
+  type: PassengerType,
+  age: number,
+): boolean {
   switch (type) {
     case PassengerType.Adult:
       return age >= 12;

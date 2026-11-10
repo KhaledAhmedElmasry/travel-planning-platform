@@ -119,6 +119,15 @@ export interface FlightBookingResponse {
   expiredAt: Date | null;
   cancelledAt: Date | null;
   completedAt: Date | null;
+  // FLT-27 (bonus): the flights the booking was moved from, oldest first (empty if never changed).
+  changes: {
+    at: Date;
+    segment: 'outbound' | 'return';
+    fromFlightNumber: string;
+    toFlightNumber: string;
+    previousTotal: number;
+    newTotal: number;
+  }[];
   createdAt?: Date;
 }
 
@@ -508,6 +517,14 @@ export class FlightBookingsService implements BookingPaymentHandler {
       expiredAt: booking.expiredAt,
       cancelledAt: booking.cancelledAt,
       completedAt: booking.completedAt,
+      changes: (booking.changes ?? []).map((c) => ({
+        at: c.at,
+        segment: c.segment,
+        fromFlightNumber: c.fromFlightNumber,
+        toFlightNumber: c.toFlightNumber,
+        previousTotal: c.previousTotal,
+        newTotal: c.newTotal,
+      })),
       createdAt: booking.createdAt,
     };
   }

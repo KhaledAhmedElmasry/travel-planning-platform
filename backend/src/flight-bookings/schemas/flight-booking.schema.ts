@@ -107,6 +107,40 @@ export class BookedPassenger {
 }
 const BookedPassengerSchema = SchemaFactory.createForClass(BookedPassenger);
 
+// FLT-27 (bonus): one entry per change of a flight, newest last.
+@Schema({ _id: false })
+export class FlightChange {
+  @Prop({ required: true })
+  changeId: string;
+
+  @Prop({ type: Date, required: true })
+  at: Date;
+
+  @Prop({ type: String, enum: ['outbound', 'return'], required: true })
+  segment: 'outbound' | 'return';
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  fromFlightId: Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  toFlightId: Types.ObjectId;
+
+  @Prop({ required: true })
+  fromFlightNumber: string;
+
+  @Prop({ required: true })
+  toFlightNumber: string;
+
+  // Integer cents of the platform currency.
+  @Prop({ required: true })
+  previousTotal: number;
+
+  @Prop({ required: true })
+  newTotal: number;
+}
+
+const FlightChangeSchema = SchemaFactory.createForClass(FlightChange);
+
 export type FlightBookingDocument = HydratedDocument<FlightBooking>;
 
 @Schema({ timestamps: true })
@@ -184,6 +218,10 @@ export class FlightBooking {
   // cancelling the flight), so the user gets each one once. See claimNotification().
   @Prop({ type: [String], default: [] })
   notified: string[];
+
+  // FLT-27 (bonus): the flights this booking was moved from, in order.
+  @Prop({ type: [FlightChangeSchema], default: [] })
+  changes: FlightChange[];
 
   createdAt?: Date;
   updatedAt?: Date;
