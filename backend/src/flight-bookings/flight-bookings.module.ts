@@ -6,6 +6,7 @@ import { Flight, FlightSchema } from '../flights/schemas/flight.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { FlightBookingQuoteService } from './booking-quote.service';
+import { FlightBookingChangeService } from './flight-booking-change.service';
 import { FlightBookingLifecycleService } from './flight-booking-lifecycle.service';
 import { FlightBookingsController } from './flight-bookings.controller';
 import { FlightBookingsService } from './flight-bookings.service';
@@ -37,6 +38,7 @@ import { SeatInventoryService } from './seat-inventory.service';
   providers: [
     FlightBookingsService,
     FlightBookingLifecycleService,
+    FlightBookingChangeService,
     FlightBookingQuoteService,
     FlightSeatSelectionService,
     SeatInventoryService,

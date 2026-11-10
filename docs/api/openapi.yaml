@@ -2380,9 +2380,26 @@ paths:
       description: |
         **Access:** the user who made the booking.
 
-        Moves one segment of a Confirmed booking to another flight on the same route and in the same
-        cabin, subject to seat availability. A higher fare is paid through Stripe; a lower fare is
-        refunded.
+        Moves one segment of a **Confirmed** booking, before it departs, to another scheduled flight on the
+        same route (same departure and arrival airports) and in the same cabin class, if the new flight has
+        enough free seats. A round trip changes one segment at a time (`outbound` or `return`); the return
+        flight must still depart after the outbound flight arrives.
+
+        **Money (PAY-04, platform currency).** The booking is repriced with the new flight's cabin price
+        (infants 10%, extra baggage that was already paid keeps its price). The response has
+        `fareChange { direction, amount, previousTotal, newTotal, currency }`:
+        - **charged** (new flight costs more): `paymentMethodId` is required (for example `pm_card_visa` in
+          Swagger); a card that is declined or needs extra authentication gives 402 and nothing changes. The
+          new total is charged on a new Stripe payment, the booking's payment record switches to it, and the
+          old payment is refunded in full, so the user's net cost is the fare difference. A later
+          cancellation refunds a percentage of the new total.
+        - **refunded** (new flight costs less): the difference is refunded on the same Stripe payment.
+        - **none** (same price): no money moves.
+
+        Every refund made because of a change is saved with the change and retried until Stripe accepts it.
+        The seats of the old flight are released and the seats on the new one are taken in the same step;
+        seats the passengers picked on the changed flight (FLT-28) are cleared. The user gets an in-app
+        notification and the booking's `changes` list shows the history.
       security: *auth
       parameters:
         - $ref: '#/components/parameters/Id'
@@ -2394,9 +2411,16 @@ paths:
               $ref: '#/components/schemas/ChangeFlightRequest'
       responses:
         '200':
-          description: The updated booking, with the fare difference to pay or refund.
+          description: The updated booking (with `changes`) plus `fareChange`, the fare difference charged or refunded.
+        '402':
+          description: The card used for the fare difference was declined or needs extra authentication; nothing was changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 402, "error": "Payment Required", "message": "Your card was declined: Your card was declined.", "path": "/api/flight-bookings/665f1c2a9b1e8a00123400a1/change-flight", "timestamp": "2026-11-01T10:00:00.000Z"}
         '400':
-          description: The new flight is not on the same route.
+          description: The new flight is not on the same route, the new flight costs more and `paymentMethodId` is missing, a return flight that would not follow the outbound flight, the segment does not exist, or the baggage / passenger types do not fit the new flight.
           content:
             application/json:
               schema:
@@ -2412,7 +2436,7 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Booking or flight not found.", "path": "/api/flight-bookings/665f1c2a9b1e8a00123400a1/change-flight", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
-          description: The booking is not Confirmed, or the new flight has no seats left in that cabin.
+          description: The booking is not Confirmed, the flight already departed, the new flight is not scheduled or has no seats left in that cabin, its airline is deactivated, or the booking was changed at the same time.
           content:
             application/json:
               schema:
@@ -6868,6 +6892,52 @@ components:
               type: string
               nullable: true
               example: null
+        - type: object
+          properties:
+            changes:
+              type: array
+              description: '[Bonus, FLT-27] The flights this booking was moved from, oldest first; empty if it was never changed.'
+              items:
+                type: object
+                properties:
+                  at:
+                    type: string
+                    format: date-time
+                  segment:
+                    type: string
+                    enum: [outbound, return]
+                  fromFlightNumber:
+                    type: string
+                    example: NA101
+                  toFlightNumber:
+                    type: string
+                    example: NA205
+                  previousTotal:
+                    type: integer
+                    example: 20000
+                  newTotal:
+                    type: integer
+                    example: 32000
+            seatAssignments:
+              type: array
+              description: '[Bonus, FLT-28] The seats the passengers picked (booking details and the seat response).'
+              items:
+                type: object
+                properties:
+                  segment:
+                    type: string
+                    enum: [outbound, return]
+                  passengerIndex:
+                    type: integer
+                  passengerName:
+                    type: string
+                  flightNumber:
+                    type: string
+                  cabinClass:
+                    $ref: '#/components/schemas/CabinClass'
+                  seatNumber:
+                    type: string
+                    example: 12A
         - $ref: '#/components/schemas/BookingTimestamps'
 
     CancelledFlightBooking:
@@ -7883,6 +7953,10 @@ components:
           type: string
           example: '665f1c2a9b1e8a0012345690'
           description: A flight on the same route with seats in the same cabin.
+        paymentMethodId:
+          type: string
+          example: pm_card_visa
+          description: Required only when the new flight costs more; pays the fare difference (Stripe test payment method in Swagger).
 
     SelectSeatRequest:
       type: object

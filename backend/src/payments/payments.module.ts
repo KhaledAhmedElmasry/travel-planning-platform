@@ -4,6 +4,7 @@ import { FlightBookingsModule } from '../flight-bookings/flight-bookings.module'
 import { HotelBookingsModule } from '../hotel-bookings/hotel-bookings.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { BookingGateway } from './booking-gateway.service';
+import { FareChangeService } from './fare-change.service';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PoliciesService } from './policies.service';
@@ -34,8 +35,9 @@ import { stripeProvider } from './stripe.provider';
     PoliciesService,
     RefundsService,
     BookingGateway,
+    FareChangeService,
     stripeProvider,
   ],
-  exports: [PaymentsService, RefundsService],
+  exports: [PaymentsService, RefundsService, FareChangeService],
 })
 export class PaymentsModule {}

@@ -19,7 +19,9 @@ import { BookingType } from '../common/enums';
 import { CreateFlightBookingDto } from './dto/create-flight-booking.dto';
 import { FlightBookingRequestDto } from './dto/hold-flight-booking.dto';
 import { ListFlightBookingsQueryDto } from './dto/list-flight-bookings-query.dto';
+import { ChangeFlightDto } from './dto/change-flight.dto';
 import { SelectSeatDto } from './dto/select-seat.dto';
+import { FlightBookingChangeService } from './flight-booking-change.service';
 import { FlightSeatSelectionService } from './flight-seat-selection.service';
 import { PaymentsService } from '../payments/payments.service';
 import { RefundsService } from '../payments/refunds.service';
@@ -68,6 +70,7 @@ export class FlightBookingsController {
     private readonly refunds: RefundsService,
     private readonly payments: PaymentsService,
     private readonly seatSelection: FlightSeatSelectionService,
+    private readonly changes: FlightBookingChangeService,
   ) {}
 
   // FLT-19 / FLT-21: return the summary without creating a booking or holding seats.
@@ -118,6 +121,18 @@ export class FlightBookingsController {
     @Body() dto: FlightBookingRequestDto,
   ): Promise<FlightBookingResponse> {
     return this.flightBookingsService.hold(user.id, dto);
+  }
+
+  // FLT-27 (bonus): move one flight of a Confirmed booking to another flight on the same route
+  // and in the same cabin; a higher fare is paid, a lower fare is refunded.
+  @Patch(':id/change-flight')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  changeFlight(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: ChangeFlightDto,
+  ) {
+    return this.changes.changeFlight(user.id, id, dto);
   }
 
   // FLT-28 (bonus): choose or change the seat of one passenger on one flight of a Confirmed
