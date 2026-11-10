@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
   StreamableFile,
@@ -18,6 +19,8 @@ import { BookingType } from '../common/enums';
 import { CreateFlightBookingDto } from './dto/create-flight-booking.dto';
 import { FlightBookingRequestDto } from './dto/hold-flight-booking.dto';
 import { ListFlightBookingsQueryDto } from './dto/list-flight-bookings-query.dto';
+import { SelectSeatDto } from './dto/select-seat.dto';
+import { FlightSeatSelectionService } from './flight-seat-selection.service';
 import { PaymentsService } from '../payments/payments.service';
 import { RefundsService } from '../payments/refunds.service';
 import {
@@ -64,6 +67,7 @@ export class FlightBookingsController {
     private readonly lifecycle: FlightBookingLifecycleService,
     private readonly refunds: RefundsService,
     private readonly payments: PaymentsService,
+    private readonly seatSelection: FlightSeatSelectionService,
   ) {}
 
   // FLT-19 / FLT-21: return the summary without creating a booking or holding seats.
@@ -90,16 +94,19 @@ export class FlightBookingsController {
   @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   async details(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const booking = await this.flightBookingsService.findOwned(user.id, id);
-    const [payment, refund, cancellation] = await Promise.all([
+    const [payment, refund, cancellation, seatAssignments] = await Promise.all([
       this.payments.findPaymentForBooking(BookingType.Flight, id),
       this.refunds.findRefundForBooking(BookingType.Flight, id),
       this.lifecycle.previewCancellation(booking),
+      this.seatSelection.list(booking),
     ]);
     return {
       ...this.flightBookingsService.toResponse(booking),
       payment,
       refund,
       cancellation,
+      // FLT-28 (bonus): the seats the passengers chose.
+      seatAssignments,
     };
   }
 
@@ -111,6 +118,23 @@ export class FlightBookingsController {
     @Body() dto: FlightBookingRequestDto,
   ): Promise<FlightBookingResponse> {
     return this.flightBookingsService.hold(user.id, dto);
+  }
+
+  // FLT-28 (bonus): choose or change the seat of one passenger on one flight of a Confirmed
+  // booking. Returns the booking with its seats.
+  @Patch(':id/seat')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  async selectSeat(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: SelectSeatDto,
+  ) {
+    const booking = await this.flightBookingsService.findOwned(user.id, id);
+    const seatAssignments = await this.seatSelection.selectSeat(booking, dto);
+    return {
+      ...this.flightBookingsService.toResponse(booking),
+      seatAssignments,
+    };
   }
 
   // FLT-23: the e-ticket PDF of a confirmed booking.

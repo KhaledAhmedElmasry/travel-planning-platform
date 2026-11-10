@@ -9,6 +9,7 @@ import { FlightBookingQuoteService } from './booking-quote.service';
 import { FlightBookingLifecycleService } from './flight-booking-lifecycle.service';
 import { FlightBookingsController } from './flight-bookings.controller';
 import { FlightBookingsService } from './flight-bookings.service';
+import { FlightSeatSelectionService } from './flight-seat-selection.service';
 import {
   FlightBooking,
   FlightBookingSchema,
@@ -37,11 +38,13 @@ import { SeatInventoryService } from './seat-inventory.service';
     FlightBookingsService,
     FlightBookingLifecycleService,
     FlightBookingQuoteService,
+    FlightSeatSelectionService,
     SeatInventoryService,
   ],
   exports: [
     FlightBookingsService,
     FlightBookingLifecycleService,
+    FlightSeatSelectionService,
     SeatInventoryService,
   ],
 })
