@@ -362,6 +362,10 @@ paths:
       responses:
         '200':
           description: Password reset. The account must change it at its next login.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminResetPasswordResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -401,6 +405,10 @@ paths:
       responses:
         '200':
           description: Password changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
         '400':
           description: The current password is wrong, or the new password breaks the rules.
           content:
@@ -443,8 +451,19 @@ paths:
       responses:
         '200':
           description: The profile - id, name, email, phone, preferredCurrency, role, status, createdAt.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: The account still has a temporary password and must change it first (ACC-07a, ACC-13).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You must change your temporary password before continuing", "path": "/api/users/me", "timestamp": "2026-11-01T10:00:00.000Z"}
     patch:
       operationId: patchUsersMe
       tags: [Authentication and Accounts]
@@ -465,10 +484,21 @@ paths:
       responses:
         '200':
           description: The updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: The account still has a temporary password and must change it first (ACC-07a, ACC-13).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You must change your temporary password before continuing", "path": "/api/users/me", "timestamp": "2026-11-01T10:00:00.000Z"}
     delete:
       operationId: deleteUsersMe
       tags: [Authentication and Accounts]
@@ -526,6 +556,10 @@ paths:
       responses:
         '201':
           description: Moderator created. Returns the account (id, name, email, role, airlineId or hotelId, status) without the password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAccount'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -581,7 +615,10 @@ paths:
       responses:
         '200':
           description: Each item - id, name, email, role, status, registration date.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -621,6 +658,10 @@ paths:
       responses:
         '200':
           description: The account with status `suspended`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAccount'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -669,6 +710,10 @@ paths:
       responses:
         '200':
           description: The account with status `active`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAccount'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -872,7 +917,10 @@ paths:
       responses:
         '200':
           description: Each item - type, booking reference, user, provider (airline or hotel), dates, amount, status.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBookingList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1025,7 +1073,10 @@ paths:
       responses:
         '200':
           description: Paginated notifications.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationList'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -1132,7 +1183,10 @@ paths:
       responses:
         '200':
           description: Each item - id, content type and id, a short preview of the content, reporter, reason, date, status.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1168,6 +1222,10 @@ paths:
       responses:
         '200':
           description: The report with its new status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportItem'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1258,6 +1316,10 @@ paths:
       responses:
         '200':
           description: Content hidden successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentVisibilityResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1293,6 +1355,10 @@ paths:
       responses:
         '200':
           description: Content restored successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentVisibilityResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1346,7 +1412,10 @@ paths:
       responses:
         '200':
           description: Each item - admin, action, target type and id, reason or details, date.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -1386,6 +1455,8 @@ paths:
           description: Airline created. Returns id, name, code, logo URL (logoUrl, null without a logo) and status (active).
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Airline'
               example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "baggagePolicy": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "cancellationTiers": [{"daysBefore": 30, "refundPercentage": 100}, {"daysBefore": 7, "refundPercentage": 50}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields, or a logo that is not JPG/PNG or is larger than 5 MB.
@@ -1426,6 +1497,8 @@ paths:
           description: Name, code, logo URL, extra-baggage policy (FLT-08) and cancellation tiers (FLT-09).
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Airline'
               example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "baggagePolicy": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "cancellationTiers": [{"daysBefore": 30, "refundPercentage": 100}, {"daysBefore": 7, "refundPercentage": 50}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Airline not found, or deactivated (ACC-15).
@@ -1457,6 +1530,8 @@ paths:
           description: The updated airline.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Airline'
               example: {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": "/uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png", "active": true, "baggagePolicy": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "cancellationTiers": [{"daysBefore": 30, "refundPercentage": 100}, {"daysBefore": 7, "refundPercentage": 50}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields, or a logo that is not JPG/PNG or is larger than 5 MB.
@@ -1527,7 +1602,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedList'
+                $ref: '#/components/schemas/AirportList'
               example: {"items": [{"iataCode": "CAI", "name": "Cairo International Airport", "cityId": "cairo", "cityName": "Cairo", "countryCode": "EG", "timeZone": "Africa/Cairo"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
           description: Invalid query, or the city or country is not in the reference data (GEN-12).
@@ -1566,6 +1641,8 @@ paths:
           description: Flight created. Returns the flight with local and UTC times.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Flight'
               example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:00:00.000Z"}
         '400':
           description: Invalid fields or one of the rules above is broken.
@@ -1712,16 +1789,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedList'
-                  - type: object
-                    properties:
-                      seatsRequired:
-                        type: integer
-                        description: Adults + children (infants need no seat, FLT-12).
-                      message:
-                        type: string
-                        description: Only when nothing matches (GEN-04).
+                $ref: '#/components/schemas/FlightSearchResult'
               example: {"items": [{"id": "665f1c2a9b1e8a00123400b2", "flightNumber": "MS911", "airline": {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": null}, "departureAirport": {"iataCode": "CAI", "name": "Cairo International Airport", "cityId": "cairo", "countryCode": "EG", "timeZone": "Africa/Cairo"}, "arrivalAirport": {"iataCode": "DXB", "name": "Dubai International Airport", "cityId": "dubai", "countryCode": "AE", "timeZone": "Asia/Dubai"}, "departureLocal": "2027-03-01T10:00", "arrivalLocal": "2027-03-01T15:35", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T08:00:00.000Z", "arrivalAt": "2027-03-01T11:35:00.000Z", "durationMinutes": 215, "cabins": [{"cabinId": "665f1c2a9b1e8a00123400c1", "cabinClass": "economy", "price": 25000, "availableSeats": 120, "freeBags": 1, "maxBagWeightKg": 23, "priceBreakdown": {"adultFare": 25000, "childFare": 25000, "infantFare": 2500, "adultsSubtotal": 25000, "childrenSubtotal": 0, "infantsSubtotal": 2500}, "totalPrice": 27500, "currency": "USD"}]}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1, "seatsRequired": 1}
         '400':
           description: Missing or invalid search fields, an airport not in the list, minPrice greater than maxPrice, more infants than adults, or round trip without returnDate.
@@ -1750,6 +1818,8 @@ paths:
             departed flights are shown with `bookable: false`. All amounts are integer cents of `currency`.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/FlightDetails'
               example: {"id": "665f1c2a9b1e8a00123400b2", "airline": {"id": "665f1c2a9b1e8a00123400a1", "name": "EgyptAir", "code": "MS", "logoUrl": null}, "flightNumber": "MS911", "status": "scheduled", "departureAirport": {"iataCode": "CAI", "name": "Cairo International Airport", "cityId": "cairo", "countryCode": "EG", "timeZone": "Africa/Cairo"}, "arrivalAirport": {"iataCode": "DXB", "name": "Dubai International Airport", "cityId": "dubai", "countryCode": "AE", "timeZone": "Asia/Dubai"}, "departureLocal": "2027-03-01T10:00", "arrivalLocal": "2027-03-01T15:35", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T08:00:00.000Z", "arrivalAt": "2027-03-01T11:35:00.000Z", "durationMinutes": 215, "cabins": [{"cabinId": "665f1c2a9b1e8a00123400c1", "cabinClass": "economy", "price": 25000, "seatsRemaining": 120, "soldOut": false, "freeBags": 1, "maxBagWeightKg": 23}], "extraBaggage": {"extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}, "cancellationPolicy": {"tiers": [{"daysBefore": 30, "refundPercentage": 100, "description": "Cancel 30 or more days before departure: 100% refund."}, {"daysBefore": 7, "refundPercentage": 50, "description": "Cancel 7 or more days before departure: 50% refund."}], "note": null}, "bookable": true, "bookableReason": null, "currency": "USD"}
         '400':
           description: The id is not a valid id.
@@ -1793,6 +1863,8 @@ paths:
           description: The updated flight. A local time that is not sent keeps the same local clock time at its airport.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Flight'
               example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T15:00", "arrivalLocal": "2027-03-01T20:35", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T13:00:00.000Z", "arrivalAt": "2027-03-01T16:35:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-02T09:00:00.000Z"}
         '400':
           description: Invalid fields or an FLT-03 rule is broken.
@@ -1846,6 +1918,8 @@ paths:
           description: The cancelled flight, the number of Confirmed bookings that were cancelled with a 100% refund (cancelledBookings) and the number of unpaid seat holds that ended (expiredHolds).
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/CancelledFlight'
               example: {"flight": {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "cancelled", "cabins": [], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-02T09:00:00.000Z"}, "cancelledBookings": 2, "expiredHolds": 1}
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -1896,6 +1970,8 @@ paths:
           description: The flight with its cabins (each cabin has an id).
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Flight'
               example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [{"id": "665f1c2a9b1e8a00123400c3", "cabinClass": "economy", "seats": 150, "bookedSeats": 0, "heldSeats": 0, "availableSeats": 150, "price": 25000, "freeBags": 1, "maxBagWeightKg": 23}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:05:00.000Z"}
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -1949,6 +2025,8 @@ paths:
           description: The flight with its updated cabins.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/Flight'
               example: {"id": "665f1c2a9b1e8a00123400b2", "airlineId": "665f1c2a9b1e8a00123400a1", "flightNumber": "MS911", "departureAirport": "CAI", "arrivalAirport": "DXB", "departureTimeZone": "Africa/Cairo", "arrivalTimeZone": "Asia/Dubai", "departureLocal": "2027-03-01T14:30", "arrivalLocal": "2027-03-01T20:05", "departureUtcOffset": "+02:00", "arrivalUtcOffset": "+04:00", "departureAt": "2027-03-01T12:30:00.000Z", "arrivalAt": "2027-03-01T16:05:00.000Z", "durationMinutes": 215, "status": "scheduled", "cabins": [{"id": "665f1c2a9b1e8a00123400c3", "cabinClass": "economy", "seats": 150, "bookedSeats": 0, "heldSeats": 0, "availableSeats": 150, "price": 25000, "freeBags": 1, "maxBagWeightKg": 23}], "createdAt": "2026-11-01T10:00:00.000Z", "updatedAt": "2026-11-01T10:05:00.000Z"}
         '400':
           description: Invalid fields, or a seat count below the seats already booked or held.
@@ -2006,6 +2084,8 @@ paths:
           description: The saved baggage policy. Until it is set, an airline has extraBagPrice null and maxExtraBagsPerPassenger 0 (no extra bags).
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/BaggagePolicyResponse'
               example: {"airlineId": "665f1c2a9b1e8a00123400a1", "extraBagPrice": 3000, "maxExtraBagsPerPassenger": 2}
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -2053,6 +2133,8 @@ paths:
           description: The saved tiers, sorted by threshold (highest daysBefore first).
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/CancellationPolicyResponse'
               example: {"airlineId": "665f1c2a9b1e8a00123400a1", "cancellationTiers": [{"daysBefore": 30, "refundPercentage": 100}, {"daysBefore": 7, "refundPercentage": 50}, {"daysBefore": 1, "refundPercentage": 10}]}
         '400':
           description: Invalid tiers, or the same threshold used twice.
@@ -2100,7 +2182,10 @@ paths:
           description: |
             The seats remaining per cabin, and a paginated list of the bookings - booking reference,
             passenger names, cabin, number of seats, status (confirmed or cancelled).
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightManifest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2262,6 +2347,10 @@ paths:
             The summary - each segment's flight (number, airports, local times) and cabin, each
             passenger with type and extra bags, the fare per passenger, baggage fees, and the total in
             cents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightBookingQuote'
         '400':
           description: Invalid passengers or baggage, or one of the rules above is broken.
           content:
@@ -2311,7 +2400,10 @@ paths:
       responses:
         '200':
           description: Each item - id, booking reference, flight(s), departure date, number of passengers, cabin, status.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightBookingList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -2441,6 +2533,15 @@ paths:
       responses:
         '200':
           description: The updated booking (with `changes`) plus `fareChange`, the fare difference charged or refunded.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/FlightBooking'
+                  - type: object
+                    properties:
+                      fareChange:
+                        $ref: '#/components/schemas/FareChange'
         '402':
           description: The card used for the fare difference was declined or needs extra authentication; nothing was changed.
           content:
@@ -2549,6 +2650,10 @@ paths:
       responses:
         '200':
           description: The booking with its `seatAssignments`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightBooking'
         '400':
           description: Invalid body, an infant, no return flight on a one-way booking, a passenger that does not exist, or a seat that does not exist in the cabin.
           content:
@@ -2600,6 +2705,10 @@ paths:
       responses:
         '201':
           description: Hotel created. Returns the hotel with its photo URLs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelProfile'
         '400':
           description: Invalid fields, an unknown city or country, a city outside the country, or photos that break the upload rule.
           content:
@@ -2726,7 +2835,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedList'
+                $ref: '#/components/schemas/HotelSearchList'
               example: {"items": [{"id": "665f1c2a9b1e8a00123400a1", "name": "Nile View", "cityId": "cairo", "countryCode": "EG", "starRating": 5, "photo": "/uploads/hotels/665f1c2a9b1e8a00123400a1/a.jpg", "averageRating": 4.5, "ratingCount": 12, "pricePerNight": 15000, "currency": "USD", "freeRooms": 2}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
           description: Missing city and country, invalid dates (check-out not after check-in, check-in in the past), more rooms than guests, or minPrice greater than maxPrice.
@@ -2908,6 +3017,10 @@ paths:
       responses:
         '200':
           description: The updated hotel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelProfile'
         '400':
           description: Invalid fields, or photos that break the upload rule or exceed 5 in total.
           content:
@@ -3012,6 +3125,10 @@ paths:
       responses:
         '200':
           description: The updated room - id, hotel id, room number, type, beds, maximum occupancy, price per night, active, bookable ranges and blocked ranges.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
         '400':
           description: Invalid fields (each a whole number of at least 1), or no field to change.
           content:
@@ -3124,7 +3241,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedList'
+                $ref: '#/components/schemas/AvailableRoomList'
               example: {"items": [{"id": "665f1c2a9b1e8a0012345681", "roomNumber": "101", "type": "Deluxe double", "beds": 2, "maxOccupancy": 3, "pricePerNight": 12000, "nights": 4, "totalPrice": 48000, "currency": "USD", "checkIn": "2027-03-01", "checkOut": "2027-03-05"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
           description: Invalid dates (check-out not after check-in, or check-in in the past).
@@ -3164,6 +3281,10 @@ paths:
       responses:
         '201':
           description: The room's bookable ranges and blocked ranges.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomAvailability'
         '400':
           description: Invalid dates (to before from).
           content:
@@ -3226,6 +3347,8 @@ paths:
           description: The room's bookable ranges and blocked ranges.
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/RoomAvailability'
               example: {"roomId": "665f1c2a9b1e8a0012345681", "roomNumber": "101", "availableRanges": [{"from": "2027-03-01", "to": "2027-03-23"}, {"from": "2027-03-27", "to": "2027-03-31"}], "blockedRanges": []}
         '400':
           description: Invalid fields or dates (to before from), or none of the nights are bookable (remove) or blocked (unblock).
@@ -3398,6 +3521,10 @@ paths:
       responses:
         '200':
           description: The saved policies.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelPoliciesResponse'
         '400':
           description: Invalid times or tiers, or the same threshold used twice.
           content:
@@ -3454,7 +3581,10 @@ paths:
       responses:
         '200':
           description: Each reservation - booking reference, guest name, rooms, check-in and check-out dates, status.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelReservationList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -3571,7 +3701,10 @@ paths:
       responses:
         '200':
           description: Each item - id, booking reference, hotel, rooms, check-in and check-out dates, guests, total, status.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelBookingList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -3844,6 +3977,10 @@ paths:
       responses:
         '201':
           description: The review with its reply.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -4260,6 +4397,10 @@ paths:
       responses:
         '201':
           description: Itinerary created (private, no days yet).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Itinerary'
         '400':
           description: Invalid fields or a country not in the list.
           content:
@@ -4288,7 +4429,10 @@ paths:
       responses:
         '200':
           description: Each item - id, title, countries, start date, number of days, visibility.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItinerarySummaryList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -4314,10 +4458,21 @@ paths:
             activities, budget entries), the city groups (city, first and last day, day count, budget
             subtotal), the transport costs, and the original author if it is a clone (ITN-21), and `linkedBookings`, the
             bookings linked to its days (ITN-27, bonus).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Itinerary'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user (only registered users have itineraries).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Itinerary not found, or it belongs to another user.
           content:
@@ -4347,6 +4502,10 @@ paths:
       responses:
         '200':
           description: The updated itinerary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Itinerary'
         '400':
           description: Invalid fields, a country not in the list, or an invalid visibility.
           content:
@@ -4411,6 +4570,10 @@ paths:
       responses:
         '201':
           description: The new day with its number and date.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItineraryDay'
         '400':
           description: Invalid fields or a city not in the list.
           content:
@@ -4457,6 +4620,10 @@ paths:
       responses:
         '200':
           description: The updated day.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItineraryDay'
         '400':
           description: Invalid fields or a city not in the list.
           content:
@@ -4534,6 +4701,10 @@ paths:
       responses:
         '200':
           description: All days in their new order with their new numbers and dates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Itinerary'
         '400':
           description: The position is outside 1 to the number of days.
           content:
@@ -4574,6 +4745,10 @@ paths:
       responses:
         '201':
           description: Activity created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Activity'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -4605,6 +4780,10 @@ paths:
       responses:
         '200':
           description: The updated activity.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Activity'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -4658,6 +4837,10 @@ paths:
       responses:
         '201':
           description: The image - id and URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageResponse'
         '400':
           description: Not JPG/PNG, larger than 5 MB, or the activity already has 5 images.
           content:
@@ -4723,6 +4906,10 @@ paths:
       responses:
         '201':
           description: Budget entry created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetEntry'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -4754,6 +4941,10 @@ paths:
       responses:
         '200':
           description: The updated budget entry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetEntry'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -4809,6 +5000,10 @@ paths:
       responses:
         '201':
           description: Transport cost created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportCost'
         '400':
           description: Invalid fields, a city not in the list, or a day of another itinerary.
           content:
@@ -4845,6 +5040,10 @@ paths:
       responses:
         '200':
           description: The updated transport cost.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportCost'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -4973,7 +5172,10 @@ paths:
       responses:
         '200':
           description: Each item - id, title, countries, number of days, start date and public visibility.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItinerarySummaryList'
         '400':
           $ref: '#/components/responses/ValidationError'
 
@@ -4999,6 +5201,10 @@ paths:
       responses:
         '200':
           description: Title, author (id and name), countries, start date, days with cities, notes and activities, budget totals, and the original author if it is a clone.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicItinerary'
         '400':
           description: The currency code is invalid or not supported.
           content:
@@ -5032,6 +5238,10 @@ paths:
       responses:
         '201':
           description: The new private itinerary, with the original itinerary and author recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Itinerary'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5088,7 +5298,10 @@ paths:
       responses:
         '200':
           description: The group's city and dates, and the hotel results in the same format as GET /api/hotels/search.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItineraryHotelSearch'
         '400':
           description: Invalid parameters, or the group's check-in date is in the past.
           content:
@@ -5172,7 +5385,10 @@ paths:
       responses:
         '200':
           description: The flight results in the same format as GET /api/flights/search.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightSearchResult'
         '400':
           description: Invalid parameters, the itinerary has no days, or the first day's city has no airport.
           content:
@@ -5342,7 +5558,10 @@ paths:
       responses:
         '200':
           description: Each post - id, title, author (id and name), date, excerpt, tags, like count, comment count.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostSummaryList'
         '400':
           $ref: '#/components/responses/ValidationError'
 
@@ -5504,7 +5723,10 @@ paths:
       responses:
         '200':
           description: Each post - id, title, status, date, like count, comment count.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyPostList'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -5753,6 +5975,10 @@ paths:
       responses:
         '201':
           description: The image - id and URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageResponse'
         '400':
           description: Not JPG/PNG, larger than 5 MB, or the post already has 5 images.
           content:
@@ -5834,7 +6060,10 @@ paths:
       responses:
         '200':
           description: Each post - id, title, author (id and name), date, excerpt, tags, like count, comment count.
-          content: *paginated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostSummaryList'
         '400':
           $ref: '#/components/responses/ValidationError'
 
@@ -5971,7 +6200,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedList'
+                $ref: '#/components/schemas/CurrencyList'
               example: {"items": [{"code": "AED", "name": "UAE Dirham"}, {"code": "EGP", "name": "Egyptian Pound"}, {"code": "USD", "name": "US Dollar"}], "page": 1, "pageSize": 10, "total": 3, "totalPages": 1}
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -6003,7 +6232,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedList'
+                $ref: '#/components/schemas/CountryList'
               example: {"items": [{"code": "EG", "name": "Egypt", "currency": "EGP"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -6041,7 +6270,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedList'
+                $ref: '#/components/schemas/CityList'
               example: {"items": [{"cityId": "cairo", "name": "Cairo", "countryCode": "EG"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
           description: Invalid query, or the country is not in the countries list.
@@ -6077,7 +6306,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedList'
+                $ref: '#/components/schemas/AttractionList'
               example: {"items": [{"attractionId": "att-1", "name": "Giza Pyramids and Sphinx", "cityId": "cairo"}], "page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
         '400':
           description: Invalid query, or the city is not in the cities list.
@@ -6149,6 +6378,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           description: Only registered users can manage favourites.
         '404':
@@ -6173,6 +6404,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedFavourites'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           description: Only registered users can manage favourites.
 
@@ -6188,6 +6421,8 @@ paths:
       responses:
         '204':
           description: Favourite removed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           description: Only registered users can manage favourites.
         '404':
@@ -7021,6 +7256,16 @@ components:
                 name:
                   type: string
                   example: Nile View Hotel
+                checkInTime:
+                  type: string
+                  nullable: true
+                  example: '14:00'
+                  description: Only in the reservation details (HTL-09).
+                checkOutTime:
+                  type: string
+                  nullable: true
+                  example: '12:00'
+                  description: Only in the reservation details (HTL-09).
             checkIn:
               type: string
               format: date
@@ -7564,6 +7809,16 @@ components:
         contentPreview:
           type: string
           example: A short preview of the reported content
+        content:
+          type: object
+          description: The reported content (same values as contentType, contentId and contentPreview).
+          properties:
+            type:
+              $ref: '#/components/schemas/ContentType'
+            id:
+              type: string
+            preview:
+              type: string
         reporter:
           type: object
           properties:
@@ -8968,8 +9223,7 @@ components:
         numberOfDays:
           type: integer
         visibility:
-          type: string
-          enum: [public]
+          $ref: '#/components/schemas/ItineraryVisibility'
 
     PublicAuthorPageResponse:
       type: object
@@ -9037,3 +9291,1493 @@ components:
           nullable: true
           description: The attached itinerary id, or null when no itinerary is attached.
           example: '665f1c2a9b1e8a0012345678'
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: Password changed
+    AdminResetPasswordResponse:
+      type: object
+      description: The account whose password was reset to a temporary one (ACC-07a).
+      required: [message, id, mustChangePassword]
+      properties:
+        message:
+          type: string
+          example: Password reset. The account must set a new password at its next login
+        id:
+          type: string
+          example: '665f1c2a9b1e8a00123400a1'
+        mustChangePassword:
+          type: boolean
+          enum: [true]
+    UserProfile:
+      type: object
+      description: The own profile (ACC-09, ACC-11). No password fields.
+      required: [id, name, email, phone, preferredCurrency, role, status, createdAt]
+      properties:
+        id:
+          type: string
+          example: '665f1c2a9b1e8a00123400a1'
+        name:
+          type: string
+          example: Nour Hassan
+        email:
+          type: string
+          format: email
+          example: nour@example.com
+        phone:
+          type: string
+          nullable: true
+          example: '+20 100 123 4567'
+        preferredCurrency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: EUR
+          description: Used only to display itinerary budgets (ITN-18).
+        role:
+          $ref: '#/components/schemas/Role'
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        createdAt:
+          type: string
+          format: date-time
+    AdminAccount:
+      type: object
+      description: An account as an admin manages it (ACC-13, ACC-15, ACC-16). No password fields.
+      required: [id, name, email, role, status, mustChangePassword]
+      properties:
+        id:
+          type: string
+          example: '665f1c2a9b1e8a00123400a1'
+        name:
+          type: string
+          example: Mona Moderator
+        email:
+          type: string
+          format: email
+          example: mona@example.com
+        role:
+          $ref: '#/components/schemas/Role'
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        airlineId:
+          type: string
+          description: Only for an airline moderator, the one airline it manages.
+        hotelId:
+          type: string
+          description: Only for a hotel moderator, the one hotel it manages.
+        mustChangePassword:
+          type: boolean
+          description: True while the account still has a temporary password.
+    ContentVisibilityResponse:
+      type: object
+      description: The result of hiding or unhiding a post, comment, review or itinerary (GEN-10).
+      required: [id, type, hidden, message]
+      properties:
+        id:
+          type: string
+          example: '665f1c2a9b1e8a00123400a1'
+        type:
+          $ref: '#/components/schemas/ContentType'
+        hidden:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: post hidden successfully.
+    Airline:
+      type: object
+      description: An airline profile (FLT-01) with its baggage (FLT-08) and cancellation (FLT-09) policies.
+      required: [id, name, code, logoUrl, active, baggagePolicy, cancellationTiers]
+      properties:
+        id:
+          type: string
+          example: '665f1c2a9b1e8a00123400a1'
+        name:
+          type: string
+          example: EgyptAir
+        code:
+          type: string
+          example: MS
+        logoUrl:
+          type: string
+          nullable: true
+          example: /uploads/airlines/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png
+        active:
+          type: boolean
+          example: true
+        baggagePolicy:
+          $ref: '#/components/schemas/BaggagePolicy'
+        cancellationTiers:
+          type: array
+          description: Highest daysBefore first.
+          items:
+            $ref: '#/components/schemas/CancellationTier'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    BaggagePolicy:
+      type: object
+      required: [extraBagPrice, maxExtraBagsPerPassenger]
+      properties:
+        extraBagPrice:
+          type: integer
+          nullable: true
+          description: Price per extra bag in cents of the platform currency; null when the airline has not set one.
+          example: 3000
+        maxExtraBagsPerPassenger:
+          type: integer
+          example: 2
+    BaggagePolicyResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaggagePolicy'
+        - type: object
+          required: [airlineId]
+          properties:
+            airlineId:
+              type: string
+              example: '665f1c2a9b1e8a00123400a1'
+    CancellationPolicyResponse:
+      type: object
+      required: [airlineId, cancellationTiers]
+      properties:
+        airlineId:
+          type: string
+          example: '665f1c2a9b1e8a00123400a1'
+        cancellationTiers:
+          type: array
+          description: Highest daysBefore first.
+          items:
+            $ref: '#/components/schemas/CancellationTier'
+    Flight:
+      type: object
+      description: A flight as its airline moderator manages it (FLT-03, FLT-04, FLT-05). Times are stored in UTC and also shown in each airport's local time (GEN-06).
+      required: [id, airlineId, flightNumber, departureAirport, arrivalAirport, departureTimeZone, arrivalTimeZone, departureLocal, arrivalLocal, departureAt, arrivalAt, durationMinutes, status, cabins]
+      properties:
+        id:
+          type: string
+        airlineId:
+          type: string
+        flightNumber:
+          type: string
+          example: MS911
+        departureAirport:
+          type: string
+          example: CAI
+        arrivalAirport:
+          type: string
+          example: DXB
+        departureTimeZone:
+          type: string
+          example: Africa/Cairo
+        arrivalTimeZone:
+          type: string
+          example: Asia/Dubai
+        departureLocal:
+          type: string
+          example: '2027-03-01T14:30'
+        arrivalLocal:
+          type: string
+          example: '2027-03-01T20:05'
+        departureUtcOffset:
+          type: string
+          example: '+02:00'
+        arrivalUtcOffset:
+          type: string
+          example: '+04:00'
+        departureAt:
+          type: string
+          format: date-time
+        arrivalAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+          example: 215
+        status:
+          $ref: '#/components/schemas/FlightStatus'
+        cabins:
+          type: array
+          items:
+            type: object
+            required: [id, cabinClass, seats, bookedSeats, heldSeats, availableSeats, price, freeBags, maxBagWeightKg]
+            properties:
+              id:
+                type: string
+              cabinClass:
+                $ref: '#/components/schemas/CabinClass'
+              seats:
+                type: integer
+                example: 120
+              bookedSeats:
+                type: integer
+                example: 10
+              heldSeats:
+                type: integer
+                example: 2
+              availableSeats:
+                type: integer
+                description: seats - booked - held.
+                example: 108
+              price:
+                type: integer
+                description: Cabin fare in cents of the platform currency.
+                example: 25000
+              freeBags:
+                type: integer
+                example: 1
+              maxBagWeightKg:
+                type: number
+                example: 23
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CancelledFlight:
+      type: object
+      description: A flight cancelled by its airline (FLT-06).
+      required: [flight, cancelledBookings, expiredHolds]
+      properties:
+        flight:
+          $ref: '#/components/schemas/Flight'
+        cancelledBookings:
+          type: integer
+          description: Confirmed bookings now Cancelled with a 100% refund.
+          example: 3
+        expiredHolds:
+          type: integer
+          description: Pending Payment holds released.
+          example: 1
+    FlightAirport:
+      type: object
+      required: [iataCode, name, cityId, countryCode, timeZone]
+      properties:
+        iataCode:
+          type: string
+          example: CAI
+        name:
+          type: string
+          example: Cairo International Airport
+        cityId:
+          type: string
+          example: cairo
+        countryCode:
+          type: string
+          example: EG
+        timeZone:
+          type: string
+          example: Africa/Cairo
+    FlightDetails:
+      type: object
+      description: The public flight details page (FLT-17).
+      required: [id, airline, flightNumber, status, departureAirport, arrivalAirport, departureLocal, arrivalLocal, departureAt, arrivalAt, durationMinutes, cabins, extraBaggage, cancellationPolicy, bookable, bookableReason, currency]
+      properties:
+        id:
+          type: string
+        airline:
+          type: object
+          required: [id, name, code, logoUrl]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+              example: EgyptAir
+            code:
+              type: string
+              example: MS
+            logoUrl:
+              type: string
+              nullable: true
+        flightNumber:
+          type: string
+          example: MS911
+        status:
+          $ref: '#/components/schemas/FlightStatus'
+        departureAirport:
+          $ref: '#/components/schemas/FlightAirport'
+        arrivalAirport:
+          $ref: '#/components/schemas/FlightAirport'
+        departureLocal:
+          type: string
+          example: '2027-03-01T14:30'
+        arrivalLocal:
+          type: string
+          example: '2027-03-01T20:05'
+        departureUtcOffset:
+          type: string
+        arrivalUtcOffset:
+          type: string
+        departureAt:
+          type: string
+          format: date-time
+        arrivalAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        cabins:
+          type: array
+          items:
+            type: object
+            required: [cabinId, cabinClass, price, seatsRemaining, soldOut, freeBags, maxBagWeightKg]
+            properties:
+              cabinId:
+                type: string
+              cabinClass:
+                $ref: '#/components/schemas/CabinClass'
+              price:
+                type: integer
+                description: Cabin fare in cents of the platform currency.
+              seatsRemaining:
+                type: integer
+              soldOut:
+                type: boolean
+              freeBags:
+                type: integer
+              maxBagWeightKg:
+                type: number
+        extraBaggage:
+          $ref: '#/components/schemas/BaggagePolicy'
+        cancellationPolicy:
+          type: object
+          required: [tiers, note]
+          properties:
+            tiers:
+              type: array
+              items:
+                type: object
+                required: [daysBefore, refundPercentage, description]
+                properties:
+                  daysBefore:
+                    type: integer
+                  refundPercentage:
+                    type: number
+                  description:
+                    type: string
+                    example: 'Cancel 7 or more days before departure: 50% refund.'
+            note:
+              type: string
+              nullable: true
+        bookable:
+          type: boolean
+        bookableReason:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          example: USD
+    FlightBookingQuote:
+      type: object
+      description: The booking summary before payment (FLT-19, FLT-21). Nothing is reserved yet.
+      required: [segments, passengers, seats, totalAmount, currency]
+      properties:
+        segments:
+          type: array
+          items:
+            type: object
+            properties:
+              flightId:
+                type: string
+              flightNumber:
+                type: string
+              airlineId:
+                type: string
+              airlineName:
+                type: string
+              cabinClass:
+                $ref: '#/components/schemas/CabinClass'
+              departureAirport:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  timeZone:
+                    type: string
+              arrivalAirport:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  timeZone:
+                    type: string
+              departureAt:
+                type: string
+                format: date-time
+              arrivalAt:
+                type: string
+                format: date-time
+              departureLocal:
+                type: string
+              arrivalLocal:
+                type: string
+              fare:
+                type: integer
+              freeBags:
+                type: integer
+              maxBagWeightKg:
+                type: number
+        passengers:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                $ref: '#/components/schemas/PassengerType'
+              fullName:
+                type: string
+              dateOfBirth:
+                type: string
+                format: date
+              passportNumber:
+                type: string
+              extraBags:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    weightKg:
+                      type: number
+              fare:
+                type: integer
+                description: What this passenger pays for all segments, in cents (infants 10%).
+              baggageFee:
+                type: integer
+        seats:
+          type: integer
+          description: Seats needed (adults + children; infants take no seat).
+        totalAmount:
+          type: integer
+          description: Fares + baggage fees in cents of the platform currency.
+        currency:
+          type: string
+          example: USD
+    FareChange:
+      type: object
+      required: [direction, amount, previousTotal, newTotal, currency]
+      properties:
+        direction:
+          type: string
+          enum: [charged, refunded, none]
+        amount:
+          type: integer
+        previousTotal:
+          type: integer
+        newTotal:
+          type: integer
+        currency:
+          type: string
+    HotelProfile:
+      type: object
+      description: A hotel profile as its admin or moderator manages it (HTL-01, HTL-09, HTL-10).
+      required: [id, name, address, cityId, countryCode, description, starRating, amenities, photos, active, averageRating, ratingCount]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: Nile View
+        address:
+          type: string
+        cityId:
+          type: string
+          example: cairo
+        countryCode:
+          type: string
+          example: EG
+        description:
+          type: string
+        starRating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        amenities:
+          type: array
+          items:
+            type: string
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageResponse'
+        checkInTime:
+          type: string
+          nullable: true
+          example: '14:00'
+        checkOutTime:
+          type: string
+          nullable: true
+          example: '12:00'
+        cancellationTiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/CancellationTier'
+        active:
+          type: boolean
+        averageRating:
+          type: number
+        ratingCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RoomAvailability:
+      type: object
+      description: The bookable (HTL-04, HTL-05) and blocked (HTL-06) date ranges of a room, both ends included.
+      required: [roomId, roomNumber, availableRanges, blockedRanges]
+      properties:
+        roomId:
+          type: string
+        roomNumber:
+          type: string
+        availableRanges:
+          type: array
+          items:
+            $ref: '#/components/schemas/DateRange'
+        blockedRanges:
+          type: array
+          items:
+            $ref: '#/components/schemas/DateRange'
+    DateRange:
+      type: object
+      required: [from, to]
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+    HotelPoliciesResponse:
+      type: object
+      required: [hotelId, checkInTime, checkOutTime, cancellationTiers]
+      properties:
+        hotelId:
+          type: string
+        checkInTime:
+          type: string
+          example: '14:00'
+        checkOutTime:
+          type: string
+          example: '12:00'
+        cancellationTiers:
+          type: array
+          description: Highest daysBefore first.
+          items:
+            $ref: '#/components/schemas/CancellationTier'
+    ImageResponse:
+      type: object
+      required: [id, url]
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          example: /uploads/images/3f2b9c1e-7a4d-4e8b-9c1a-2d5e6f7a8b9c.png
+    Activity:
+      type: object
+      required: [id, name, description, images]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: Pyramids tour
+        description:
+          type: string
+        time:
+          type: string
+          example: '09:30'
+        cost:
+          type: number
+          example: 45.5
+        currency:
+          type: string
+          example: USD
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageResponse'
+    BudgetEntry:
+      type: object
+      required: [id, dayId, category, amount, currency, description]
+      properties:
+        id:
+          type: string
+        dayId:
+          type: string
+        category:
+          $ref: '#/components/schemas/BudgetCategory'
+        amount:
+          type: number
+          example: 100
+        currency:
+          type: string
+          example: USD
+        description:
+          type: string
+    TransportCost:
+      type: object
+      required: [id, dayId, mode, fromCityId, toCityId, amount, currency]
+      properties:
+        id:
+          type: string
+        dayId:
+          type: string
+        mode:
+          $ref: '#/components/schemas/TransportMode'
+        fromCityId:
+          type: string
+          example: cairo
+        toCityId:
+          type: string
+          example: dubai
+        amount:
+          type: number
+          example: 250
+        currency:
+          type: string
+          example: USD
+    ItineraryDay:
+      type: object
+      description: A day of an itinerary (ITN-05). The number and date follow from the start date and the position (ITN-07, ITN-08).
+      required: [id, number, date, cityId, notes]
+      properties:
+        id:
+          type: string
+        number:
+          type: integer
+          example: 1
+        date:
+          type: string
+          format: date
+        cityId:
+          type: string
+          example: cairo
+        notes:
+          type: string
+        activities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Activity'
+        budgets:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetEntry'
+    CityGroup:
+      type: object
+      description: Consecutive days in the same city (ITN-09).
+      required: [cityId, firstDay, lastDay, dayCount, dayNumbers, dayIds, startDate, endDate]
+      properties:
+        cityId:
+          type: string
+        firstDay:
+          type: integer
+        lastDay:
+          type: integer
+        dayCount:
+          type: integer
+        dayNumbers:
+          type: array
+          items:
+            type: integer
+        dayIds:
+          type: array
+          items:
+            type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        budgetSubtotal:
+          $ref: '#/components/schemas/CurrencyTotals'
+    Itinerary:
+      type: object
+      description: A full itinerary (ITN-01, ITN-03).
+      required: [id, title, countryCodes, startDate, visibility, days, cityGroups, transportCosts]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+          example: Egypt and Emirates
+        countryCodes:
+          type: array
+          items:
+            type: string
+          example: [EG, AE]
+        startDate:
+          type: string
+          format: date
+        visibility:
+          $ref: '#/components/schemas/ItineraryVisibility'
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItineraryDay'
+        cityGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/CityGroup'
+        transportCosts:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransportCost'
+        linkedBookings:
+          type: array
+          description: Bonus ITN-27.
+          items:
+            $ref: '#/components/schemas/LinkedBooking'
+        originalItineraryId:
+          type: string
+          description: Only on a clone (ITN-21).
+        originalAuthorId:
+          type: string
+          description: Only on a clone, the author credited (ITN-21).
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PublicItinerary:
+      allOf:
+        - $ref: '#/components/schemas/Itinerary'
+        - type: object
+          required: [author, originalAuthor, budget]
+          properties:
+            author:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+            originalAuthor:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+            budget:
+              $ref: '#/components/schemas/BudgetSummary'
+    AccountListItem:
+      type: object
+      description: One account in the admin list (ACC-14).
+      required: [id, name, email, role, status, registrationDate]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/Role'
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        registrationDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        airlineId:
+          type: string
+        hotelId:
+          type: string
+    AdminBookingItem:
+      type: object
+      description: One booking in the admin's read-only list (ACC-17).
+      required: [id, type, reference, user, provider, dates, amount, currency, status]
+      properties:
+        id:
+          type: string
+        type:
+          $ref: '#/components/schemas/BookingType'
+        reference:
+          type: string
+          nullable: true
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+        provider:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            type:
+              type: string
+              enum: [airline, hotel]
+        dates:
+          type: object
+          properties:
+            from:
+              type: string
+              description: Flight - outbound departure (date-time, UTC). Hotel - check-in date.
+            to:
+              type: string
+              description: Flight - last arrival (date-time, UTC). Hotel - check-out date.
+            startDate:
+              type: string
+              format: date
+            endDate:
+              type: string
+              format: date
+        amount:
+          type: integer
+          description: Total in cents of the platform currency.
+        currency:
+          type: string
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        createdAt:
+          type: string
+          format: date-time
+    AuditLogItem:
+      type: object
+      description: One admin action (GEN-07).
+      required: [id, admin, action, targetType, targetId, createdAt]
+      properties:
+        id:
+          type: string
+        admin:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+        action:
+          $ref: '#/components/schemas/AuditAction'
+        targetType:
+          type: string
+          example: account
+        targetId:
+          type: string
+        reason:
+          type: string
+          nullable: true
+        details:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        date:
+          type: string
+          format: date-time
+    FlightManifestItem:
+      type: object
+      description: One booking of a flight, for its airline moderator (FLT-29).
+      required: [id, reference, passengerNames, cabinClass, seats, status]
+      properties:
+        id:
+          type: string
+        reference:
+          type: string
+          nullable: true
+        passengerNames:
+          type: array
+          items:
+            type: string
+        cabinClass:
+          $ref: '#/components/schemas/CabinClass'
+        seats:
+          type: integer
+        status:
+          type: string
+          enum: [confirmed, cancelled]
+    FlightBookingListItem:
+      type: object
+      description: One booking in the user's list (FLT-25).
+      required: [id, reference, status, flightNumber, departureAirport, arrivalAirport, departureAt, departureLocal, passengers, cabinClass]
+      properties:
+        id:
+          type: string
+        reference:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        flightNumber:
+          type: string
+        departureAirport:
+          type: string
+          example: CAI
+        arrivalAirport:
+          type: string
+          example: DXB
+        departureAt:
+          type: string
+          format: date-time
+        departureLocal:
+          type: string
+          description: Local time at the departure airport, with its time zone (GEN-06).
+        passengers:
+          type: integer
+        cabinClass:
+          $ref: '#/components/schemas/CabinClass'
+    HotelReservationListItem:
+      type: object
+      description: One reservation of the hotel, for its moderator (HTL-22).
+      required: [id, reference, guest, rooms, checkIn, checkOut, status]
+      properties:
+        id:
+          type: string
+        reference:
+          type: string
+          nullable: true
+        guest:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookedRoomSummary'
+        checkIn:
+          type: string
+          format: date
+        checkOut:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+    BookedRoomSummary:
+      type: object
+      properties:
+        roomId:
+          type: string
+        roomNumber:
+          type: string
+        type:
+          type: string
+    HotelBookingListItem:
+      type: object
+      description: One reservation in the user's list (HTL-20).
+      required: [id, reference, hotel, rooms, checkIn, checkOut, guests, totalAmount, currency, status]
+      properties:
+        id:
+          type: string
+        reference:
+          type: string
+          nullable: true
+        hotel:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookedRoomSummary'
+        checkIn:
+          type: string
+          format: date
+        checkOut:
+          type: string
+          format: date
+        guests:
+          type: object
+          properties:
+            adults:
+              type: integer
+            children:
+              type: integer
+        totalAmount:
+          type: integer
+        currency:
+          type: string
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+    MyPostSummary:
+      type: object
+      description: One of the author's own posts, drafts included (BLG-03).
+      required: [id, title, status, date, likeCount, commentCount]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/PostStatus'
+        date:
+          type: string
+          format: date-time
+        likeCount:
+          type: integer
+        commentCount:
+          type: integer
+    AirportItem:
+      type: object
+      description: An airport of the official list (FLT-02).
+      required: [iataCode, name, cityId, cityName, countryCode, timeZone]
+      properties:
+        iataCode:
+          type: string
+          example: CAI
+        name:
+          type: string
+          example: Cairo International Airport
+        cityId:
+          type: string
+          example: cairo
+        cityName:
+          type: string
+          example: Cairo
+        countryCode:
+          type: string
+          example: EG
+        timeZone:
+          type: string
+          example: Africa/Cairo
+    HotelSearchResult:
+      type: object
+      description: One hotel of a search (HTL-11, HTL-12).
+      required: [id, name, cityId, countryCode, starRating, photo, averageRating, ratingCount, pricePerNight, currency, freeRooms]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        cityId:
+          type: string
+        countryCode:
+          type: string
+        starRating:
+          type: integer
+        photo:
+          type: string
+          nullable: true
+        averageRating:
+          type: number
+        ratingCount:
+          type: integer
+        pricePerNight:
+          type: integer
+          description: Price per night of the cheapest qualifying room, in cents (HTL-12).
+        currency:
+          type: string
+        freeRooms:
+          type: integer
+    AvailableRoom:
+      type: object
+      description: A room free for the searched dates (HTL-15).
+      required: [id, roomNumber, type, beds, maxOccupancy, pricePerNight, nights, totalPrice, currency, checkIn, checkOut]
+      properties:
+        id:
+          type: string
+        roomNumber:
+          type: string
+        type:
+          type: string
+        beds:
+          type: integer
+        maxOccupancy:
+          type: integer
+        pricePerNight:
+          type: integer
+        nights:
+          type: integer
+        totalPrice:
+          type: integer
+          description: nights x price per night, in cents.
+        currency:
+          type: string
+        checkIn:
+          type: string
+          format: date
+        checkOut:
+          type: string
+          format: date
+    CurrencyItem:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          example: EGP
+        name:
+          type: string
+          example: Egyptian Pound
+    CountryItem:
+      type: object
+      required: [code, name, currency]
+      properties:
+        code:
+          type: string
+          example: EG
+        name:
+          type: string
+          example: Egypt
+        currency:
+          type: string
+          example: EGP
+    CityItem:
+      type: object
+      required: [cityId, name, countryCode]
+      properties:
+        cityId:
+          type: string
+          example: cairo
+        name:
+          type: string
+          example: Cairo
+        countryCode:
+          type: string
+          example: EG
+    AttractionItem:
+      type: object
+      required: [attractionId, name, cityId]
+      properties:
+        attractionId:
+          type: string
+          example: att-1
+        name:
+          type: string
+          example: Giza Pyramids and Sphinx
+        cityId:
+          type: string
+          example: cairo
+    FlightSearchItem:
+      type: object
+      description: One flight of a search (FLT-11, FLT-12, FLT-15) with its matching cabins.
+      required: [id, flightNumber, airline, departureAirport, arrivalAirport, departureLocal, arrivalLocal, departureAt, arrivalAt, durationMinutes, cabins]
+      properties:
+        id:
+          type: string
+        flightNumber:
+          type: string
+        airline:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            code:
+              type: string
+            logoUrl:
+              type: string
+              nullable: true
+        departureAirport:
+          $ref: '#/components/schemas/FlightAirport'
+        arrivalAirport:
+          $ref: '#/components/schemas/FlightAirport'
+        departureLocal:
+          type: string
+        arrivalLocal:
+          type: string
+        departureUtcOffset:
+          type: string
+        arrivalUtcOffset:
+          type: string
+        departureAt:
+          type: string
+          format: date-time
+        arrivalAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        cabins:
+          type: array
+          items:
+            type: object
+            properties:
+              cabinId:
+                type: string
+              cabinClass:
+                $ref: '#/components/schemas/CabinClass'
+              price:
+                type: integer
+                description: Cabin fare in cents.
+              availableSeats:
+                type: integer
+              freeBags:
+                type: integer
+              maxBagWeightKg:
+                type: number
+              priceBreakdown:
+                type: object
+                properties:
+                  adultFare:
+                    type: integer
+                  childFare:
+                    type: integer
+                  infantFare:
+                    type: integer
+                  adultsSubtotal:
+                    type: integer
+                  childrenSubtotal:
+                    type: integer
+                  infantsSubtotal:
+                    type: integer
+              totalPrice:
+                type: integer
+                description: Price of all searched passengers (infants 10%), in cents.
+              currency:
+                type: string
+    FlightSearchPage:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          required: [seatsRequired]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/FlightSearchItem'
+            seatsRequired:
+              type: integer
+              description: Adults + children (infants need no seat, FLT-12).
+            message:
+              type: string
+              description: Only when nothing matches (GEN-04).
+    RoundTripFlightSearch:
+      type: object
+      description: Round trip (FLT-12) - the outbound and the return options, each paginated.
+      required: [tripType, outbound, return]
+      properties:
+        tripType:
+          type: string
+          enum: [round_trip]
+        outbound:
+          $ref: '#/components/schemas/FlightSearchPage'
+        return:
+          $ref: '#/components/schemas/FlightSearchPage'
+    FlightSearchResult:
+      oneOf:
+        - $ref: '#/components/schemas/FlightSearchPage'
+        - $ref: '#/components/schemas/RoundTripFlightSearch'
+    AccountList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AccountListItem'
+    AdminBookingList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminBookingItem'
+    NotificationList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/NotificationItem'
+    ReportList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ReportItem'
+    AuditLogList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AuditLogItem'
+    FlightManifest:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/FlightManifestItem'
+            seatsRemaining:
+              type: array
+              description: Seats remaining per cabin category (FLT-29).
+              items:
+                type: object
+                properties:
+                  cabinClass:
+                    $ref: '#/components/schemas/CabinClass'
+                  seatsRemaining:
+                    type: integer
+    FlightBookingList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/FlightBookingListItem'
+    HotelReservationList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/HotelReservationListItem'
+    HotelBookingList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/HotelBookingListItem'
+    ItinerarySummaryList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ItinerarySummary'
+    PostSummaryList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/PostSummary'
+    MyPostList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MyPostSummary'
+    AirportList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AirportItem'
+    HotelSearchList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/HotelSearchResult'
+    AvailableRoomList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AvailableRoom'
+    CurrencyList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CurrencyItem'
+    CountryList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CountryItem'
+    CityList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CityItem'
+    AttractionList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AttractionItem'
+    ItineraryHotelSearch:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/HotelSearchResult'
+            cityId:
+              type: string
+              description: The city of the group.
+            checkIn:
+              type: string
+              format: date
+              description: Date of the group first day (ITN-25).
+            checkOut:
+              type: string
+              format: date
+              description: The day after the group last day (ITN-25).

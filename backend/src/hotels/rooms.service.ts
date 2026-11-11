@@ -4,9 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, isValidObjectId, Model } from 'mongoose';
 import { RoomInventoryService } from '../hotel-bookings/room-inventory.service';
+import { platformCurrency } from '../payments/platform-currency';
 import { HotelBooking } from '../hotel-bookings/schemas/hotel-booking.schema';
 import { dateOnly, formatDate, todayUtc } from '../hotel-bookings/stay-dates';
 import { assertManagesHotel } from '../common/guards/ownership';
@@ -46,6 +48,7 @@ export class RoomsService {
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
     @InjectConnection() private readonly connection: Connection,
     private readonly inventory: RoomInventoryService,
+    private readonly config: ConfigService,
   ) {}
 
   // --- HTL-05: edit beds, maximum occupancy and price per night; HTL-06: deactivate ---
@@ -287,6 +290,8 @@ export class RoomsService {
       beds: room.beds,
       maxOccupancy: room.maxOccupancy,
       pricePerNight: room.pricePerNight,
+      // PAY-04: every price is in the platform currency.
+      currency: platformCurrency(this.config),
       active: room.active,
       availableRanges: formatRanges(room.availableRanges),
       blockedRanges: formatRanges(room.blockedRanges),
