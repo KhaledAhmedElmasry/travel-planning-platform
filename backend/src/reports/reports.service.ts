@@ -18,6 +18,7 @@ import { AuditAction, ContentType, ReportStatus } from '../common/enums';
 import type { AuthUser } from '../common/interfaces';
 import { NotificationsService } from '../notifications/notifications.service';
 import { removeRatingPipeline } from '../reviews/reviews.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { CreateReportDto } from './dto/create-report.dto';
 import { ListReportsQueryDto } from './dto/list-reports-query.dto';
@@ -67,8 +68,11 @@ export class ReportsService {
     private readonly connection: Connection,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
+    private readonly uploadsService: UploadsService,
   ) {}
 
+  // The collection of each kind of content (the Mongoose models of the blog, reviews and
+  // itineraries modules).
   private getCollectionName(contentType: ContentType): string {
     switch (contentType) {
       case ContentType.Post:
@@ -79,100 +83,138 @@ export class ReportsService {
         return 'reviews';
       case ContentType.Itinerary:
         return 'itineraries';
-      default:
-        return 'items';
     }
   }
 
-  // Check if content is visible to the reporting user; content the user cannot see is treated as 404
+  // GEN-09: content the reporting user cannot see is treated as 404: hidden content of another
+  // user (GEN-10), a draft post of another user (BLG-01) and a private itinerary of another user
+  // (ITN-20).
   private isContentVisibleToUser(
     doc: Record<string, unknown>,
     contentType: ContentType,
     userId: string,
   ): boolean {
-    // Deleted content is never visible
-    if (
-      doc.deleted === true ||
-      doc.isDeleted === true ||
-      doc.deletedAt != null
-    ) {
+    if (this.extractAuthorId(contentType, doc) === userId) return true;
+    if (doc.hidden === true) return false;
+    if (contentType === ContentType.Post && doc.status !== 'published') {
       return false;
     }
-
-    const authorId = this.extractAuthorId(doc);
-    const isAuthor = authorId === userId;
-
-    // GEN-10: Hidden content is visible only to its author (and admins)
-    if ((doc.hidden === true || doc.isHidden === true) && !isAuthor) {
+    if (contentType === ContentType.Itinerary && doc.visibility !== 'public') {
       return false;
     }
-
-    // Itineraries: private itineraries are visible only to their author
-    if (contentType === ContentType.Itinerary) {
-      const isPrivate =
-        doc.visibility === 'private' ||
-        (doc.visibility !== undefined && doc.visibility !== 'public');
-      if (isPrivate && !isAuthor) {
-        return false;
-      }
-    }
-
-    // Posts: drafts are visible only to their author
-    if (contentType === ContentType.Post) {
-      const isDraft =
-        doc.status === 'draft' ||
-        doc.isDraft === true ||
-        doc.draft === true ||
-        doc.published === false ||
-        doc.state === 'draft';
-      if (isDraft && !isAuthor) {
-        return false;
-      }
-    }
-
     return true;
   }
 
-  // GEN-10 + HTL-23: delete one content document. When it is a review, the
-  // hotel's averageRating / ratingCount are updated in the same transaction
-  // (the same pipeline the author's own delete uses), so an admin delete can
-  // never leave the rating out of date. Only the delete that really removed
-  // the document changes the rating, so a repeated delete changes nothing.
+  // GEN-10: delete one content document and everything that depends on it, in one transaction:
+  //   - comment: the post's comment count goes down by one (BLG-03, BLG-09);
+  //   - post: its comments and likes are deleted (as when the author deletes it, BLG-04);
+  //   - itinerary: its booking links (ITN-27) are deleted and posts no longer point to it (BLG-13);
+  //   - review: the hotel's average rating and rating count are recalculated (HTL-23).
+  // Only a delete that really removed the document changes anything, so repeating it is safe.
+  // The image files of a post or an itinerary are removed after the commit (GEN-08).
   private async deleteContentDocument(
     type: ContentType,
     id: Types.ObjectId,
-    doc: unknown,
+    doc: Record<string, unknown>,
   ): Promise<void> {
     const db = this.connection.db;
     if (!db) return;
+    let removed = false;
     await this.connection.transaction(async (session) => {
       const result = await db
         .collection(this.getCollectionName(type))
         .deleteOne({ _id: id }, { session });
-      if (type !== ContentType.Review || result.deletedCount !== 1) return;
-      const review = doc as { hotel?: Types.ObjectId; rating?: number } | null;
-      if (!review?.hotel || typeof review.rating !== 'number') return;
-      await db
-        .collection('hotels')
-        .updateOne({ _id: review.hotel }, removeRatingPipeline(review.rating), {
-          session,
-        });
+      removed = result.deletedCount === 1;
+      if (!removed) return;
+      switch (type) {
+        case ContentType.Comment:
+          await db
+            .collection('posts')
+            .updateOne(
+              { _id: doc.post as Types.ObjectId, commentCount: { $gt: 0 } },
+              { $inc: { commentCount: -1 } },
+              { session },
+            );
+          break;
+        case ContentType.Post:
+          await db.collection('comments').deleteMany({ post: id }, { session });
+          await db.collection('likes').deleteMany({ post: id }, { session });
+          break;
+        case ContentType.Itinerary:
+          await db
+            .collection('itinerary_booking_links')
+            .deleteMany({ itineraryId: id }, { session });
+          await db
+            .collection('posts')
+            .updateMany(
+              { itinerary: id },
+              { $set: { itinerary: null } },
+              { session },
+            );
+          break;
+        case ContentType.Review: {
+          const { hotel, rating } = doc as {
+            hotel?: Types.ObjectId;
+            rating?: number;
+          };
+          if (hotel && typeof rating === 'number') {
+            await db
+              .collection('hotels')
+              .updateOne({ _id: hotel }, removeRatingPipeline(rating), {
+                session,
+              });
+          }
+          break;
+        }
+      }
     });
+    if (removed) await this.removeImageFiles(type, doc);
   }
 
-  private extractAuthorId(doc: unknown): string | undefined {
-    if (!doc || typeof doc !== 'object') return undefined;
-    const d = doc as Record<string, unknown>;
-    const id =
-      (d.userId as Types.ObjectId | string | undefined)?.toString?.() ??
-      (d.user as Types.ObjectId | string | undefined)?.toString?.() ??
-      (d.authorId as Types.ObjectId | string | undefined)?.toString?.() ??
-      (d.author as Types.ObjectId | string | undefined)?.toString?.() ??
-      (typeof d.author === 'object' && d.author !== null
-        ? ((d.author as Record<string, unknown>).id?.toString?.() ??
-          (d.author as Record<string, unknown>)._id?.toString?.())
-        : undefined);
-    return id ? String(id) : undefined;
+  // The uploaded files of a deleted post (BLG-10) or itinerary (ITN-12).
+  private async removeImageFiles(
+    type: ContentType,
+    doc: Record<string, unknown>,
+  ): Promise<void> {
+    type Image = { storageKey?: string };
+    let images: Image[] = [];
+    if (type === ContentType.Post) {
+      images = (doc.images as Image[] | undefined) ?? [];
+    } else if (type === ContentType.Itinerary) {
+      const days =
+        (doc.days as { activities?: { images?: Image[] }[] }[] | undefined) ??
+        [];
+      images = days.flatMap((day) =>
+        (day.activities ?? []).flatMap((activity) => activity.images ?? []),
+      );
+    }
+    const keys = images
+      .map((image) => image.storageKey)
+      .filter((key): key is string => typeof key === 'string');
+    if (keys.length === 0) return;
+    try {
+      await this.uploadsService.removeImages(keys);
+    } catch (error) {
+      this.logger.error(
+        `Could not remove the image files of deleted ${type} ${String(doc._id)}: ${String(error)}`,
+      );
+    }
+  }
+
+  // The account that wrote the content: posts and comments have `author`, reviews `user` and
+  // itineraries `userId`.
+  private extractAuthorId(
+    type: ContentType,
+    doc: Record<string, unknown>,
+  ): string | undefined {
+    const field = (
+      type === ContentType.Review
+        ? doc.user
+        : type === ContentType.Itinerary
+          ? doc.userId
+          : doc.author
+    ) as Types.ObjectId | undefined;
+    return field ? field.toString() : undefined;
   }
 
   // GEN-09: A registered user reports a post, comment, review or itinerary
@@ -202,27 +244,20 @@ export class ReportsService {
     }
 
     // Extract a short preview of the content for admin preview
+    // Posts and itineraries have a title, comments and reviews a text.
     let contentPreview: string | undefined;
     const doc = contentDoc as Record<string, unknown>;
-    if (typeof doc.title === 'string' && doc.title.trim()) {
-      contentPreview = doc.title.trim();
-    } else if (typeof doc.content === 'string' && doc.content.trim()) {
+    const previewText =
+      typeof doc.title === 'string'
+        ? doc.title.trim()
+        : typeof doc.text === 'string'
+          ? doc.text.trim()
+          : '';
+    if (previewText) {
       contentPreview =
-        doc.content.trim().length > 120
-          ? `${doc.content.trim().slice(0, 117)}...`
-          : doc.content.trim();
-    } else if (typeof doc.text === 'string' && doc.text.trim()) {
-      contentPreview =
-        doc.text.trim().length > 120
-          ? `${doc.text.trim().slice(0, 117)}...`
-          : doc.text.trim();
-    } else if (typeof doc.name === 'string' && doc.name.trim()) {
-      contentPreview = doc.name.trim();
-    } else if (typeof doc.description === 'string' && doc.description.trim()) {
-      contentPreview =
-        doc.description.trim().length > 120
-          ? `${doc.description.trim().slice(0, 117)}...`
-          : doc.description.trim();
+        previewText.length > 120
+          ? `${previewText.slice(0, 117)}...`
+          : previewText;
     }
 
     const reporterObjectId = new Types.ObjectId(user.id);
@@ -351,7 +386,9 @@ export class ReportsService {
     const contentDoc = await this.connection.db
       ?.collection(collectionName)
       .findOne({ _id: contentId });
-    const authorId = this.extractAuthorId(contentDoc);
+    const authorId = contentDoc
+      ? this.extractAuthorId(updatedReport.contentType, contentDoc)
+      : undefined;
 
     if (dto.action === ReportResolutionAction.Dismiss) {
       // Write to audit log (GEN-07)
@@ -434,11 +471,13 @@ export class ReportsService {
     if (dto.action === ReportResolutionAction.Delete) {
       // Delete content from its collection (a review also leaves the hotel's
       // average rating, HTL-23)
-      await this.deleteContentDocument(
-        updatedReport.contentType,
-        contentId,
-        contentDoc,
-      );
+      if (contentDoc) {
+        await this.deleteContentDocument(
+          updatedReport.contentType,
+          contentId,
+          contentDoc,
+        );
+      }
 
       // Cascade resolution: resolve any other open reports about this content item
       await this.reportModel.updateMany(
@@ -506,7 +545,7 @@ export class ReportsService {
       ?.collection(collectionName)
       .findOne({ _id: contentObjectId });
 
-    if (!doc || (doc as Record<string, unknown>).deleted === true) {
+    if (!doc) {
       throw new NotFoundException('Content not found.');
     }
 
@@ -541,7 +580,7 @@ export class ReportsService {
     });
 
     // Send in-app notification to author (GEN-01)
-    const authorId = this.extractAuthorId(doc);
+    const authorId = this.extractAuthorId(type, doc);
     if (authorId) {
       await this.notificationsService.notify(
         authorId,
@@ -573,7 +612,7 @@ export class ReportsService {
       ?.collection(collectionName)
       .findOne({ _id: contentObjectId });
 
-    if (!doc || (doc as Record<string, unknown>).deleted === true) {
+    if (!doc) {
       throw new NotFoundException('Content not found.');
     }
 
@@ -620,7 +659,7 @@ export class ReportsService {
       });
 
       // Send in-app notification to author (GEN-01)
-      const authorId = this.extractAuthorId(doc);
+      const authorId = this.extractAuthorId(type, doc);
       if (authorId) {
         await this.notificationsService.notify(
           authorId,
