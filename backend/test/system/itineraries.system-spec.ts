@@ -1047,6 +1047,77 @@ describe('Itineraries', () => {
       expect(budget.grandTotal).toEqual({ USD: 95 });
     });
 
+    it('ITN-21, ITN-01: the clone keeps its activity images when the original removes them or is deleted', async () => {
+      const source = await create(user, { title: `Photos ${unique('ph')}` });
+      const sourceDay = await addDay(user, source.id, 'cairo');
+      const activity = (
+        await user.client.post(
+          `/api/itineraries/${source.id}/days/${sourceDay.id}/activities`,
+          { name: 'Sunset', description: 'Nile view' },
+        )
+      ).body;
+      const upload = (activityId: string, account: Account) =>
+        account.client.post(`/api/activities/${activityId}/images`, undefined, {
+          files: [
+            {
+              field: 'image',
+              content: PNG,
+              filename: 'a.png',
+              contentType: 'image/png',
+            },
+          ],
+        });
+      const first = (await upload(activity.id as string, user)).body;
+      await upload(activity.id as string, user);
+      await publish(user, source.id);
+      const clone = (
+        await other.client.post(`/api/itineraries/${source.id}/clone`)
+      ).body;
+      const cloneImages = clone.days[0].activities[0].images as {
+        id: string;
+        url: string;
+      }[];
+      expect(cloneImages).toHaveLength(2);
+
+      // The original removes one image, then deletes the whole itinerary.
+      expect(
+        (
+          await user.client.delete(
+            `/api/activities/${activity.id}/images/${first.id}`,
+          )
+        ).status,
+      ).toBe(204);
+      expect(
+        (await user.client.delete(`/api/itineraries/${source.id}`)).status,
+      ).toBe(204);
+      for (const image of cloneImages) {
+        const served = await t.guest().get(image.url);
+        expect(served.status).toBe(200);
+        expect(served.buffer.equals(PNG)).toBe(true);
+      }
+
+      // And the other way round: a clone removing an image leaves the original's image alone.
+      const second = await create(user, { title: `Photos ${unique('ph')}` });
+      const secondDay = await addDay(user, second.id, 'cairo');
+      const secondActivity = (
+        await user.client.post(
+          `/api/itineraries/${second.id}/days/${secondDay.id}/activities`,
+          { name: 'Market', description: 'Khan el-Khalili' },
+        )
+      ).body;
+      const original = (await upload(secondActivity.id as string, user)).body;
+      await publish(user, second.id);
+      const copy = (
+        await other.client.post(`/api/itineraries/${second.id}/clone`)
+      ).body;
+      const copyActivity = copy.days[0].activities[0];
+      expect(
+        (await other.client.delete(`/api/itineraries/${copy.id}`)).status,
+      ).toBe(204);
+      expect((await t.guest().get(original.url as string)).status).toBe(200);
+      expect(copyActivity.images[0].url).not.toBe(original.url);
+    });
+
     it('ITN-01: deleting an itinerary removes it from the public search; earlier clones stay', async () => {
       const source = await create(user, {
         title: `Short lived ${unique('d')}`,
@@ -1152,6 +1223,69 @@ describe('Itineraries', () => {
           })
         ).status,
       ).toBe(404);
+    });
+
+    it("ITN-26: the search covers every airport in the first day's city, there and back", async () => {
+      // The official dataset has one airport per city; a second Frankfurt airport is added to
+      // this test run's own database to check the "any airport in the city" rule.
+      await t.collection('airports').insertOne({
+        _id: 'HHN' as any,
+        iataCode: 'HHN',
+        name: 'Frankfurt-Hahn Airport',
+        cityId: 'frankfurt',
+        countryCode: 'DE',
+        timeZone: 'Europe/Berlin',
+      });
+      try {
+        const airline = await airlineWithModerator(t);
+        const toFra = await bookableFlight(airline, {
+          from: 'CAI',
+          to: 'FRA',
+          inDays: 66,
+          departureTime: '08:00',
+          arrivalTime: '12:00',
+        });
+        const toHhn = await bookableFlight(airline, {
+          from: 'CAI',
+          to: 'HHN',
+          inDays: 66,
+          departureTime: '09:00',
+          arrivalTime: '13:00',
+        });
+        const fromHhn = await bookableFlight(airline, {
+          from: 'HHN',
+          to: 'CAI',
+          inDays: 67,
+          departureTime: '15:00',
+          arrivalTime: '20:00',
+        });
+        const trip = await create(user, {
+          startDate: day(66),
+          countryCodes: ['DE'],
+        });
+        await addDay(user, trip.id, 'frankfurt');
+        await addDay(user, trip.id, 'frankfurt');
+        const oneWay = await user.client.get(
+          `/api/itineraries/${trip.id}/flights`,
+          { query: { origin: 'CAI' } },
+        );
+        expect(oneWay.status).toBe(200);
+        expect((oneWay.body.items as any[]).map((f) => f.id).sort()).toEqual(
+          [toFra.id, toHhn.id].sort(),
+        );
+        const round = await user.client.get(
+          `/api/itineraries/${trip.id}/flights`,
+          { query: { origin: 'CAI', tripType: 'round_trip' } },
+        );
+        expect((round.body.return.items as any[]).map((f) => f.id)).toEqual([
+          fromHhn.id,
+        ]);
+        expect(round.body.return.items[0].departureAirport.iataCode).toBe(
+          'HHN',
+        );
+      } finally {
+        await t.collection('airports').deleteOne({ _id: 'HHN' as any });
+      }
     });
 
     it("searches flights from the chosen origin to the airport of the first day's city; dates default to the start and the last day", async () => {

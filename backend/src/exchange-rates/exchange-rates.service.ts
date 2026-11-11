@@ -36,7 +36,9 @@ export class ExchangeRatesService {
       );
     }
 
-    const converted: Record<string, number> = {};
+    // Sum the exact converted amounts, then round once: rounding after each currency would add
+    // up to one cent of error per currency.
+    let sum = 0;
     for (const [sourceCurrency, amount] of Object.entries(totals)) {
       const sourceRate = snapshot.rates[sourceCurrency];
       if (sourceRate === undefined) {
@@ -44,10 +46,12 @@ export class ExchangeRatesService {
           `Exchange rate for ${sourceCurrency} is unavailable.`,
         );
       }
-      converted[targetCurrency] = roundCurrency(
-        (converted[targetCurrency] ?? 0) + (amount * targetRate) / sourceRate,
-      );
+      sum += (amount * targetRate) / sourceRate;
     }
+    const converted: Record<string, number> =
+      Object.keys(totals).length > 0
+        ? { [targetCurrency]: roundCurrency(sum) }
+        : {};
     return {
       currency: targetCurrency,
       rateDate: snapshot.rateDate,
