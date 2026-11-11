@@ -16,16 +16,6 @@ out/
 coverage/
 *.tsbuildinfo
 
-# Unit / e2e tests stay local (not part of the submission)
-*.spec.ts
-*.e2e-spec.ts
-*.test.ts
-!backend/src/blog/blog.attach-itinerary.spec.ts
-!backend/src/blog/dto/attach-itinerary.dto.spec.ts
-!backend/src/reviews/*.spec.ts
-!backend/src/reviews/dto/*.spec.ts
-!backend/src/reviews/schemas/*.spec.ts
-
 # Uploaded images (GEN-08) — created at runtime
 backend/uploads/
 
