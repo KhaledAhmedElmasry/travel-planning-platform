@@ -964,5 +964,37 @@ describe('Airlines, airports and flights', () => {
         ).status,
       ).toBe(200);
     });
+
+    it('FLT-08, FLT-09: policy updates sent at the same moment never fail with a server error', async () => {
+      const mine = await airlineWithModerator(t);
+      const percentages = [10, 20, 30, 40, 50];
+      const tiers = await Promise.all(
+        percentages.map((refundPercentage) =>
+          mine.moderator.client.put(
+            `/api/airlines/${mine.airlineId}/cancellation-policy`,
+            { tiers: [{ daysBefore: 5, refundPercentage }] },
+          ),
+        ),
+      );
+      expect(tiers.map((r) => r.status)).toEqual([200, 200, 200, 200, 200]);
+      const bags = await Promise.all(
+        [1, 2, 3, 4, 5].map((max) =>
+          mine.moderator.client.put(
+            `/api/airlines/${mine.airlineId}/baggage-policy`,
+            { extraBagPrice: 1000 * max, maxExtraBagsPerPassenger: max },
+          ),
+        ),
+      );
+      expect(bags.map((r) => r.status)).toEqual([200, 200, 200, 200, 200]);
+      // The stored policy is exactly one of the policies that were sent, never a mix.
+      const shown = await t.guest().get(`/api/airlines/${mine.airlineId}`);
+      expect(shown.body.cancellationTiers).toHaveLength(1);
+      expect(percentages).toContain(
+        shown.body.cancellationTiers[0].refundPercentage,
+      );
+      const { extraBagPrice, maxExtraBagsPerPassenger } =
+        shown.body.baggagePolicy;
+      expect(extraBagPrice).toBe(1000 * maxExtraBagsPerPassenger);
+    });
   });
 });

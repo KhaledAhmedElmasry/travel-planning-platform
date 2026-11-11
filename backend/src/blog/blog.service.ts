@@ -833,11 +833,22 @@ export class BlogService {
 
     // All fields in the shared UpdatePostRequest are handled here. BLG-08 uses the tags
     // field, while title/body/status remain compatible with the shared BLG-04 route contract.
-    if (dto.title !== undefined) post.title = dto.title;
-    if (dto.body !== undefined) post.body = dto.body;
-    if (dto.status !== undefined) post.status = dto.status;
-    if (dto.tags !== undefined) post.tags = dto.tags;
-    await post.save();
+    // One atomic update: edits sent at the same moment never conflict (a load-and-save of the
+    // tags array fails with a version error when two requests overlap).
+    const changes: Partial<Pick<Post, 'title' | 'body' | 'status' | 'tags'>> =
+      {};
+    if (dto.title !== undefined) changes.title = dto.title;
+    if (dto.body !== undefined) changes.body = dto.body;
+    if (dto.status !== undefined) changes.status = dto.status;
+    if (dto.tags !== undefined) changes.tags = dto.tags;
+    const updated = await this.postModel
+      .findOneAndUpdate(
+        { _id: post._id, author: post.author },
+        { $set: changes },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) throw new NotFoundException('Post not found.');
 
     const author = await this.userModel
       .findById(post.author)
@@ -846,7 +857,7 @@ export class BlogService {
       .exec();
     if (!author) throw new NotFoundException('Author not found.');
 
-    return this.toCreatedPostResponse(post, author);
+    return this.toCreatedPostResponse(updated, author);
   }
 
   async attachItinerary(

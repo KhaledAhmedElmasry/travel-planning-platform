@@ -174,10 +174,12 @@ export class AirlinesService {
     id: Types.ObjectId,
     dto: BaggagePolicyDto,
   ): Promise<BaggagePolicyResponse & { airlineId: string }> {
-    const airline = await this.findManagedAirline(user, id);
-    airline.extraBagPrice = dto.extraBagPrice;
-    airline.maxExtraBagsPerPassenger = dto.maxExtraBagsPerPassenger;
-    await airline.save();
+    await this.findManagedAirline(user, id);
+    // One atomic update: requests sent at the same moment never conflict (no load-and-save).
+    const airline = await this.saveFields(id, {
+      extraBagPrice: dto.extraBagPrice,
+      maxExtraBagsPerPassenger: dto.maxExtraBagsPerPassenger,
+    });
     return {
       airlineId: airline._id.toString(),
       ...this.toBaggagePolicy(airline),
@@ -201,17 +203,35 @@ export class AirlinesService {
       );
     }
 
-    airline.cancellationTiers = sortTiers(
-      dto.tiers.map((t) => ({
-        daysBefore: t.daysBefore,
-        refundPercentage: t.refundPercentage,
-      })),
-    );
-    await airline.save();
+    // One atomic update of the whole list: requests sent at the same moment never conflict
+    // (a load-and-save of an array fails with a version error when two requests overlap).
+    const saved = await this.saveFields(airline._id, {
+      cancellationTiers: sortTiers(
+        dto.tiers.map((t) => ({
+          daysBefore: t.daysBefore,
+          refundPercentage: t.refundPercentage,
+        })),
+      ),
+    });
     return {
-      airlineId: airline._id.toString(),
-      cancellationTiers: this.toTiers(airline),
+      airlineId: saved._id.toString(),
+      cancellationTiers: this.toTiers(saved),
     };
+  }
+
+  private async saveFields(
+    id: Types.ObjectId,
+    fields: Partial<Airline>,
+  ): Promise<AirlineDocument> {
+    const saved = await this.airlineModel
+      .findOneAndUpdate(
+        { _id: id },
+        { $set: fields },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!saved) throw new NotFoundException('Airline not found.');
+    return saved;
   }
 
   // ACC-11, ACC-13: the airline that this moderator may change.

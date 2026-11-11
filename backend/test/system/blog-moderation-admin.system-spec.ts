@@ -138,6 +138,23 @@ describe('Blog, moderation and administration', () => {
       expect((await t.guest().get('/api/posts/mine')).status).toBe(401);
     });
 
+    it('BLG-04, BLG-08: edits of the same post sent at the same moment never fail with a server error', async () => {
+      const mine = await post(author, { tags: ['start'] });
+      const results = await Promise.all(
+        ['a', 'b', 'c', 'd', 'e'].map((tag) =>
+          author.client.patch(`/api/posts/${mine.id}`, {
+            title: `Title ${tag}`,
+            tags: [tag, `${tag}2`],
+          }),
+        ),
+      );
+      expect(results.map((r) => r.status)).toEqual([200, 200, 200, 200, 200]);
+      // The stored post is exactly one of the edits that were sent.
+      const shown = (await detail(mine.id)).body;
+      const tag = (shown.title as string).slice(-1);
+      expect(shown.tags).toEqual([tag, `${tag}2`]);
+    });
+
     it('BLG-04: only the author edits and deletes a post', async () => {
       const mine = await post(author);
       expect(
