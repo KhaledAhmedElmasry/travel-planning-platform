@@ -76,6 +76,10 @@ describe('Accounts and sessions', () => {
         email: body.email.toUpperCase(),
       });
       expect(again.status).toBe(409);
+      // ACC-01: "reject the form with an inline error" -> a field-level error on email (GEN-02).
+      expect(again.body.fieldErrors).toEqual([
+        { field: 'email', messages: [expect.stringMatching(/already/i)] },
+      ]);
     });
 
     it('ACC-18: a role sent at registration never creates an admin', async () => {
@@ -237,6 +241,25 @@ describe('Accounts and sessions', () => {
       const left = new Date(session!.expiresAt as Date).getTime() - Date.now();
       expect(left).toBeGreaterThan(29.5 * 60_000);
       expect(left).toBeLessThanOrEqual(30 * 60_000);
+    });
+
+    it('a request 20 seconds after the previous one also restarts the 30 minutes', async () => {
+      const user = await t.user();
+      await t.collection('sessions').updateMany(
+        { userId: t.oid(user.id) },
+        {
+          $set: {
+            lastActivityAt: new Date(Date.now() - 20_000),
+            expiresAt: new Date(Date.now() + 30 * 60_000 - 20_000),
+          },
+        },
+      );
+      expect((await user.client.get('/api/auth/me')).status).toBe(200);
+      const session = await t
+        .collection('sessions')
+        .findOne({ userId: t.oid(user.id) });
+      const left = new Date(session!.expiresAt as Date).getTime() - Date.now();
+      expect(left).toBeGreaterThan(30 * 60_000 - 5_000);
     });
   });
 
