@@ -18,6 +18,8 @@ const REQUIRED = [
 // config.getOrThrow<string>('PLATFORM_CURRENCY') and return it with every price.
 const CURRENCY_CODE = /^[A-Z]{3}$/;
 
+const STRIPE_TEST_KEY = /^(sk|rk)_test_/;
+
 export function validateEnv(
   config: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -25,6 +27,13 @@ export function validateEnv(
   if (missing.length > 0) {
     throw new Error(
       `Missing required environment variables: ${missing.join(', ')}. Copy .env.example to backend/.env and fill it in.`,
+    );
+  }
+  // PAY-01, PDF 6.4: payments use Stripe in test mode only. A live key (sk_live_...) or a
+  // publishable key would charge real cards or not work at all.
+  if (!STRIPE_TEST_KEY.test(String(config.STRIPE_SECRET_KEY))) {
+    throw new Error(
+      'STRIPE_SECRET_KEY must be a Stripe test-mode secret key (sk_test_... or rk_test_...). Live keys are not allowed (PAY-01).',
     );
   }
   if (!CURRENCY_CODE.test(String(config.PLATFORM_CURRENCY))) {
