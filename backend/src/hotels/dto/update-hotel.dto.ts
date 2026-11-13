@@ -1,4 +1,4 @@
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsArray,
   IsInt,
@@ -11,8 +11,18 @@ import {
   Min,
 } from 'class-validator';
 
-const trim = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim() : value;
+// Swagger UI sends every form field, also the ones left empty (name="", starRating=""): an empty
+// field means "not changed", so the moderator can type only the field to change.
+const trim = ({ value }: { value: unknown }) => {
+  if (typeof value !== 'string') return value;
+  const text = value.trim();
+  return text === '' ? undefined : text;
+};
+const toNumber = ({ value }: { value: unknown }) => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string' && value.trim() === '') return undefined;
+  return Number(value);
+};
 
 // Swagger UI sends an array field in multipart as ONE comma-separated value ("wifi,pool"), while
 // Postman or code sends the field once per item. Accept both.
@@ -49,6 +59,7 @@ export class UpdateHotelDto {
   cityId?: string;
 
   @IsOptional()
+  @Transform(trim)
   @Matches(/^[A-Z]{2}$/, {
     message: 'countryCode must be 2 uppercase letters, e.g. EG',
   })
@@ -62,7 +73,7 @@ export class UpdateHotelDto {
   description?: string;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toNumber)
   @IsInt()
   @Min(1)
   @Max(5)
