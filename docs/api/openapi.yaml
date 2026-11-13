@@ -522,14 +522,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not a registered user.", "path": "/api/users/me", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/users/me", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
           description: The user still has upcoming Confirmed bookings.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The user still has upcoming Confirmed bookings.", "path": "/api/users/me", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "You have upcoming confirmed bookings. Cancel them or wait until they have started before deactivating your account", "path": "/api/users/me", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   # ---------------------------------------------------------------------------
   # 8.2 Administration
@@ -2034,7 +2034,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid fields, or a seat count below the seats already booked or held.", "path": "/api/flights/665f1c2a9b1e8a00123400a1/cabins/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "The seat count cannot be lower than the 3 seats already booked or held.", "path": "/api/flights/665f1c2a9b1e8a00123400a1/cabins/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2313,7 +2313,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "Not enough seats left in economy on flight NA101, or the flight can no longer be booked.", "path": "/api/flight-bookings/hold", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The flight is not scheduled, or not enough seats are left.", "path": "/api/flight-bookings/hold", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/flight-bookings:
     post:
@@ -2366,7 +2366,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not a registered user.", "path": "/api/flight-bookings", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Only registered users can book, pay and cancel", "path": "/api/flight-bookings", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Flight not found.
           content:
@@ -3036,7 +3036,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the moderator of this hotel.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage the hotel you are assigned to.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Hotel not found.
           content:
@@ -3082,7 +3082,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the moderator of this hotel.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage the hotel you are assigned to.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Hotel not found.
           content:
@@ -3144,7 +3144,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the moderator of this hotel.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage your own hotel", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Hotel or room not found.
           content:
@@ -3185,7 +3185,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the moderator of this hotel.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage your own hotel", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Hotel or room not found.
           content:
@@ -3300,7 +3300,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the moderator of this hotel.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage the hotel you are assigned to.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Hotel or room not found.
           content:
@@ -3365,7 +3365,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the moderator of this hotel.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage your own hotel", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Hotel or room not found.
           content:
@@ -3487,7 +3487,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the moderator of this hotel.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage the hotel you are assigned to.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/availability", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Hotel not found.
           content:
@@ -3540,7 +3540,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the moderator of this hotel.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/policies", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage the hotel you are assigned to.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/policies", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Hotel not found.
           content:
@@ -3595,7 +3595,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not the moderator of this hotel.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/reservations", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage the hotel you are assigned to.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/reservations", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Hotel not found.
           content:
@@ -4181,7 +4181,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "This booking is already paid.", "path": "/api/payments", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "This booking is confirmed, not pending payment.", "path": "/api/payments", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/payments/{id}/retry:
     post:
@@ -4416,7 +4416,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not a registered user.", "path": "/api/itineraries", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/itineraries", "timestamp": "2026-11-01T10:00:00.000Z"}
     get:
       operationId: getItineraries
       tags: [Itineraries]
@@ -5119,7 +5119,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "The currency code is invalid or not supported.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/budget-summary", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Currency 'XYZ' is not supported.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/budget-summary", "timestamp": "2026-11-01T10:00:00.000Z"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -5211,7 +5211,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "The currency code is invalid or not supported.", "path": "/api/itineraries/public/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Currency 'XYZ' is not supported.", "path": "/api/itineraries/public/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Itinerary not found, private or hidden.
           content:
@@ -5250,7 +5250,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not a registered user.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/clone", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/clone", "timestamp": "2026-11-01T10:00:00.000Z"}
         '404':
           description: Itinerary not found or not public.
           content:
@@ -5529,7 +5529,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not a registered user.", "path": "/api/posts", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/posts", "timestamp": "2026-11-01T10:00:00.000Z"}
     get:
       operationId: getPosts
       tags: [Blog]
@@ -5737,7 +5737,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not a registered user.", "path": "/api/posts/mine", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/posts/mine", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/posts/{id}/comments:
     post:
