@@ -22,6 +22,7 @@ interface Schema {
   anyOf?: Schema[];
   additionalProperties?: boolean | Schema;
   format?: string;
+  example?: unknown;
 }
 interface Operation {
   responses: Record<
@@ -84,6 +85,38 @@ export function documentedOperations(): string[] {
   return ROUTES.map(
     (route) => `${route.method.toUpperCase()} ${route.template}`,
   );
+}
+
+/**
+ * Fields of multipart PATCH forms that Swagger UI would pre-fill with a sample value. "Try it out"
+ * sends every field of a multipart form, and Swagger UI fills each one from that property's
+ * example (or a generated sample such as "string"), so every field of an edit form needs an empty
+ * example ('' or []); otherwise a TA who fills one field also sends sample values for all the
+ * others (FLT-01, HTL-01). File fields are never pre-filled.
+ */
+export function prefilledPatchFormFields(): string[] {
+  return ROUTES.filter((route) => route.method === 'patch').flatMap((route) => {
+    const body = (
+      route.operation as {
+        requestBody?: { content?: Record<string, { schema?: Schema }> };
+      }
+    ).requestBody;
+    const form = body?.content?.['multipart/form-data']?.schema;
+    if (!form) return [];
+    const properties = resolve(form).properties ?? {};
+    return Object.entries(properties)
+      .filter(([, property]) => {
+        const field = resolve(property);
+        const file =
+          field.format === 'binary' ||
+          resolve(field.items ?? {}).format === 'binary';
+        const empty =
+          field.example === '' ||
+          (Array.isArray(field.example) && field.example.length === 0);
+        return !file && !empty;
+      })
+      .map(([name]) => `PATCH ${route.template} ${name}`);
+  });
 }
 
 function findRoute(method: string, path: string): Route | undefined {

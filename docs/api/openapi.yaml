@@ -16,6 +16,11 @@ info:
     - **Logging in:** call `POST /api/auth/login`. It sets httpOnly cookies (ACC-19) and the browser
       sends them with every later request automatically, so the Authorize button is not needed.
       A lock icon marks the endpoints that need login.
+    - **Staying logged in:** the access cookie lasts 15 minutes (ACC-19). When an endpoint answers
+      `401` after that, call `POST /api/auth/refresh` (no body) and execute the request again; the
+      session itself ends only after 30 minutes without activity (ACC-06).
+    - **Editing (PATCH forms):** the form starts empty; fill only the fields to change. An empty
+      field means "not changed".
     - **Errors:** every error uses the `Error` format (see Schemas at the bottom). Validation errors
       list each invalid field in `fieldErrors` (GEN-02). The example under each error code shows that
       code and a typical message; for implemented endpoints it is the real message.
@@ -8017,17 +8022,19 @@ components:
 
     AirlineUpdateForm:
       type: object
-      description: Send only the fields to change.
+      description: |
+        Send only the fields to change. Every field starts empty in Swagger UI ("Try it out"), and an
+        empty field means "not changed", so only what you type is sent.
       properties:
         name:
           type: string
           minLength: 1
           maxLength: 100
-          example: EgyptAir
+          example: ''
         code:
           type: string
           pattern: '^[A-Z0-9]{2,3}$'
-          example: MS
+          example: ''
         logo:
           type: string
           format: binary
@@ -8315,31 +8322,40 @@ components:
 
     HotelUpdateForm:
       type: object
-      description: Send only the fields to change.
+      description: |
+        Send only the fields to change. Every field starts empty in Swagger UI ("Try it out"), and an
+        empty field means "not changed", so only what you type is sent.
       properties:
         name:
           type: string
+          example: ''
           minLength: 1
           maxLength: 100
         address:
           type: string
+          example: ''
           minLength: 1
           maxLength: 200
         cityId:
           type: string
+          example: ''
         countryCode:
           type: string
+          example: ''
           pattern: '^[A-Z]{2}$'
         description:
           type: string
+          example: ''
           minLength: 1
           maxLength: 2000
         starRating:
           type: integer
+          example: ''
           minimum: 1
           maximum: 5
         amenities:
           type: array
+          example: []
           description: Replaces the amenity list. Send the field once per amenity.
           items:
             type: string
@@ -8352,6 +8368,7 @@ components:
             format: binary
         removePhotoIds:
           type: array
+          example: []
           description: Ids of photos to remove.
           items:
             type: string

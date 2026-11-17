@@ -80,6 +80,9 @@ Copy the printed `whsec_...` value into `STRIPE_WEBHOOK_SECRET` and restart the 
 
 Open http://localhost:3000/api/docs. Every endpoint is documented in [docs/api/openapi.yaml](docs/api/openapi.yaml) with request examples and every error response. Authentication uses httpOnly cookies (ACC-19): after `POST /api/auth/login` the browser sends the cookies automatically, and `POST /api/auth/logout` ends the session.
 
+- **After 15 minutes:** the access cookie lasts 15 minutes. If an endpoint answers `401`, call `POST /api/auth/refresh` (no body) and execute the request again. The session ends only after 30 minutes without activity (ACC-06).
+- **Edit forms (`PATCH /api/airlines/{id}`, `PATCH /api/hotels/{id}`):** start empty; fill only the fields to change. An empty field means "not changed".
+
 - **Admin:** log in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env` (created by `npm run seed`).
 - **Moderators:** the admin creates an airline (`POST /api/airlines`) or a hotel (`POST /api/hotels`), then a moderator for it with a temporary password (`POST /api/admin/moderators`). The moderator logs in and must first set a new password (`PATCH /api/auth/change-password`).
 - **Registered user:** `POST /api/auth/register`, then log in.

@@ -5,10 +5,14 @@
 //   - every JSON body matches its documented schema (types, required fields, enums, and no field
 //     that the documentation does not mention);
 //   - every success response with a JSON body has a documented schema;
-//   - when the whole suite ran, every documented operation was called at least once.
+//   - when the whole suite ran, every documented operation was called at least once;
+//   - every multipart PATCH form starts empty in Swagger UI (FLT-01, HTL-01).
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { documentedOperations } from '../support/openapi-contract';
+import {
+  documentedOperations,
+  prefilledPatchFormFields,
+} from '../support/openapi-contract';
 
 interface Recorded {
   problems: { operation: string; status: number; problem: string }[];
@@ -30,6 +34,10 @@ describe('docs/api/openapi.yaml matches the running API', () => {
       .flatMap((r) => r.problems)
       .map((p) => `${p.operation} -> ${p.status}: ${p.problem}`);
     expect([...new Set(problems)].sort()).toEqual([]);
+  });
+
+  it('every multipart PATCH form starts empty in Swagger UI, so only typed fields are sent', () => {
+    expect(prefilledPatchFormFields()).toEqual([]);
   });
 
   it('every documented operation was exercised by the system tests', () => {
