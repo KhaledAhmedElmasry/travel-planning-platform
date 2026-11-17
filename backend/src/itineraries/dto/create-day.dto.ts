@@ -1,8 +1,23 @@
-// Area: Itineraries
-// Used by: POST /api/itineraries/:id/days (body)
-// Requirements: ITN-05
-//
-// TODO: define the DTO class with class-validator rules and @ApiProperty examples
-// for the fields this endpoint needs.
+import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
-export {};
+// Area: Itineraries
+// Used by: POST /api/itineraries/:id/days (body), openapi.yaml "CreateDayRequest"
+// Requirements: ITN-05
+
+const trim = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim() : value;
+
+export class CreateDayDto {
+  // city_id from the predefined city list (GEN-12); the service checks it exists.
+  @Transform(trim)
+  @IsString({ message: 'cityId must be text' })
+  @IsNotEmpty({ message: 'cityId is required' })
+  cityId: string;
+
+  @IsOptional()
+  @Transform(trim)
+  @IsString({ message: 'Notes must be text' })
+  @MaxLength(1000, { message: 'Notes must be at most 1000 characters' })
+  notes?: string;
+}

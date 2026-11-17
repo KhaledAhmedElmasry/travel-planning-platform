@@ -1,9 +1,14 @@
-// BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
-// Area: Itineraries (bonus)
-// Used by: POST /api/itineraries/:id/bookings (body)
-// Requirements: ITN-27
-//
-// TODO: define the DTO class with class-validator rules and @ApiProperty examples
-// for the fields this endpoint needs.
+import { IsEnum, IsMongoId } from 'class-validator';
+import { BookingType } from '../../common/enums';
 
-export {};
+// Used by: POST /api/itineraries/:id/bookings (body), ITN-27 (bonus).
+export class AttachBookingDto {
+  @IsEnum(BookingType, { message: 'bookingType must be flight or hotel' })
+  bookingType: BookingType;
+
+  @IsMongoId({ message: 'bookingId must be a valid id' })
+  bookingId: string;
+
+  @IsMongoId({ message: 'dayId must be a valid id' })
+  dayId: string;
+}

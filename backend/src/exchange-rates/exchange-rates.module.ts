@@ -1,10 +1,19 @@
 import { Module } from '@nestjs/common';
-import { ExchangeRatesController } from './exchange-rates.controller';
+import { ConfigModule } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
 import { ExchangeRatesService } from './exchange-rates.service';
+import {
+  ExchangeRate,
+  ExchangeRateSchema,
+} from './schemas/exchange-rate.schema';
 
-// TODO: register this module's schemas here with MongooseModule.forFeature([...]).
 @Module({
-  controllers: [ExchangeRatesController],
+  imports: [
+    ConfigModule,
+    MongooseModule.forFeature([
+      { name: ExchangeRate.name, schema: ExchangeRateSchema },
+    ]),
+  ],
   providers: [ExchangeRatesService],
   exports: [ExchangeRatesService],
 })

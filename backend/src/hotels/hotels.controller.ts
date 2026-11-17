@@ -1,6 +1,37 @@
-import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { HotelsService } from './hotels.service';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  UploadedFiles,
+  UseGuards,
+  UseInterceptors,
+  Query,
+} from '@nestjs/common';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { CurrentUser, Roles } from '../common/decorators';
+import { Role } from '../common/enums';
+import { JwtAuthGuard } from '../common/guards/auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import type { AuthUser } from '../common/interfaces';
+import { CreateHotelDto } from './dto/create-hotel.dto';
+import { CreateRoomDto } from './dto/create-room.dto';
+import { AvailabilityQueryDto } from './dto/availability-query.dto';
+import { HotelDetailsQueryDto } from './dto/hotel-details-query.dto';
+import { HotelPoliciesDto } from './dto/hotel-policies.dto';
+import { ListReservationsQueryDto } from './dto/list-reservations-query.dto';
+import { RoomAvailabilityDto } from './dto/room-availability.dto';
+import { UpdateHotelDto } from './dto/update-hotel.dto';
+import {
+  deleteHotelPhotos,
+  type HotelPhotoFile,
+  storeHotelPhotos,
+} from './hotel-photos';
+import { HotelsService, MAX_HOTEL_PHOTOS } from './hotels.service';
 
 // Area: Hotels & Rooms
 // Requirements: HTL-01..HTL-06, HTL-08..HTL-12, HTL-15, HTL-22
@@ -16,21 +47,133 @@ import { HotelsService } from './hotels.service';
 //   POST   /api/hotels/:id/rooms/:roomId/availability   HTL-04
 //   PATCH  /api/hotels/:id/rooms/:roomId/availability   HTL-05, HTL-06
 //   GET    /api/hotels/:id/availability                 HTL-08
-//   PUT    /api/hotels/:id/policies                     HTL-09, HTL-10 (the PDF table says HTL-08;
-//                                                        check-in/out times are HTL-09)
+//   PUT    /api/hotels/:id/policies                     HTL-09, HTL-10
 //   GET    /api/hotels/:id/reservations                 HTL-22
-// Also needed by the requirements (not in the PDF tables):
-//   endpoints to upload and remove hotel photos (HTL-01, GEN-08: up to 5 per hotel)
-//   a way to deactivate a room (HTL-06), e.g. through PATCH /api/hotels/:id/rooms/:roomId
 // Notes:
+//   The policies endpoint (PUT /api/hotels/:id/policies) also sets check-in / check-out times (HTL-09).
+//   Photos are sent as multipart/form-data on POST /api/hotels and PATCH /api/hotels/:id; PATCH takes
+//   removePhotoIds (HTL-01, GEN-08: up to 5 per hotel). There is no separate upload endpoint.
+//   A room is deactivated through PATCH /api/hotels/:id/rooms/:roomId with active: false (HTL-06).
 //   Admins create hotels; only the moderator assigned to THIS hotel may edit it (ACC-11, ACC-13).
 //   Deactivated hotels (ACC-15) and deactivated rooms (HTL-06) are excluded from search.
 //   Hotel search must be reusable from itineraries (ITN-25): keep it in the exported service.
 //   Declare /hotels/search before /hotels/:id so "search" is not matched as an id.
-@ApiTags('Hotels')
+
+// Multer keeps the files in memory by default. One more file than the limit is accepted on
+// purpose, so the service answers with a clear "at most 5 photos" message instead of multer's
+// generic "Unexpected field".
+const photoUpload = FilesInterceptor('photos', MAX_HOTEL_PHOTOS + 1, {
+  limits: { fileSize: 20 * 1024 * 1024 }, // hard cap; the 5 MB rule is checked in storeHotelPhotos
+});
+
 @Controller('hotels')
 export class HotelsController {
   constructor(private readonly hotelsService: HotelsService) {}
 
-  // TODO: add the endpoints listed above.
+  // HTL-01: an admin creates a hotel (multipart).
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @UseInterceptors(photoUpload)
+  async create(
+    @Body() dto: CreateHotelDto,
+    @UploadedFiles() files: HotelPhotoFile[],
+  ) {
+    const photos = await storeHotelPhotos(files ?? []);
+    try {
+      return await this.hotelsService.createHotel(dto, photos);
+    } catch (error) {
+      await deleteHotelPhotos(photos);
+      throw error;
+    }
+  }
+
+  // HTL-02: everyone can view an active hotel's profile and optional free rooms.
+  @Get(':id')
+  getDetails(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Query() query: HotelDetailsQueryDto,
+  ) {
+    return this.hotelsService.getHotelDetails(id, query);
+  }
+
+  // HTL-08: the moderator of a hotel can view every room's status by night.
+  @Get(':id/availability')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  getAvailability(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Query() query: AvailabilityQueryDto,
+  ) {
+    return this.hotelsService.getAvailability(id, user, query);
+  }
+
+  // HTL-01: the moderator assigned to this hotel edits it (multipart).
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  @UseInterceptors(photoUpload)
+  async update(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateHotelDto,
+    @UploadedFiles() files: HotelPhotoFile[],
+  ) {
+    const photos = await storeHotelPhotos(files ?? []);
+    try {
+      return await this.hotelsService.updateHotel(id, user, dto, photos);
+    } catch (error) {
+      await deleteHotelPhotos(photos);
+      throw error;
+    }
+  }
+
+  // HTL-03: the moderator of this hotel adds a room.
+  @Post(':id/rooms')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  createRoom(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateRoomDto,
+  ) {
+    return this.hotelsService.createRoom(id, user, dto);
+  }
+
+  // HTL-04: the moderator of this hotel adds a bookable date range to one of its rooms.
+  @Post(':id/rooms/:roomId/availability')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  addAvailability(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('roomId', ParseObjectIdPipe) roomId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RoomAvailabilityDto,
+  ) {
+    return this.hotelsService.addAvailableRange(id, roomId, user, dto);
+  }
+
+  // HTL-09, HTL-10: the moderator of this hotel sets check-in/out times and cancellation tiers.
+  @Put(':id/policies')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  updatePolicies(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: HotelPoliciesDto,
+  ) {
+    return this.hotelsService.updatePolicies(id, user, dto);
+  }
+
+  @Get(':id/reservations')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.HotelModerator)
+  listReservations(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListReservationsQueryDto,
+  ) {
+    return this.hotelsService.listReservations(id, user, query);
+  }
 }

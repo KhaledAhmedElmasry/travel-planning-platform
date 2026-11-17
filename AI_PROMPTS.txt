@@ -5,6 +5,8 @@ Every team member records the prompts that materially contributed to the project
 in chronological order, using the format below (project description, section 11).
 Add your entry in the same pull request as the work it relates to.
 
+Entry format (copy this for each new entry):
+
 ================================================
 Date: YYYY-MM-DD
 Student: <Full name>
@@ -19,20 +21,134 @@ How the output was used:
 ================================================
 
 ================================================
-Date: 2026-10-21
-Student: Khaled Ahmed
-Tool: Claude Code (Claude Opus 5.5)
-Related Requirement: All (Milestone 1 planning); ACC-03, BLG-11, NEW-01, NEW-02, NEW-04, NEW-05, NEW-07
+Date: 2026-11-06
+Student: Salaheldin Mahmoud
+Tool: Copilot
+Related Requirement: BON-02 / Issue #111
 
 Prompt:
-Read the project description, the requirements workbook and the reference datasets,
-and explain what Milestone 1 requires and what the team leader must prepare. Identify
-requirement IDs that are referenced but not defined, and infer their meaning.
+Implement BON-02 on a new branch after all mandatory hotel requirements are merged: allow
+registered users to save hotels and public itineraries to a private favourites list, list them
+with pagination and optional type filtering, and remove them. Use idempotent duplicate saves,
+retain deactivated hotels while hiding them from list results, allow only normal registered users,
+enforce ownership on deletion, reuse existing public itinerary visibility rules, document all
+routes in OpenAPI, add tests, and run lint, build and the complete npm test suite.
 
 How the output was used:
-Used as the basis for the Milestone 1 plan, the module split across 8 members and the
-timeline (docs/TEAM_PLAN.md). The inferred definitions of the 7 missing IDs were written to
-docs/requirements/ASSUMED_REQUIREMENTS.md and are pending TA confirmation.
+Used AI assistance to implement the Favourite schema, DTOs, protected controller, service,
+hotel and itinerary summary lookups, OpenAPI contract, and validation workflow. Duplicate saves
+are handled idempotently by the unique compound index and upsert; private list and delete queries
+are scoped to the authenticated user. Backend lint, build and all Jest tests passed. Swagger
+manual verification remains for the PR tester.
+================================================
+Date: 2026-11-04
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-05 / Issue #74
+
+Prompt:
+Implement only BLG-05 on feature/BLG-05-comment-on-posts-Alamy. Follow the existing POST
+/api/posts/{id}/comments contract, create a Comment model and validation DTO, associate the
+authenticated registered user, accept comments only on visible published posts, set hidden false,
+increment commentCount safely, add isolated automated tests, and preserve pending BLG-03/BLG-08 work.
+
+How the output was used:
+Used AI assistance to implement the comment schema, DTO, controller route, service logic, model
+registration, and focused tests. The implementation was checked against the task text, issues.csv,
+TEAM_PLAN.md and OpenAPI. Three focused test suites (17 tests), backend build, targeted ESLint and
+OpenAPI YAML parsing passed. Tests use mocks; no live MongoDB or manual Swagger verification has been
+performed.
+================================================
+Date: 2026-11-03
+Student: Abdallah Mahmoud
+Tool: Codex
+Related Requirement: ITN-01
+
+Prompt:
+Implement requirement ITN-01 (issue #55) on branch feature/ITN-01-create-itinerary: the itinerary
+schema and create, edit and delete of the user's own itineraries (title required, max 100
+characters), following the ITN-01 comments in the code and docs/api/openapi.yaml, with no other
+requirement implemented.
+
+How the output was used:
+Used as the implementation of ITN-01: itinerary schema, DTOs, service and the create, edit and
+delete routes with ownership checks and Swagger decorators. Verified by building, linting and
+testing the happy path and every error case in Swagger.
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-10
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #61 (ITN-10). Implement ITN-10 on branch
+feature/ITN-10-activities: add, edit and delete activities for an itinerary day, with a required
+name, a description, an optional time and an optional cost, through POST
+/api/itineraries/:id/days/:dayId/activities, PATCH /api/activities/:id and DELETE
+/api/activities/:id. Follow the issue, docs/api/openapi.yaml (field limits and status codes),
+docs/CONVENTIONS.md and the existing code patterns. The optional cost must be non-negative and
+will be counted under Activities in the budget (ITN-14), so store it in a form ITN-14 can total.
+The time, when sent, must be a valid time. The PATCH and DELETE routes only receive the activity id,
+so the service must find the itinerary and day that contain it and check that the logged-in user owns
+it; another user's activity gives 404. Add local unit tests for the main rules. Images (ITN-12) and
+every other ITN requirement are left for their own issues.
+
+How the output was used:
+Used as the base for the activity schema, its DTOs, the activity methods in ItinerariesService and
+the three routes. I checked it against the issue and openapi.yaml: the name is required, the
+description, time and cost follow the limits in openapi.yaml, a negative cost and an invalid time give
+400, an activity is only added to a day of the user's own itinerary, and another user's activity or a
+malformed id gives 404 or 400. Verified with npm run lint, npm run build, local tests and by testing
+every valid and invalid case in Swagger.
+================================================
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-16
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #64 (ITN-16). Implement ITN-16 on branch
+feature/ITN-16-transport-costs: add, edit and delete a transport cost entry (mode, from-city,
+to-city, amount, currency and the itinerary day it belongs to) through POST
+/api/itineraries/:id/transport-costs, PATCH /api/transport-costs/:id and DELETE
+/api/transport-costs/:id. Follow the issue, docs/api/openapi.yaml (allowed modes and status codes),
+docs/CONVENTIONS.md and the existing code patterns. Both cities must exist in the predefined city
+list, the day must be a day of this itinerary, the amount must be non-negative and the currency must
+be in the supported currency list (GEN-12), otherwise return a clear 400. The PATCH and DELETE routes
+only receive the entry id, so the service must find the itinerary that contains it and check
+ownership; another user's entry gives 404. Include the entries in GET /api/itineraries/:id with no
+conversion (ITN-18), and when a day is deleted (ITN-07) its transport entries must not point to a
+missing day. This requirement must be merged before ITN-14, because the budget totals include it.
+Add local unit tests for the main rules. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the transport cost schema, its DTOs, the service methods and the three routes.
+I checked it against the issue and openapi.yaml: the mode comes from the allowed values, both cities
+exist, the day belongs to the itinerary, the amount is not negative, the currency is supported, and
+another user's entry gives 404. Verified with npm run lint, npm run build, local tests and by
+testing every valid and invalid case in Swagger.
+================================================
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-18
+
+Prompt:
+Implement ITN-18 on feature/ITN-18-exchange-rates: convert itinerary budget entries, activity
+costs and intercity transport to the user's supported preferred currency in the budget summary,
+using backend-only FXRatesAPI access, a daily MongoDB cache, cached fallback behavior, clear
+currency/API errors, the rate date, environment validation, OpenAPI documentation and mocked
+local unit tests. Booking prices remain in the platform currency.
+
+How the output was used:
+Added the daily exchange-rate cache schema and service, backend-only API integration, preferred
+currency validation and conversion details to the budget summary, environment configuration,
+OpenAPI response documentation and unit tests covering cache hit/miss and API failure fallback
+cases. Verified with npm run lint, npm run build and npm test -- --runInBand.
 ================================================
 
 ================================================
@@ -57,22 +173,1693 @@ Verified by building, linting and starting the server against a local MongoDB.
 ================================================
 
 ================================================
-Date: 2026-10-22
+Date: 2026-10-29
 Student: Khaled Ahmed
 Tool: Claude Code (Claude Opus 5.5)
-Related Requirement: None implemented (project skeleton only)
+Related Requirement: GEN-12, FLT-02, NEW-05, ACC-18
 
 Prompt:
-Check every file and folder against the project description and the requirements workbook,
-and make sure nothing needed for Milestone 1 is missing. Structure only, no implementation.
-Every file must say which requirements it is for, and no file may assign work to a team member.
+As team leader, I asked the assistant to implement the database seed script so that the shared
+MongoDB Atlas database contains the official reference data before the team starts development,
+and to write a short notice informing the team that the database is already seeded.
 
 How the output was used:
-Replaced the per-file "Owner: Member N" headers with neutral "Area:" labels and removed member
-assignments from docs/TEAM_PLAN.md and docs/CONVENTIONS.md. Added placeholder DTOs that were
-missing (cities, attractions, hotel details, hotel reservations, flight bookings list, budget
-summary). Added notes for endpoints the requirements imply but the PDF tables omit (refund
-previews for FLT-26/HTL-21, POST /api/reports, notification endpoints, currencies, provider
-deactivation) and for schema fields (hidden flags, statuses, hold expiry, policy acceptance).
-Moved the timeline to start on 31 October. Still no requirement is implemented.
+The output was used as backend/src/database/seed.ts (run with "npm run seed"). The script loads
+the official reference datasets (countries, cities, airports and attractions) using the official
+identifiers as document ids, adds the IANA time zone required by FLT-02 to every airport, derives
+the supported currency list (GEN-12), and creates the seeded administrator account with a bcrypt
+password hash read from the environment (ACC-18). It validates referential integrity before
+writing (NEW-05) and is idempotent: re-running it updates reference data without creating
+duplicates and never resets the administrator password. Field names follow docs/api/openapi.yaml.
+I reviewed the script, verified it with a successful build and lint, ran it twice against the
+shared database and confirmed the stored documents and the hashed administrator password.
+================================================
+Date: 2026-10-31
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01
+Prompt:
+Asked for step-by-step help with Area 7 (Hotels & Rooms): project setup, .env and MongoDB Atlas
+connection, and an implementation of HTL-01 (hotel schema, create/update DTOs, hotels service,
+module wiring) based on the repo scaffold and docs/api/openapi.yaml.
+How the output was used:
+Reviewed and adapted the generated schema, DTOs and service; fixed build errors; the build passes.
+Controller and tests are still to be done once the shared auth/upload code is merged.
+
+Date: 2026-10-30
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-01, ACC-03
+
+Prompt:
+I am on Area 2 (Auth & Sessions) and want to finish GitHub issue #1 (ACC-01) step by step.
+I shared the project repository, the Area 2 task sheet and the project description, and asked
+the assistant to implement registration in our NestJS + MongoDB backend and get it ready for
+testing. The endpoint is POST /api/auth/register with name, unique email, password and the
+mandatory terms-and-privacy consent. I asked it to follow the requirement text in the issue,
+the RegisterRequest schema and status codes in docs/api/openapi.yaml, docs/CONVENTIONS.md and
+the existing code patterns, and to cover ACC-03 (new account = Registered User + Active, no
+admin self-registration).
+
+How the output was used:
+Used as the base for the User schema, the Role and AccountStatus enums, RegisterDto, the
+registration logic in AuthService and UsersService, and the controller route. I checked the
+output against the issue and openapi.yaml: the password rule is at least 8 characters with a
+letter and a digit, acceptTerms must be true, the email is trimmed and lowercased with a unique
+index, the password is stored only as a bcrypt hash (cost 12, same as the seeded admin), the
+consent time is saved, and a role sent in the body is ignored. I matched the schema field names
+to the seeded admin in seed.ts so login (ACC-04) can read both. I reviewed the duplicate-email
+handling for two registrations at the same moment (unique index, error 11000 returns 409).
+Verified with npm run lint, npm run build, local unit tests, and by testing every valid and
+invalid case in Swagger and checking the stored document in Atlas.
+
+Date: 2026-10-30
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-04 (with the session and cookie groundwork from NEW-07 and ACC-19)
+
+Prompt:
+Continuing Area 2 after registration, I asked the assistant to implement GitHub issue #120
+(ACC-04): log in with email and password for every role (registered user, admin, airline and
+hotel moderator), a generic "invalid email or password" message on failure, an "account
+suspended" message for suspended accounts, and GET /api/auth/me. I asked it to follow
+docs/api/openapi.yaml (httpOnly access_token and refresh_token cookies, response fields, 400 /
+401 / 403 codes), the NEW-07 and ACC-19 definitions in ASSUMED_REQUIREMENTS.md, and to build the
+JwtAuthGuard and @CurrentUser() that the other areas are waiting for, leaving the lockout
+(ACC-05), logout (ACC-06) and refresh rotation (NEW-07) for their own issues.
+
+How the output was used:
+Used as the base for the Session schema, SessionsService, the login DTO and logic, the cookie
+helper, JwtAuthGuard, @CurrentUser(), the AuthUser interface and GET /api/auth/me. I checked it
+against the issue and openapi.yaml: tokens are only in httpOnly, Secure, SameSite cookies and
+never in the body; the refresh token is stored only as a SHA-256 hash; a wrong password and an
+unknown email give the same 401 message; the suspended and deactivated messages appear only
+after the right password; moderators get their airlineId or hotelId; the guard rejects revoked
+sessions and suspended accounts on every request and sets req.user.id as the other modules
+expect. I added cookie-parser to main.ts and the two JWT secrets to the required environment
+variables. Verified with npm run lint, npm run build, local unit and HTTP tests, and by logging
+in as a user, the seeded admin and a suspended account in Swagger and calling /api/auth/me.
+
+Date: 2026-10-30
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-05
+
+Prompt:
+After login (ACC-04), I asked the assistant to implement GitHub issue #2 (ACC-05): after 5
+consecutive failed login attempts the account is locked for 15 minutes with a lockout message,
+and a successful login resets the counter. I asked it to build on the existing login code and
+User schema fields (failedLoginAttempts, lockUntil), follow the 403 response in
+docs/api/openapi.yaml, and make the counter safe when several wrong guesses arrive at once.
+
+How the output was used:
+Used as the base for login-lockout.ts (limit, duration and message), the recordFailedLogin and
+resetFailedLogins methods in UsersService, and the lockout checks in AuthService.login. I checked
+the behaviour against the issue: wrong passwords 1 to 4 give the generic 401, the 5th returns 403
+with "Account locked after 5 failed login attempts. Try again in 15 minutes", a locked account is
+refused even with the right password, the lock ends after 15 minutes and gives 5 new tries, a
+successful login resets the counter, unknown emails are never locked, and the counter uses an
+atomic $inc so parallel guesses cannot pass the limit. Verified with npm run lint, npm run build,
+local tests (including checks that fail when the lock check or the reset is removed), and by
+triggering the lockout in Swagger and checking failedLoginAttempts and lockUntil in Atlas
+(demo scenario 1).
+
+Date: 2026-10-31
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-06
+
+Prompt:
+After login and lockout, I asked the assistant to implement GitHub issue #3 (ACC-06): a logged-in
+user can log out, which clears the authentication cookies and revokes the refresh token on the
+server, and a session with no authenticated request for 30 minutes expires and requires a new
+login. I asked it to build on the existing sessions collection and JwtAuthGuard, and to follow
+POST /api/auth/logout in docs/api/openapi.yaml (204, 401 when not logged in).
+
+How the output was used:
+Used as the base for POST /api/auth/logout, SessionsService.revoke, clearAuthCookies and the
+idle-expiry update in SessionsService.authenticate. I checked it against the issue: logout returns
+204, sets revokedAt on the session and clears both cookies with the same path and flags they were
+set with; the old access token stops working at once, even before it expires; other devices stay
+logged in; every authenticated request moves the 30-minute idle deadline forward (written at most
+once a minute), and an idle session gets 401 and needs a new login. Verified with npm run lint,
+npm run build, local tests (including checks that fail when the revoke or the activity update is
+removed), and in Swagger by logging out, calling /api/auth/me and checking revokedAt in Atlas.
+================================================
+
+================================================
+Date: 2026-11-01
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: GEN-02, GEN-13
+
+Prompt:
+Explain how to implement a global validation pipe and exception filter in NestJS (GEN-02, GEN-13).
+Provide guidance on configuring field-level validation messages, maintaining the consistent error
+response format defined in docs/api/openapi.yaml, and replacing local ValidationPipe instances
+with global validation.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and configure the global validation
+pipe and HTTP exception filter. Implemented the validation options, field-level error formatting,
+and standardized HTTP error responses. Registered both components globally in main.ts and removed
+redundant local ValidationPipe instances from flight-bookings, hotel-bookings, and payments
+controllers. AI also assisted with reviewing the implementation, identifying potential issues,
+and suggesting Swagger test cases to verify validation behavior.
+================================================
+
+================================================
+Date: 2026-11-02
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: GEN-13
+
+Prompt:
+Help me review GEN-13 (backend rule, validation, and authorization enforcement, and
+salted password hashing): I want to ensure all request payloads are strictly validated
+at the backend entry point via the global ValidationPipe, and I need to find any
+remaining local ValidationPipe instances in auth.controller.ts. Also help me check
+whether business rules, authorization guards, and bcrypt password hashing (cost 12)
+are properly enforced server-side.
+
+How the output was used:
+Used the AI’s suggestions as a starting point and a checklist for reviewing the
+codebase. I then applied the changes myself: set up global validation and error
+filtering in main.ts, removed the local ValidationPipes from the register and login
+routes in auth.controller.ts, and checked that bcrypt hashing uses cost 12 with
+select: false on the user schema. I also reviewed how JwtAuthGuard and
+RegisteredUserGuard enforce authorization on the server side. Confirmed everything
+with npm run lint and npm run build (0 errors).
+
+================================================
+
+================================================
+Date: 2026-11-02
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: GEN-04, GEN-05
+
+Prompt:
+Explain how to implement GEN-04 (friendly empty states when a list or search has no results)
+and the shared pagination utilities for GEN-05 in backend/src/common. Provide guidance on
+creating PaginationQueryDto, PaginatedList<T>, paginate, and emptyPaginatedList while ensuring
+the response structure matches docs/api/openapi.yaml and handles empty results correctly.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the shared pagination
+utilities. Implemented PaginationQueryDto, PaginatedList<T>, paginate, emptyPaginatedList, and
+getPaginationOffset in backend/src/common/dto/pagination.dto.ts. Organized the exports through
+common/dto/index.ts and common/utils/index.ts to ensure consistent pagination responses and
+friendly empty states across modules. AI also assisted with reviewing the implementation and
+suggesting validation steps. Verified the changes using npm run lint (0 errors) and npm run build.
+================================================
+=
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-07a (with RolesGuard and @Roles() for ACC-11)
+
+Prompt:
+I asked the assistant to implement GitHub issue #4 (ACC-07a): an admin resets a registered user's
+or moderator's password to a temporary password, and the account must set a new password that
+meets the rules at its next login. I asked it to follow POST /api/admin/users/:id/reset-password
+in docs/api/openapi.yaml (admin only, revokes all sessions, mustChangePassword, 400/401/403/404),
+and to add the RolesGuard and @Roles() decorator that my team leader asked for, since this is
+the first admin-only endpoint.
+
+How the output was used:
+Used as the base for RolesGuard and @Roles() in common/, the AdminResetPasswordDto, the
+AdminUsersController route, AuthService.resetPasswordByAdmin, UsersService.setTemporaryPassword,
+SessionsService.revokeAllForUser, and the temporary-password check in JwtAuthGuard with
+@AllowPendingPasswordChange(). I checked it against the issue and openapi.yaml: only admins can
+call it (403 for users and moderators), the temporary password must meet the password rules, the
+account gets mustChangePassword, all its sessions are revoked, a login lockout is cleared, admin
+accounts cannot be reset, unknown ids give 404 and malformed ids 400. While the password is
+temporary, only /api/auth/me and logout work and every other protected route returns 403. The
+route lives in auth/ with the openapi URL so it does not conflict with Area 3's admin controller.
+The audit log entry (GEN-07) waits for AuditService. Verified with npm run lint, npm run build,
+local tests (including checks that fail when the role check, the session revoke or the
+temporary-password block is removed), and in Swagger as the seeded admin.
+================================================
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-08
+
+Prompt:
+I asked the assistant to implement GitHub issue #5 (ACC-08): a logged-in user changes their
+password by entering the current password and a new one that meets the rules. I asked it to
+follow PATCH /api/auth/change-password in docs/api/openapi.yaml (200, 400 for a wrong current
+password or a weak new one, 401 when not logged in, clears mustChangePassword) and to make it the
+way an account with a temporary password from ACC-07a gets unblocked.
+
+How the output was used:
+Used as the base for ChangePasswordDto, AuthService.changePassword, UsersService.setPassword and
+findByIdWithPassword, SessionsService.revokeOthers and the PATCH route. I checked it against the
+issue and openapi.yaml: the current password must be right (400 "Current password is incorrect"),
+the new one must meet the rules and differ from the current one, mustChangePassword is cleared so a
+reset account can use the other routes again, other devices are signed out while this session stays
+logged in, and wrong current passwords do not count towards the login lockout. Verified with
+npm run lint, npm run build, local tests (including checks that fail when the current-password
+check, the flag reset, the sign-out of other devices or the same-password check is removed), and
+in Swagger.
+================================================
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-09 (with GET /api/users/me for ACC-11)
+
+Prompt:
+I asked the assistant to implement GitHub issue #6 (ACC-09): any logged-in user edits name, phone
+number and preferred currency, saving only if all fields pass validation. I asked it to follow
+PATCH /api/users/me and UpdateProfileRequest in docs/api/openapi.yaml (send only the fields to
+change, phone pattern, 3-letter currency from the supported currency list of GEN-12) and to add
+GET /api/users/me so the profile can be read.
+
+How the output was used:
+Used as the base for UpdateProfileDto, UsersService.getProfile / updateProfile /
+isSupportedCurrency and the two routes in UsersController. I checked it against the issue and
+openapi.yaml: every sent field is validated and nothing is saved if one fails (including a valid
+name sent with an unsupported currency), the currency is checked against the seeded currencies
+collection (read directly so it does not depend on the reference-data module), lowercase codes
+are accepted, an empty body gives 400, and email, role, status and password can never be changed
+here (stripped by the ValidationPipe and ignored by the service). Verified with npm run lint,
+npm run build, local tests (including checks that fail when the currency check or both
+protections against extra fields are removed), and in Swagger.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: ACC-14
+
+Prompt:
+Help me plan how to implement ACC-14 (admin view of paginated accounts list). Provide
+guidance on designing a GET /api/admin/accounts endpoint with pagination, search by
+name/email, filtering by role and status, sorting newest first, and friendly empty
+states.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the endpoint.
+Implemented GET /api/admin/accounts myself, including paginated accounts listing,
+search by name/email, filtering by role and status, sorting newest first, and friendly
+empty states. AI also assisted with reviewing the implementation and identifying
+potential issues.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Claude
+Related Requirement: ACC-15, ACC-16
+
+Prompt:
+Help me plan how to implement ACC-15 and ACC-16 (admin suspension and reactivation
+of moderator and registered user accounts). Provide guidance on designing
+PATCH /api/admin/accounts/:id/suspend and PATCH /api/admin/accounts/:id/reactivate
+endpoints, including session revocation (NEW-07), in-app notifications (GEN-01),
+audit logging (GEN-07), preventing admin accounts from being suspended, conflict
+checks for already suspended or active accounts, and extra provider
+deactivation/reactivation endpoints.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the
+endpoints. Implemented PATCH /api/admin/accounts/:id/suspend and
+PATCH /api/admin/accounts/:id/reactivate myself for moderator and registered user
+accounts, along with session revocation, in-app notifications, audit logging,
+prevention of admin suspension, conflict checks, and the extra provider
+deactivation/reactivation endpoints. AI also assisted with reviewing the
+implementation and identifying potential issues.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: ACC-17
+
+Prompt:
+Help me plan how to implement ACC-17 (admin read-only view of all flight and hotel
+bookings). Provide guidance on designing a GET /api/admin/bookings endpoint with
+filtering by type (flight, hotel), status, and date range (from, to), paginated
+results matching GEN-05 (page size 10) and GEN-04 friendly empty state, mapping
+reference, user, provider, dates, amount, and status, and protecting it with admin
+guards.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the
+endpoint. Implemented ListBookingsQueryDto, AdminController.getBookings, and
+AdminService.listBookings myself, with Mongoose queries across the FlightBooking and
+HotelBooking collections.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-07
+
+Prompt:
+Help me plan how to implement GEN-07 (audit log of admin actions). Provide guidance
+on designing the AuditLog schema, structuring an AuditService with record() and list()
+methods, exposing GET /api/admin/audit-logs with filtering by action and date range
+(from, to), GEN-05 pagination (page size 10) and GEN-04 empty state, and connecting
+the reset-password admin action to the audit log.
+
+How the output was used:
+Used AI guidance to understand the implementation approach and structure the module.
+Created the AuditLog schema, ListAuditLogsQueryDto, AuditService, and AuditController
+myself, added the AuditAction enum, and linked password reset audit recording in
+AdminUsersController. AI also assisted with reviewing the implementation and
+identifying potential issues.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-09
+
+Prompt:
+Help me implement GEN-09 (report a post, comment, review or itinerary with a reason,
+at most once per item). Provide guidance on designing the Report schema with compound
+uniqueness ({ reporterId: 1, contentType: 1, contentId: 1 }), defining CreateReportDto
+and ListReportsQueryDto, verifying target content existence and visibility, preventing
+duplicate reports with 409 Conflict, handling double-click races, protecting user
+reporting with JwtAuthGuard and RolesGuard (Role.User only), admin list view with
+RolesGuard (Role.Admin), and updating openapi.yaml with POST /api/reports.
+
+How the output was used:
+Used AI guidance to understand the architecture, database indexing, visibility checks
+(treating private itineraries, draft posts, and hidden content as 404 for unauthorized users),
+and edge-case handling (trimming whitespace before @IsNotEmpty). Implemented the Report schema,
+CreateReportDto, ListReportsQueryDto, ReportsService, and ReportsController myself, adding the
+ContentType and ReportStatus enums, POST /api/reports route, and GET /api/admin/reports admin
+overview. Documented the new endpoint and schemas in docs/api/openapi.yaml. Verified with
+npm run lint (0 errors) and npm run build.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: GEN-12
+
+Prompt:
+I gave the assistant the repository (develop branch), the project description and my Area 5 task
+sheet, and asked it to guide me issue by issue. For GEN-12 I asked it to check what was already
+done (the seed script was already merged by the team leader) and to implement what was missing:
+Mongoose schemas for the seeded reference data collections (countries, cities, airports,
+attractions, supported currencies) using the official ids as _id, a public read endpoint for the
+supported currency list, and an exported lookup so other modules can reject unsupported currencies.
+
+How the output was used:
+Used the generated schemas in reference-data/schemas/reference-data.schema.ts (matching the
+collections and fields written by database/seed.ts), registered them in ReferenceDataModule, and
+added ReferenceDataService.listCurrencies(), isSupportedCurrency() and assertSupportedCurrency()
+with the GET /api/currencies route. Added the endpoint to docs/api/openapi.yaml as an extra endpoint.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: NEW-05
+
+Prompt:
+Continuing my Area 5 work, I asked the assistant to implement NEW-05 on top of my GEN-12 branch:
+public read endpoints for the official countries, cities (filtered by country) and attractions
+(filtered by city), following docs/requirements/ASSUMED_REQUIREMENTS.md, and exported lookups in
+ReferenceDataService so other modules (hotels, itineraries) can reject an unknown country or city,
+or a city that is not in the given country, with a 400 error.
+
+How the output was used:
+Used the generated query DTOs (list-countries, list-cities, list-attractions) with class-validator
+rules, the list methods and the lookups assertCountry(), assertCountries(), assertCity() and
+assertCityInCountry() in ReferenceDataService (same error messages as the temporary check in
+hotels.service.ts so Area 7 can switch to them), and the routes GET /api/countries, /api/cities and
+/api/attractions. Added the three endpoints to docs/api/openapi.yaml as extra endpoints.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-02
+
+Prompt:
+Continuing my Area 5 work on top of my NEW-05 branch, I asked the assistant to implement FLT-02:
+GET /api/airports returning the predefined, read-only airport list (IATA code, name, city,
+country, IANA time zone) exactly as documented in docs/api/openapi.yaml, with the search, city and
+country filters and pagination, and an exported airport lookup so flight creation and flight
+search accept only airports from this list.
+
+How the output was used:
+Used the generated ListAirportsQueryDto with class-validator rules, ReferenceDataService
+listAirports() (search by IATA code, airport name or city name; unknown city or country filter
+rejected with 400; city name added to each item) and the lookups findAirport() and assertAirport()
+for Area 5 flights and Area 6 flight search, and the GET /api/airports route. Updated the
+/api/airports entry in docs/api/openapi.yaml (response example and the 400 case).
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-01
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-02 branch, I asked the assistant to implement FLT-01
+exactly as documented in docs/api/openapi.yaml: the airline schema (name, unique code, one logo,
+active flag used by the admin deactivate/reactivate code from ACC-15), POST /api/airlines for
+admins, the public GET /api/airlines/:id, and PATCH /api/airlines/:id for the airline's own
+moderator only, with the logo sent as multipart/form-data (JPG or PNG, at most 5 MB, GEN-08).
+
+How the output was used:
+Used the generated Airline schema, CreateAirlineDto and UpdateAirlineDto, AirlinesService
+create(), findPublic(), update() and findManagedAirline() (404 unknown airline, 403 not its
+moderator or deactivated airline, 409 duplicate code), the controller routes with JwtAuthGuard,
+RolesGuard and FileInterceptor, and airline-logo.ts, which checks the logo type from the file
+bytes and its size and stores it under uploads/airlines (the shared GEN-08 upload code is not
+merged yet). Kept the existing getBookingPolicies()/getRefundTier() stubs for FLT-08 and FLT-09.
+Added response examples to the airline endpoints in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-03 (with GEN-06 and the flight status field of FLT-30)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-01 branch, I asked the assistant to implement FLT-03
+exactly as documented in docs/api/openapi.yaml: the Flight schema with the field names already
+agreed with Area 1 in the schema file (status, departureAt, cabins with total/booked/held seat
+counters), and POST /api/flights for airline moderators, with departure and arrival entered in
+each airport's local time and stored in UTC using luxon (GEN-06), and every rejection rule listed
+in the endpoint description.
+
+How the output was used:
+Used the generated Flight and Cabin schemas (FlightStatus scheduled/cancelled/departed, unique
+index on airline + flight number + local departure date), CreateFlightDto, flight-time.ts
+(localToUtc/utcToLocal helpers with luxon, also for Area 6), FlightsService.create() with the
+rules (moderator of an active airline, airports from the FLT-02 airport list, different airports,
+future departure, arrival after departure in UTC, invalid local times such as a skipped daylight
+saving hour rejected, duplicate flight number on the same date -> 409) and the POST /api/flights
+route. Added a response example to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01, HTL-03
+Prompt:
+Asked for the HTL-01 create/edit hotel routes and HTL-03 add-room feature: Room schema following the
+Area 1 contract, CreateRoomDto, service methods with ownership checks, controller routes with
+JwtAuthGuard/RolesGuard, a temporary hotel photo helper, and a fix for Swagger sending array fields
+as one comma-separated value.
+How the output was used:
+Reviewed and adapted the code, fixed build errors, and tested every route and error case in Swagger
+(screenshots attached to the PR).
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-10
+
+Prompt:
+Help me implement GEN-10 (view open reports, resolve by dismissing, hiding content, or deleting content, and directly hide or delete content). Provide guidance on designing PATCH /api/admin/reports/:id with conflict checks for already resolved reports (409), cascade resolution of other open reports for the same item, updating MongoDB collections (posts, comments, reviews, itineraries) with hidden/deleted flags, direct content deletion (DELETE /api/admin/content/:type/:id) with 204, direct hiding (PATCH /api/admin/content/:type/:id/hide), writing moderation actions to AuditService (GEN-07), and sending in-app notifications (GEN-01).
+
+How the output was used:
+Used AI guidance to understand cascade report resolution, direct moderation workflows, and integration with audit logging and in-app notifications. Implemented ResolveReportDto, ReportsService.resolveReport, deleteContentDirect, and hideContentDirect myself, exposed PATCH /api/admin/reports/:id, DELETE /api/admin/content/:type/:id, and PATCH /api/admin/content/:type/:id/hide in ReportsController with admin guards, and updated openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-01
+
+Prompt:
+Help me implement GEN-01 (in-app notifications: unread count, notification list, mark as read, mark all read). Provide guidance on designing the Notification schema in notifications collection, creating ListNotificationsQueryDto, structuring NotificationsService with notify, list, getUnreadCount, markAsRead, and markAllAsRead, exposing GET /api/notifications, GET /api/notifications/unread-count, PATCH /api/notifications/:id/read, and PATCH /api/notifications/read-all, and documenting endpoints in openapi.yaml.
+
+How the output was used:
+Used AI guidance to design the notification schema, query pagination (GEN-05, page size 10), and ownership verification. Implemented the Notification schema, ListNotificationsQueryDto, NotificationsService, and NotificationsController myself, protecting routes with JwtAuthGuard, and updated openapi.yaml. Verified with npm run lint (0 errors) and npm run build.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-04 (with the cabin part of FLT-05)
+
+Prompt:
+Continuing my Area 5 work on the latest develop, I asked the assistant to implement FLT-04 exactly
+as documented in docs/api/openapi.yaml: POST /api/flights/:id/cabins to add a cabin class from the
+fixed set (economy, premium_economy, business, first, each at most once per flight) with a seat
+count, price in cents and free baggage allowance, and PATCH /api/flights/:id/cabins/:cabinId to
+edit them, never lowering the seat count below the seats already booked or held by Area 1's seat
+holds, and only by the moderator of the flight's airline on a scheduled flight.
+
+How the output was used:
+Used the generated CreateCabinDto and UpdateCabinDto with class-validator rules, FlightsService
+addCabin() (atomic $push that cannot add the same class twice), updateCabin() (only applies if
+the booked/held counters did not change since they were checked, otherwise re-reads and retries),
+findManagedFlight() (404 unknown flight, 403 another airline or deactivated airline) and the two
+routes. Added response examples to the cabin endpoints in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-02
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-11
+
+Prompt:
+I asked the assistant to implement GitHub issue #8 (ACC-11): bookings and private itineraries are
+accessible only to their owner, except that admins may view all bookings (ACC-17) and moderators
+the bookings of their own hotel or airline (FLT-29, HTL-22), with unauthorised requests rejected
+(403/404). JwtAuthGuard, RolesGuard and @CurrentUser() already existed, so I asked for the shared
+ownership helper from the Area 2 task sheet, following the 403/404 rules in docs/CONVENTIONS.md
+and the access notes in docs/api/openapi.yaml.
+After the pull request review (2026-11-04) I gave the assistant the reviewer's comment and the
+flight booking schema and asked it to fix the airline moderator check.
+
+How the output was used:
+Used as backend/src/common/guards/ownership.ts: assertOwner (own data, otherwise 404),
+canViewBooking / assertCanViewBooking (owner, admin, or the moderator of the booking's airline or
+hotel, otherwise 404), bookingVisibilityFilter (the MongoDB filter for booking lists per role),
+assertManagesAirline / assertManagesHotel (provider data, otherwise 403) and canViewItinerary /
+assertCanViewItinerary (public for everyone, private or hidden only for the owner, no admin
+exception). I checked every rule against the requirement and openapi.yaml and checked that the
+field names match the hotel reservation (userId, hotelId) schema. Review fix: the flight booking
+stores the airline per segment (segments.airlineId, a round trip can have two airlines), not at the
+top level, so canViewBooking now accepts segments and lets an airline moderator through if any
+segment is on their airline, and bookingVisibilityFilter filters on 'segments.airlineId'. Verified
+with npm run lint, npm run build and local unit tests for every role (including a round trip with two
+airlines and a moderator of a third airline), including checks that fail when the admin rule, the
+moderator's provider check, the segments check or the private-itinerary rule is changed.
+================================================
+
+================================================
+Date: 2026-11-03
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-12
+
+Prompt:
+I asked the assistant to implement GitHub issue #121 (ACC-12): a registered user deactivates
+their own account after confirmation; it is blocked while the user has upcoming Confirmed bookings,
+and a deactivated user cannot log in. I asked it to follow DELETE /api/users/me in
+docs/api/openapi.yaml (registered users only, 204 with the cookies cleared, 401, 403 for other
+roles, 409 for upcoming confirmed bookings, all sessions revoked) and to use the real booking
+fields from the flight booking and hotel reservation schemas.
+After the pull request review (2026-11-04) I gave the assistant the reviewer's comment and asked it
+to use the agreed hasUpcomingBookings() of the two booking services instead of reading the booking
+collections.
+
+How the output was used:
+Used as the base for the DELETE route in UsersController, AuthService.deactivateOwnAccount,
+UsersService.hasUpcomingBookings and deactivate, and the deactivatedAt field. Review fix:
+UsersService now injects FlightBookingsService and HotelBookingsService (UsersModule imports both
+modules) and calls their hasUpcomingBookings(), so deactivation and My Bookings share the NEW-01
+rule; the direct collection queries are removed. I checked it
+against the issue and openapi.yaml: admins and moderators get 403; a confirmed flight with a leg
+that has not departed (including only the return flight) or a confirmed stay that has not started
+(check-in after today; a stay that starts today no longer blocks) gives 409 and changes nothing; past, cancelled, expired, pending and other users'
+bookings do not block; on success the status becomes deactivated, every session is revoked, the
+cookies are cleared and the account can no longer log in. Hiding posts and public itineraries and
+showing "Deleted user" belong to the blog, reviews and itineraries areas, which filter on the
+deactivated status. Verified with npm run lint, npm run build, local tests (including checks that
+fail when the booking check, the session revoke or the role restriction is removed), a check that
+the whole application module graph still resolves with the two booking modules imported (no
+circular dependency, so no forwardRef was needed), and in Swagger.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-08 (endpoint also listed for FLT-04)
+
+Prompt:
+Continuing my Area 5 work on the latest develop, I asked the assistant to implement FLT-08 exactly
+as documented in docs/api/openapi.yaml: PUT /api/airlines/:id/baggage-policy, where the airline's
+own moderator sets the price per extra bag (integer cents, greater than 0) and the maximum number
+of extra bags per passenger (0 or more) for all the airline's flights, and to show the policy on
+the airline profile.
+
+How the output was used:
+Used the generated extraBagPrice and maxExtraBagsPerPassenger fields on the Airline schema (null
+and 0 until the policy is set, so no extra bags can be bought before that), BaggagePolicyDto with
+class-validator rules, AirlinesService.setBaggagePolicy() (reusing findManagedAirline: 404 unknown
+airline, 403 not its moderator or deactivated airline), the baggagePolicy object in the airline
+response and the PUT route. Updated the airline examples and the baggage-policy response in
+docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-09 (and the shared tier rule used by HTL-10)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-08 branch, I asked the assistant to implement FLT-09
+exactly as documented in docs/api/openapi.yaml: PUT /api/airlines/:id/cancellation-policy, where
+the airline's moderator replaces all cancellation tiers (unique daysBefore of 0 or more, refund
+0-100%), the shared refund rule in common/utils (the tier with the highest threshold not exceeding
+the days remaining, otherwise 0%) for airlines and hotels, and the two functions Area 1 was waiting
+for: AirlinesService.getBookingPolicies() and getRefundTier().
+
+How the output was used:
+Used the generated pickRefundTier(), findDuplicateThreshold() and sortTiers() helpers in
+common/utils, the cancellationTiers field on the Airline schema, CancellationPolicyDto with nested
+class-validator rules, AirlinesService.setCancellationPolicy() (duplicate threshold -> 400, tiers
+saved highest daysBefore first), getBookingPolicies() (name, tiers, extra-bag price and maximum, or
+null for an unknown airline) and getRefundTier() replacing the stubs, and the PUT route. Updated the
+cancellation-policy responses and the airline examples in docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-05 (with NEW-02 and GEN-01 for time changes)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-09 branch, I asked the assistant to implement FLT-05
+exactly as documented in docs/api/openapi.yaml and the agreement with Area 1 in the flight schema
+comments: PATCH /api/flights/:id for the moderator of the flight's airline, only on scheduled
+flights, with the FLT-03 rules applied again, no airport change once the flight has any booking,
+time changes copied to the bookings' segments in the same transaction, and an in-app notification
+to every passenger with a Confirmed booking when the times change.
+
+How the output was used:
+Used the generated UpdateFlightDto, FlightsService.update() (re-checks airports, future departure,
+arrival after departure in UTC and the unique flight number per date; 409 for airport changes when
+the flight has bookings or seats booked/held), the MongoDB transaction that updates the flight and
+segments.$[s].departureAt/arrivalAt of its bookings together, flight-change-notification.ts with
+the notification text in each airport's local time, notifyTimeChange() using NotificationsService
+after the commit, and the PATCH route. Registered Area 1's FlightBooking schema in FlightsModule to
+update the copied times. Added a response example to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-30
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-05 branch, I asked the assistant to implement FLT-30:
+flights have the status Scheduled, Cancelled or Departed, a flight becomes Departed once its
+departure time has passed, and only Scheduled flights are searchable, editable or bookable. I asked
+for a scheduled job in the same style as Area 1's every-minute jobs and a shared check that other
+areas (flight search, booking) can use.
+
+How the output was used:
+Used the generated FlightStatusJob with an @Cron job that runs every minute and marks Scheduled
+flights whose departure has passed as Departed in one updateMany, the isOpenFlight() and
+openFlightFilter() helpers (Scheduled and not yet departed) for Area 6 and the edit checks, and
+registered the job in FlightsModule. FlightsService now uses isOpenFlight() for the "only scheduled
+flights can be edited" rule. Added the FlightStatus schema to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: FLT-06 (with NEW-02, PAY-03 and GEN-01)
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-30 branch, I asked the assistant to implement FLT-06
+exactly as documented in docs/api/openapi.yaml and as agreed with Area 1 in the flight schema
+comments: POST /api/flights/:id/cancel for the moderator of the flight's airline, only for a
+scheduled flight, setting the flight to cancelled and calling Area 1's
+FlightBookingLifecycleService.cancelBookingsForFlight() in the same transaction, then
+finishFlightCancellation() after the commit for the 100% refunds and the notifications.
+
+How the output was used:
+Used the generated FlightsService.cancel() (404 unknown flight, 403 another airline or deactivated
+airline, 409 not scheduled or already departed; the flight update is conditional on status
+scheduled so two cancels at the same moment cannot both succeed), the transaction with
+cancelBookingsForFlight() and the finishFlightCancellation() call after it, the response with the
+cancelled flight and the numbers of cancelled bookings and ended seat holds, the cancelledAt field
+on the Flight schema, the POST route (200) and the FlightBookingsModule import in FlightsModule.
+Added a response example to docs/api/openapi.yaml.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: NEW-02
+
+Prompt:
+Continuing my Area 5 work on top of my FLT-06 branch, I asked the assistant to check NEW-02 in
+docs/requirements/ASSUMED_REQUIREMENTS.md against what FLT-05 and FLT-06 already do and to
+implement what was still missing. It found that the acceptance criterion "each affected user
+receives exactly one notification per change" was not met for time changes, because a user with
+two bookings on the same flight got two notifications.
+
+How the output was used:
+Used the generated change to FlightsService.notifyTimeChange(), which now groups the Confirmed
+bookings of the flight by user and sends one notification per user, and to
+flightTimeChangedText(), which lists all of that user's booking references. Updated the
+PATCH /api/flights/{id} description in docs/api/openapi.yaml. The other NEW-02 points (agreed
+price kept, times copied in the same transaction, 100% refunds, holds released, round trips
+cancelled as a whole) were already done in FLT-05 and FLT-06, and I listed them in the pull request.
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+
+================================================
+Date: 2026-11-04
+Student: Mostafa Elsallamy
+Tool: Claude (Claude Opus 5.5)
+Related Requirement: GEN-06
+
+Prompt:
+Finishing my Area 5 issues on top of my NEW-02 branch, I asked the assistant to check GEN-06 ("show
+flight times in each airport's local time zone") against what was already done in FLT-02 (IANA time
+zone per airport) and FLT-03 (local times entered, stored in UTC and returned in local time with
+luxon), and to add what was still useful for showing local times correctly.
+
+How the output was used:
+Used the generated utcOffset() helper in flights/flight-time.ts (luxon, daylight saving time
+included) and the new departureUtcOffset / arrivalUtcOffset fields in every flight response
+(FlightsService.toResponse), so the frontend can show e.g. "14:30 (UTC+02:00)". Updated the flight
+examples and the POST /api/flights description in docs/api/openapi.yaml. I listed in the pull
+request where the rest of GEN-06 was done (FLT-02, FLT-03, the time-change notification of FLT-05).
+I reviewed the code; the assistant verified it with a successful lint and build. Testing in
+Swagger is left to the team leader's review of the pull request.
+================================================
+Date: 2026-11-03  
+Student: Omar Ahmed Alaga
+Tool: Copilot  
+Related Requirement: FLT-17
+
+**Prompt:**
+
+Implement FLT-17: Flight Details.
+
+Create an endpoint `GET /api/flights/:id` that retrieves flight details by flight ID.
+
+The response should include:
+- Airline information.
+- Flight number.
+- Departure and arrival airport information.
+- Departure and arrival times displayed in the respective airports' local time zones.
+
+Use the existing NestJS and Mongoose project structure. Follow the existing controller, service, validation, error-handling, and Swagger documentation conventions. Keep the implementation within the flights module and avoid unrelated changes.
+
+**How the output was used:**
+
+The AI-generated output was used as a starting point for implementing the FLT-17 flight details functionality. The generated code was reviewed and adjusted to match the existing project structure and conventions.
+
+The endpoint was tested through Swagger using a valid flight ID and an invalid or non-existing ID. The response was checked to verify the flight information and local airport times.
+================================================
+================================================
+Date: 2026-11-04
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-07
+
+Prompt:
+Implement and test DELETE /api/itineraries/:id/days/:dayId with confirmation, ownership,
+renumbering, date recalculation, and the documented error statuses.
+
+How the output was used:
+Added the guarded controller route, service deletion logic, validation for confirm=true,
+focused unit coverage, and matching OpenAPI documentation. Verification uses npm run lint,
+npm run build, and the focused Jest test.
+================================================
+Date: 2026-11-03
+Student: Abdallah Mahmoud
+Tool: Codex
+Related Requirement: ITN-03
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #56 (ITN-03). Implement ITN-03 on branch
+feature/ITN-03-list-view-itineraries: list the logged-in user's own itineraries showing title,
+countries, start date and number of days through GET /api/itineraries, and view one own itinerary
+in full through GET /api/itineraries/:id. Follow the issue, docs/api/openapi.yaml,
+docs/CONVENTIONS.md and the existing code patterns. Use PaginationQueryDto, paginate and
+emptyPaginatedList from backend/src/common with 10 per page (GEN-04, GEN-05) and the paginated
+response shape in openapi.yaml. Another user's itinerary must give 404, a malformed id 400 and no
+login 401. Add local unit tests for the main rules. Public viewing (ITN-21) and every other ITN
+requirement are left for their own issues.
+
+How the output was used:
+Used as the base for the list query DTO, the list and detail methods in ItinerariesService and the
+two GET routes. I checked it against the issue and openapi.yaml: only the logged-in user's
+itineraries are listed, 10 per page with the pagination fields from common/, an empty list returns
+the friendly empty result, the detail route returns the days in order, and another user's id gives
+404. Verified with npm run lint, npm run build, local tests and in Swagger (page 1 and 2, empty
+list, another user's itinerary, no login).
+================================================
+Date: 2026-11-03
+Student: Abdallah Mahmoud
+Tool: Codex
+Related Requirement: ITN-05
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #57 (ITN-05). Implement ITN-05 on branch
+feature/ITN-05-add-edit-days: add days to the user's own itinerary and edit each day's city
+(selected from the seeded cities) through POST /api/itineraries/:id/days and PATCH
+/api/itineraries/:id/days/:dayId. Follow the issue, docs/api/openapi.yaml, docs/CONVENTIONS.md and
+the existing code patterns. Every change must renumber the days and recompute each date (start date
++ position) in one reusable helper that ITN-07, ITN-08 and ITN-09 will reuse. The city must exist in
+the seeded cities (read the seeded collection directly, or use Area 5's lookup if it is merged, so
+this module does not depend on unmerged code), otherwise return a clear 400. Keep the day structure
+stable because Area 6 depends on it. Add local unit tests for the helper and the main rules. Delete,
+reorder and city groups are left for their own issues.
+
+How the output was used:
+Used as the base for the day DTOs, the add and edit methods in ItinerariesService, the shared
+renumber and date helper and the two routes. I checked it against the issue and openapi.yaml: a new
+day gets the next position and its date is the start date plus its position, the city must exist in
+the seeded cities (400 otherwise), a day that is not in this itinerary or an itinerary of another
+user gives 404, and the position numbers always stay consecutive. Verified with npm run lint,
+npm run build, local tests and by testing every valid and invalid case in Swagger.
+================================================
+Date: 2026-11-03
+Student: Abdallah Mahmoud
+Tool: Opus 5.5
+Related Requirement: ITN-09
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #60 (ITN-09). Implement ITN-09 on branch
+feature/ITN-09-city-groups: every itinerary day has a city, and consecutive days in the same city
+are returned as one city group in GET /api/itineraries/:id (no new endpoint). Follow the issue,
+docs/api/openapi.yaml for the group shape, docs/CONVENTIONS.md and the existing code patterns. Reuse
+the renumber and date helper from ITN-05 so the groups are recomputed after every day change. For
+example days 1-2 Cairo, day 3 Luxor and days 4-5 Cairo give three groups, not two. Keep the day and
+group structure stable because Area 6 depends on it. Add a local unit test for the grouping logic
+with that example. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the city group computation, its hook into the day helper and the groups in the
+itinerary response. I checked it against the issue and openapi.yaml: only consecutive days with the
+same city are grouped, the group shows its city and its day numbers, and the groups are correct
+after adding a day and after editing a city. Verified with npm run lint, npm run build, a local unit
+test of the grouping example and in Swagger.
+=========================================
+==================================================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-12
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #62 (ITN-12). Implement ITN-12 on branch
+feature/ITN-12-activity-images: attach images to and remove images from an activity through POST
+/api/activities/:id/images and DELETE /api/activities/:id/images/:imageId. Follow the issue,
+docs/api/openapi.yaml (the multipart request and status codes), docs/CONVENTIONS.md and the existing
+code patterns. Use the shared media-upload rule (GEN-08) from Area 4 and do not write own upload
+rules. If it is not merged yet, use a clearly marked placeholder that I can replace. Only the owner
+can change an activity's images; another user's activity or an image that is not on it gives 404.
+Deleting an activity (ITN-10) or a day (ITN-07) must not leave orphaned image files. Add local unit
+tests for the main rules. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the image schema on the activity, the attach and remove methods and the two
+routes. I checked it against the issue and openapi.yaml: the upload goes through the shared rule
+(allowed types, size and number of images), removing an image removes it from the activity, and
+another user's activity gives 404. Verified with npm run lint, npm run build, local tests and in
+Swagger with a wrong file type, a file that is too large and another user's activity.================================================
+Date: 2026-11-03
+Student: Abdallah Mahmoud
+Tool: Codex
+Related Requirement: ITN-08
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #59 (ITN-08). Implement ITN-08 on branch
+feature/ITN-08-reorder-days: move a day to a new position through PATCH
+/api/itineraries/:id/days/reorder, declared before the /days/:dayId route so "reorder" is not read
+as an id. Follow the issue, docs/api/openapi.yaml (the request body and status codes),
+docs/CONVENTIONS.md and the existing code patterns. The day must belong to the itinerary and the
+new position must be in range, otherwise return a clear 400. After the move the days are renumbered
+and every date and city group is recomputed with the existing helpers, and each day's activities,
+images and budget entries move with it. Another user's itinerary gives 404. Add a local unit test
+that moves day 3 of 4 to position 1. Every other ITN requirement is left for its own issue.
+
+How the output was used:
+Used as the base for the reorder DTO, the reorder method in ItinerariesService and the PATCH route.
+I checked it against the issue and openapi.yaml: an out-of-range position and a day from another
+itinerary are rejected, the new order, dates and city groups are correct, and each day's content
+moved with it. Verified with npm run lint, npm run build, local tests and in Swagger.
+================================================
+Date: 2026-11-04
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-03
+
+Prompt:
+Implement only BLG-03 (GitHub issue #72) on feature/BLG-03-list-own-posts-Alamy. Implement the
+existing GET /api/posts/mine contract for the authenticated registered user, including their drafts.
+Use the optional PostStatus filter, shared page query and 10-item pagination. Return only id, title,
+status, date, likeCount and commentCount, newest first. Derive ownership from the authenticated
+session, add focused tests, and do not implement other Blog requirements. Preserve pending BLG-08
+work and do not commit or merge.
+
+How the output was used:
+Used Codex-generated implementation changes for the BLG-03 query DTO, controller route, service
+query and tests. Reviewed them against the repository issue export, OpenAPI contract, Post schema,
+auth interface and shared pagination helpers. OpenAPI was updated only to document the 403 response
+for the registered-user role restriction. The full backend test command passed (3 suites, 13 tests),
+the Nest build and lint passed, and OpenAPI YAML parsed successfully. GitHub issue #72 could not be
+fetched in this environment; the local issue export was used. Manual Swagger and live MongoDB testing
+have not been performed.
+================================================
+
+Date: 2026-11-03
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-01
+
+Prompt:
+Implement only BLG-01 (GitHub issue #70) on feature/BLG-01-create-post-Alamy. Follow
+docs/api/openapi.yaml and the Blog scaffolding, create posts as draft or published for the
+authenticated registered user, validate title/body/tags, set hidden false, and keep image uploads
+and attachment out of scope for BLG-01. Add isolated automated tests and update the approved
+CreatedPost response contract in OpenAPI.
+
+How the output was used:
+Used AI-generated implementation changes for the Post model, create DTO, service, controller,
+module registration, OpenAPI response, and unit tests. The generated changes were reviewed and
+adjusted to the repository conventions. The automated test suite passed (2 suites, 23 tests), and
+the backend build passed. Targeted ESLint checks passed. After Atlas connectivity was restored,
+the student completed the manual Swagger tests. Codex did not directly observe those manual tests.
+================================================
+
+Date: 2026-11-04
+Student: Ibrahim Alalamy
+Tool: Codex
+Related Requirement: BLG-08
+
+Prompt:
+Implement BLG-08 using the existing PATCH /api/posts/{id} and GET /api/tags/{tag}/posts
+contracts. Preserve the shared UpdatePostRequest fields for future BLG-04 work, support tags-only
+updates including clearing tags, apply the existing normalization and five-tag/30-character rules,
+and restrict updates to the authenticated author. Implement public case-insensitive, newest-first,
+paginated tag browsing with drafts, hidden posts and posts by deactivated authors excluded. Defer
+GET /api/posts?tag=... to BLG-11. Add automated tests, keep OpenAPI aligned, and do not commit or
+merge.
+
+How the output was used:
+Used Codex-generated code as the starting point for the tag update DTO and service behavior, the
+existing tag browsing route, and focused unit tests. Reviewed the implementation against the existing
+OpenAPI contract, shared pagination helpers, Post/User schemas and project conventions. The full
+backend test command passed (4 suites, 23 tests), the Nest build and lint passed, and the OpenAPI YAML
+parsed successfully. Manual Swagger and live MongoDB testing have not yet been performed.
+================================================
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Codex
+Related Requirement: ITN-14
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #63 (ITN-14). Implement ITN-14 on branch
+feature/ITN-14-budget-entries: add, edit and delete non-negative budget entries for each day across
+food, accommodation, in-city transport and activities, each in a selected currency, through POST
+/api/itineraries/:id/days/:dayId/budgets, PATCH /api/budgets/:id and DELETE /api/budgets/:id, and
+show the itinerary's total budget broken down by category and by day through GET
+/api/itineraries/:id/budget-summary. Follow the issue, docs/api/openapi.yaml, docs/CONVENTIONS.md
+and the existing code patterns. The totals include the budget entries, the activity costs from
+ITN-10 (counted under Activities) and the intercity transport entries from ITN-16. Reject negative
+amounts and unknown categories with a clear 400, and check the currency against the supported
+currency list (GEN-12). The PATCH and DELETE routes only receive the budget id, so the service must
+find the itinerary and day that contain it and check ownership; another user's entry gives 404.
+Compute the totals on the fly from the stored entries so that deleting or reordering a day (ITN-07,
+ITN-08) recalculates them automatically, and add the budget subtotal to each city group returned by
+GET /api/itineraries/:id (ITN-09). Without conversion, never add amounts of different currencies
+together: return the totals per currency and leave a marked extension point for the converted total
+(ITN-18). Add local unit tests for the main rules. Every other ITN requirement is left for its own
+issue.
+
+How the output was used:
+Used as the base for the budget entry schema, its DTOs, the budget methods in ItinerariesService,
+the budget summary and the budget routes. I checked it against the issue and openapi.yaml: amounts
+cannot be negative, only the four categories are accepted, the currency must be a supported one, the
+totals by category and by day include budget entries, activity costs and transport entries, each city
+group shows its subtotal, and another user's entry gives 404. Verified with npm run lint,
+npm run build, local tests and in Swagger, including a day delete and a reorder.
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-20
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #66 (ITN-20). Implement ITN-20 on branch
+feature/ITN-20-visibility: the owner sets an itinerary's visibility to Public or Private through
+PATCH /api/itineraries/:id, and public itineraries are listed in the shared search through GET
+/api/itineraries/public/search without keyword filtering, declared before the /:id route so
+"public" is not read as an id. Follow the issue, docs/api/openapi.yaml, docs/CONVENTIONS.md and the
+existing code patterns. New itineraries stay Private, an invalid value gives a clear 400, and
+another user's itinerary gives 404. Setting Private removes the itinerary from the search
+immediately, and deleting an itinerary (ITN-01) removes it too. The public list needs no login (guests
+can search), returns only Public itineraries that are not hidden (the hidden flag belongs to Area 3
+and must not be renamed), never shows private data, and uses paginate and emptyPaginatedList with 10
+per page. Add local unit tests for the main rules. Keyword search, filters, public view and cloning
+(ITN-21) are left for their own issue.
+
+How the output was used:
+Used as the base for the visibility field in the update DTO, the visibility check in
+ItinerariesService and the public list route. I checked it against the issue and openapi.yaml: only
+the owner can change visibility, the default is Private, private and hidden itineraries never appear
+in the public list, a guest can call the list, switching to Private removes the itinerary at once,
+and the list is paginated with the friendly empty result. Verified with npm run lint, npm run build,
+local tests and in Swagger by making an itinerary Public, finding it in the public list as a guest
+and making it Private again.
+
+================================================
+Date: 2026-11-05
+Student: Abdallah Mahmoud
+Tool: Copilot
+Related Requirement: ITN-21
+
+Prompt:
+I am on Area 8 and want to finish GitHub issue #67 (ITN-21). Implement ITN-21 on branch
+feature/ITN-21-public-search-clone: let a guest or a registered user search public itineraries by
+keyword matching title, country or city, and filter them by duration (min and max days) and by
+country or city, through GET /api/itineraries/public/search; view a public itinerary read-only with
+author, days, activities and budget through GET /api/itineraries/public/:id; and let a registered
+user clone it through POST /api/itineraries/:id/clone. Follow the issue, docs/api/openapi.yaml (the
+query parameter names), docs/CONVENTIONS.md and the existing code patterns. Search and view need no
+login (guests allowed); clone needs login. The keyword search is case-insensitive, trimmed, escaped
+before it is used in a query, limited to Public itineraries that are not hidden, and paginated with
+10 per page. A min days larger than max days gives a clear 400. A private, hidden or missing
+itinerary gives 404 on view and clone. The clone includes all days, activities and budgets with new
+ids, belongs to the logged-in user, is Private, credits the original author, is independent of the
+original, and does not copy the hidden flag. Later changes or deletion of the original never affect
+the clone. Add local unit tests for the main rules. This is the last mandatory requirement of my area
+(demo scenario 9).
+
+How the output was used:
+Used as the base for the search query DTO, the search, public view and clone methods in
+ItinerariesService and the three routes. I checked it against the issue and openapi.yaml: the keyword
+matches title, country or city, the duration and place filters work together, guests can search and
+view, only Public and not hidden itineraries can be found, viewed or cloned, the copy is private with
+the original author credited, and the original is unchanged. Verified with npm run lint,
+npm run build, local tests and in Swagger by publishing an itinerary as one user and searching,
+viewing and cloning it as another (demo scenario 9).
+================================================
+Date: 2026-11-04
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-04
+Prompt:
+Asked for POST /api/hotels/:id/rooms/:roomId/availability: add a bookable date range to a room, with
+inclusive dates, validation of real calendar dates, and a rule that the room's ranges must not overlap.
+How the output was used:
+Reviewed the generated DTO, service method and controller route. The overlap check is one atomic
+findOneAndUpdate so concurrent requests cannot both succeed. Fixed lint formatting, ran build and tests,
+and tested every case in Swagger (screenshots attached to the PR).
+================================================
+================================================
+Date: 2026-11-04
+Student: Salaheldin Mahmoud
+Tool: ChatGPT
+Related Requirement: HTL-04
+Prompt:
+Asked the assistant to resolve the merge conflicts after merging develop into feature/HTL-04-room-availability
+(hotels.service.ts, hotels.controller.ts, AI_PROMPTS.txt) and to report build, test and lint status.
+How the output was used:
+Reviewed the resolved files against the expected routes and methods, and confirmed build, tests and lint pass.
+================================================
+Date: 2026-11-06
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: BLG-04, BLG-06, BLG-07, BLG-09
+
+Prompt:
+Implement the Blog batch BLG-04, BLG-06, BLG-07 and BLG-09 on
+feature/BLG-04-06-07-09-blog-management-Alamy. Preserve BLG-01, BLG-03, BLG-05 and BLG-08;
+follow the OpenAPI and repository conventions; implement owner-only post/comment edits and deletes,
+transactional likes with a unique post/user index, and published post search with pagination,
+tag filtering and author-name matching. Reuse the existing upload cleanup adapter for post image
+deletion, keep image upload out of scope, add tests, synchronize OpenAPI, and report actual checks.
+
+How the output was used:
+Used Codex to inspect the existing Blog, authentication, pagination, media and API contracts and to
+implement the four requirements. A follow-up review identified the post-image cleanup retry gap and
+the comment-creation/post-deletion race; the changes add a durable cleanup record, transactional
+comment creation, and focused rollback/retry tests. Jest passed (3 suites, 35 tests), as did the
+backend build, lint, OpenAPI YAML parsing and diff check. Search ordering/exclusion tests inspect the
+Mongo aggregation pipeline; no live MongoDB or Swagger verification has been performed.
+================================================
+Date: 2026-11-07
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: BLG-02, BLG-12
+
+Prompt:
+Implement the public post-detail endpoint and public author page according to the existing OpenAPI
+contract. Preserve existing Blog behavior; use optional cookie authentication for likedByMe, enforce
+post and comment visibility, paginate comments/posts/public itineraries independently, reuse
+UsersService and ItinerariesService, exclude private or hidden content, document the response schemas,
+and add focused automated tests.
+
+How the output was used:
+Used Codex to inspect the current branch, OpenAPI, Blog, Users, and Itineraries implementations and to
+add the detail and author-page service/controller behavior, DTOs, OpenAPI schemas, and tests. The
+changes were reviewed against repository conventions. Focused and full Jest runs passed (3 suites,
+19 tests), as did the backend build and lint. OpenAPI YAML parsing and response-reference checks
+passed. No live MongoDB or Swagger verification has been performed.
+================================================
+
+
+Date: 2026-11-07  
+Student: Omar Ahmed Alaga
+Tool: Codex  
+Related Requirement: HTL-20, HTL-22
+
+**Prompt:**
+
+Implement HTL-20 and HTL-22 for the existing hotel reservation functionality in the NestJS and Mongoose backend.
+
+The implementation should cover:
+
+- HTL-20: Allow registered users to view their hotel reservations grouped into Upcoming, Past, and Cancelled.
+- HTL-22: Allow hotel moderators to view reservations for their assigned hotel, including guest information, reservation dates, and booking status.
+- Implement reservation retrieval using the existing hotel booking and hotel modules, controllers, services, DTOs, and schemas.
+- Enforce authentication, role-based authorization, and ownership restrictions.
+- Support pagination and appropriate error handling.
+- Ensure users can only access their own reservations and hotel moderators can only access reservations belonging to their assigned hotel.
+Student: Omar Ahmed Alaga
+Tool: Codex  
+Related Requirement: FLT-25, FLT-29
+
+**Prompt:**
+
+Implement FLT-25 and FLT-29 for the existing flight booking functionality in the NestJS and Mongoose backend.
+
+The implementation should cover:
+
+- FLT-25: Allow registered users to view their flight bookings grouped into Upcoming, Past, and Cancelled.
+- FLT-29: Allow airline moderators to view bookings for their flights, including booking references, passenger names, cabin information, and booking details.
+- Implement a CSV export of passenger information for a specific flight.
+- Use the existing flight booking and flight modules, controllers, services, DTOs, and schemas.
+- Enforce authentication, role-based authorization, and ownership restrictions.
+- Support pagination and consistent error handling where applicable.
+- Update Swagger documentation for the relevant endpoints.
+- Preserve existing functionality and avoid unrelated changes.
+
+**How the output was used:**
+
+Codex was used to assist with implementing hotel reservation retrieval for registered users (HTL-20) and hotel moderator reservation lists (HTL-22).
+
+The generated code was reviewed and adapted to the existing NestJS and Mongoose backend structure.
+
+The implementation was checked for reservation grouping, ownership restrictions, moderator authorization, pagination, and correct reservation information.
+Codex was used to assist with implementing the flight booking lists (FLT-25) and airline moderator flight manifests (FLT-29).
+
+The generated code was reviewed and adapted to the existing NestJS and Mongoose backend structure.
+
+The implementation was checked for booking grouping, user ownership restrictions, moderator authorization, pagination, and passenger CSV export.
+
+The relevant endpoints were tested through Swagger using valid requests, invalid inputs, and unauthorized access scenarios.
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: HTL-05
+
+Prompt:
+I want to finish GitHub issue #36 (HTL-05) on its own branch feature/HTL-05-edit-room. Let the
+moderator assigned to a hotel edit a room's beds, maximum occupancy and price per night through
+PATCH /api/hotels/:id/rooms/:roomId, and remove bookable nights through
+PATCH /api/hotels/:id/rooms/:roomId/availability with action remove. Follow the issue,
+docs/api/openapi.yaml, docs/CONVENTIONS.md, the room schema agreed with Area 1 and the ownership
+helper. Only the fields sent change and at least one must be sent. Price changes must not affect
+existing reservations. Removing nights splits a bookable range when needed, both ends of a range
+are included, and it is refused for nights that have a Confirmed reservation or a hold that is
+still being paid, using Area 1's RoomInventoryService. The check and the write must be safe when a
+hold is saved at the same moment. Give clear 400, 401, 403, 404 and 409 errors, keep the code in
+separate files so it does not conflict with the open HTL-04 pull request, and add local tests.
+
+How the output was used:
+Used as the base for UpdateRoomDto, UpdateRoomAvailabilityDto, the range helpers, RoomsService and
+RoomsController. I checked it against the issue and openapi.yaml: only the moderator of the hotel
+can change its rooms, the room number and type stay the same, prices on existing reservations are
+untouched because Area 1 stores them on the reservation, removing nights in the middle of a range
+leaves two ranges, and nights with reservations cannot be removed. The change runs in one
+transaction that reads and writes the room, so it conflicts with a hold saved at the same moment
+and one of them runs again. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-06
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-06
+
+Prompt:
+I want to finish GitHub issue #37 (HTL-06) on its own branch feature/HTL-06-block-deactivate-delete-room,
+on top of my HTL-05 branch. Let the moderator assigned to a hotel block and unblock nights of a room
+through PATCH /api/hotels/:id/rooms/:roomId/availability with action block or unblock, deactivate or
+activate a room through PATCH /api/hotels/:id/rooms/:roomId with active false or true, and delete a
+room through DELETE /api/hotels/:id/rooms/:roomId. Follow the issue, docs/api/openapi.yaml and the
+room schema agreed with Area 1. A block is refused if the nights overlap a Confirmed or Pending
+Payment reservation, and overlapping blocks are joined. Deactivation is refused while the room has
+a Confirmed or Pending Payment reservation from today on. Only a room that was never reserved can
+be deleted, otherwise the moderator is told to deactivate it. Use Area 1's RoomInventoryService,
+lastReservedAt and the reservation index on rooms.roomId, make every check safe when a hold is saved
+at the same moment, give clear 400, 401, 403, 404 and 409 errors and add local tests.
+
+How the output was used:
+Used as the base for the block, unblock, deactivate and delete logic in RoomsService, the DELETE
+route and the range join helper. I checked it against the issue and openapi.yaml: a block over a
+reservation gives 409 with the nights, unblocking part of a block splits it, a room with a stay
+from today on cannot be deactivated but can still be edited, past stays do not stop a deactivation,
+and a room that was ever held or reserved cannot be deleted. Each change runs in one transaction
+that reads and writes the room, so it conflicts with a hold saved at the same moment and one of
+them runs again. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-15
+
+Prompt:
+I want to finish GitHub issue #43 (HTL-15) on its own branch feature/HTL-15-available-rooms, on top
+of my HTL-06 branch. Add GET /api/hotels/:id/rooms/available with checkIn, checkOut and page, open
+to everyone. List the active rooms of an active hotel that are free for every night of the stay,
+cheapest first, with the number of nights, the total stay price in cents and the platform currency,
+10 per page. A room is free with the same rules as Area 1's hold: every night inside a bookable
+range, outside every blocked range, and not taken by a Confirmed reservation or an unexpired hold
+(RoomInventoryService). Check-out must be after check-in and check-in cannot be in the past. Put the
+free-room logic in an exported service so the hotel search (HTL-11) and Area 6 (ITN-25) can reuse
+it, follow docs/api/openapi.yaml, and add local tests.
+
+How the output was used:
+Used as the base for AvailableRoomsQueryDto, the stay date helpers, HotelSearchService and
+HotelSearchController. I checked it against the issue and openapi.yaml: deactivated rooms and rooms
+of a deactivated hotel are left out, a room needs a bookable range on every night but not on the
+departure day, blocked and reserved nights remove the room, an empty result is an empty page, and
+bad or past dates give 400. The rules match the hold, so a room shown here can be held unless
+someone takes it first. Verified with npm run lint, npm run build, local tests and in Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-11
+
+Prompt:
+I want to finish GitHub issue #41 (HTL-11) on its own branch feature/HTL-11-hotel-search, on top of
+my HTL-15 branch. Add GET /api/hotels/search, open to everyone, with city or country, checkIn,
+checkOut, guests, rooms (default 1) and page. List the active hotels that have at least that many
+free rooms for the whole stay whose combined maximum occupancy covers the guests, using the
+free-room logic from HTL-15. Each result needs the id, name, city, country, star class, first
+photo, average rating, number of ratings and the price per night of the cheapest qualifying room,
+10 per page, cheapest first. Give 400 when city and country are both missing, for bad or past
+dates, and when there are more rooms than guests. Keep the search in the exported
+HotelSearchService so Area 6 can reuse it for ITN-25, make sure /hotels/search is not matched as
+/hotels/:id, follow docs/api/openapi.yaml and add local tests.
+
+How the output was used:
+Used as the base for SearchHotelsQueryDto, HotelSearchService.search(), the qualify() rule and the
+search route. I checked it against the issue and openapi.yaml: deactivated hotels and hotels
+without enough free rooms are left out, 4 guests in 1 room need a room for 4 while 4 guests in 2
+rooms can use two rooms for 2, a search with no match is an empty page, and the search route is
+registered before GET /hotels/:id. Verified with npm run lint, npm run build, local tests and in
+Swagger.
+
+Date: 2026-11-07
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-12
+
+Prompt:
+I want to finish GitHub issue #42 (HTL-12) on its own branch feature/HTL-12-price-filter-sorting,
+on top of my HTL-11 branch. Add to GET /api/hotels/search an inclusive minPrice and maxPrice in
+cents on the price per night of the cheapest qualifying room, a minRating from 1 to 5 that leaves
+out unrated hotels, and sorting with sortBy price or rating and sortOrder asc or desc, ascending by
+default. minPrice greater than maxPrice gives 400, and invalid values give clear 400 errors. Keep it
+in the exported HotelSearchService so ITN-25 gets the same results, follow docs/api/openapi.yaml and
+add local tests.
+
+How the output was used:
+Used as the base for the new query fields, the price range check and the sort order in
+HotelSearchService. I checked it against the issue and openapi.yaml: both price limits are
+included, the filter uses the price shown for each hotel, a minimum rating leaves out hotels with
+no ratings, unrated hotels come last when sorting by rating, equal ratings are sorted by price, and
+minPrice above maxPrice gives 400. Verified with npm run lint, npm run build, local tests and in
+Swagger.
+
+================================================
+Date: 2026-11-08
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: BLG-13 (#109)
+
+Prompt:
+Implement BLG-13 on feature/BLG-13-attach-itinerary-to-post-Alamy. Add the required nullable
+itineraryId DTO, an optional Itinerary reference on Post, and PATCH /api/posts/{id}/itinerary for
+the authenticated author. Reuse ItinerariesService.getOne(itineraryId, userId) for ownership,
+support null detachment, return a documented minimal updated-post response, add focused validation,
+controller and service tests, and update OpenAPI without reimplementing BLG-01 or ITN-03.
+
+How the output was used:
+Used Codex to inspect the existing contracts and implement the BLG-13 DTO, Post reference, guarded
+controller route, service logic, response schema and focused tests. Reviewed the changes against
+the existing authentication, validation and itinerary ownership conventions. Focused Jest tests
+passed (2 suites, 16 tests), the full backend suite passed (5 suites, 36 tests), and build, lint and
+OpenAPI YAML parsing passed. No live MongoDB or Swagger verification has been performed.
+
+================================================
+Date: 2026-11-09
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-02 / Issue #33 (also closes HTL-09 / Issue #39)
+
+Prompt:
+Implement HTL-02 on feature/HTL-02-hotel-details as GET /api/hotels/:id, following the
+authoritative requirements and docs/api/openapi.yaml. Return the active hotel's profile, photos,
+amenities, check-in and check-out times, cancellation tiers, average rating and rating count.
+Support optional checkIn, checkOut and guests query parameters, reuse the existing HTL-15 free-room
+logic and stay-date validation, reject incomplete or invalid dates, filter rooms by guests'
+minimum occupancy, and update the OpenAPI response documentation. Keep the change limited to the
+hotels area and create a separate branch from develop.
+
+How the output was used:
+Used the generated hotel-details DTO, public controller route and HotelsService.getHotelDetails().
+The implementation reuses HotelSearchService.findFreeRooms() and parseStay(), returns fallback
+policy times of 14:00 and 12:00, sorts cancellation tiers by daysBefore, hides internal fields
+and photo filenames, and returns 404 for unknown or deactivated hotels. I reviewed the response
+against the issue and openapi.yaml, added the concrete OpenAPI response schema and example, and
+verified targeted ESLint, the backend build and the complete Jest suite. Swagger testing remains
+for team review.
+
+================================================
+Date: 2026-11-09
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-08 / Issue #38
+
+Prompt:
+Implement HTL-08 on feature/HTL-08-room-calendar as GET /api/hotels/:id/availability, following
+docs/api/openapi.yaml and the agreed hotel-bookings inventory contract. Restrict it to the moderator
+of the requested hotel, validate inclusive real calendar dates, paginate rooms by 10, call
+RoomInventoryService.findTakenNights() once for all rooms on the page, query booking references
+once, and use a pure function for available/booked/blocked status precedence. Booked references
+must be nullable for unexpired holds. Add isolated unit tests for the pure calendar logic and
+document the concrete response shape in OpenAPI.
+
+How the output was used:
+Used the generated AvailabilityQueryDto, moderator-protected controller route, HotelsService
+calendar method, and availability-calendar pure function. The implementation marks booked or held
+nights before blocked rules, treats inactive rooms and nights outside inclusive available ranges as
+blocked, returns nullable references for holds, paginates rooms, and performs one inventory lookup
+plus one booking-reference query. Added tests for available, blocked, booked with and without a
+reference, inactive rooms and inclusive one-night ranges. Targeted ESLint, the backend build and
+the complete Jest suite passed; Swagger testing remains for team review.
+
+================================================
+Date: 2026-11-09
+Student: Hussien Shata
+Tool: Antigravity
+Related Requirement: GEN-01-B
+
+Prompt:
+Help me implement GEN-01-B (sending GEN-01 notifications and moderator invitations by email via SMTP using a test inbox in development). Provide guidance on designing MailModule and MailService using nodemailer, reading SMTP configuration from environment variables with graceful fallback, hooking email dispatch into NotificationsService.notify() to mirror in-app notifications by email, implementing CreateModeratorDto and AdminService.createModerator() with audit logging (GEN-07) and moderator invitation emails, and exposing POST /api/admin/moderators.
+
+How the output was used:
+Used AI guidance to structure MailModule, configure nodemailer transport with graceful degradation, integrate email dispatch into NotificationsService.notify(), and implement moderator creation (ACC-13) with invitation email delivery. Verified with npm run lint (0 errors) and npm run build.
+================================================
+Date: 2026-11-09
+Student: Omar Ahmed Alaga
+Related Requirement: ITN-25, ITN-26
+
+**Prompt:**
+
+Implement ITN-25 and ITN-26 for the existing itinerary functionality in the NestJS and Mongoose backend.
+
+The implementation should cover:
+
+- ITN-25: Allow users to select a city group within their itinerary and view available hotels for that destination.
+- ITN-26: Allow users to search for one-way or round-trip flights from a selected origin airport to a destination associated with their itinerary.
+- Reuse the existing hotel search functionality for ITN-25.
+- Reuse the existing flight search functionality (FLT-11, FLT-12, FLT-15) for ITN-26.
+- Implement the functionality using the existing itinerary, hotel, and flight modules, services, controllers, and DTOs.
+- Validate itinerary IDs, city selections, airport information, travel dates, and search parameters.
+- Enforce authentication and itinerary ownership restrictions.
+- Preserve existing hotel and flight search behavior, including filtering, sorting, and pagination.
+- Update Swagger documentation for the relevant endpoints.
+- Avoid unrelated changes.
+
+**How the output was used:**
+
+Codex was used to assist with implementing itinerary-based hotel searching (ITN-25) and flight searching (ITN-26).
+
+The generated code was reviewed and adapted to the existing NestJS and Mongoose backend structure.
+
+The implementation was checked for correct itinerary destination handling, integration with existing search services, input validation, and ownership restrictions.
+
+The relevant endpoints were tested through Swagger using valid itinerary IDs, hotel and flight search parameters, invalid inputs, and unauthorized access scenarios.
+Tool: Claude
+Related Requirement: BON-01 / Issue #110
+
+Prompt:
+Implement the bonus requirement BON-01 on branch feature/BON-01-admin-analytics-dashboard as GET /api/admin/analytics.
+Follow docs/api/openapi.yaml, ACC-17, and the repository conventions for admin endpoints.
+Create the AnalyticsQueryDto supporting optional from, to, type (airline/hotel), status, providerId, dateBy (created/travel),
+and page parameters with class-validator validation and friendly error messages.
+Implement getAnalytics in AdminService aggregating bookings and revenue per provider (airlines and hotels)
+over the selected period, computing total/confirmed/completed/cancelled/pending bookings and platform currency revenue,
+sorting by revenue descending, returning the overall summary and paginated providers (page size 10), and handling empty states.
+Add comprehensive unit tests for the DTO and service/controller, document the endpoint in docs/api/openapi.yaml,
+and report build, test and lint status.
+
+How the output was used:
+Used the generated AnalyticsQueryDto, AdminAnalyticsResponse and AdminService.getAnalytics method.
+The implementation respects the admin role guard on AdminController, seeds known providers from MongoDB collections,
+accurately tallies flight and hotel bookings by provider with integer-cent revenue, supports date range filtering by either
+creation date or travel date, validates from <= to dates, and formats responses with overall summary plus paginated provider list.
+Added unit test suites for AnalyticsQueryDto and AdminService analytics logic covering security guards, date filters, provider
+filtering, sorting, empty states (GEN-04) and pagination (GEN-05). Verified TypeScript build, Jest tests (8 suites, 64 tests),
+ESLint and OpenAPI YAML validation.
+
+================================================
+Date: 2026-11-10
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: HTL-23, HTL-24 (GitHub Issues #50 and #51)
+
+Prompt:
+Implement hotel review creation and management for completed reservations (HTL-23), and public paginated hotel reviews
+(HTL-24), following docs/api/openapi.yaml, TEAM_PLAN.md, current authentication, pagination and Mongoose conventions.
+Enforce one review per reservation, author-only edits/deletes, rating/text validation, hidden-review visibility,
+deactivated-author privacy, and concurrency-safe hotel rating aggregates. Add tests and response schemas, keep booking
+completion and HTL-26 moderator replies out of scope, update AI_PROMPTS.txt, and report verification honestly.
+
+How the output was used:
+Codex generated and revised the Review schema, DTOs, controller, service, module registration, review tests, and OpenAPI
+response schemas. The changes use transactions for review and hotel aggregate updates, the existing completed-booking
+status, and the shared pagination helper. The full backend Jest suite passed (10 suites, 67 tests), the backend build and
+lint passed, and the OpenAPI YAML parsed successfully. Manual Swagger/live Atlas verification remains outstanding.
+HTL-26 replies and booking-completion logic were not implemented.
+
+================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-19
+
+Prompt:
+I asked the assistant to implement GitHub issue #96 (ACC-19): authentication tokens and user
+credentials are never stored in localStorage, sessionStorage or any other JavaScript-accessible
+storage; access and refresh tokens are issued as httpOnly, Secure, SameSite cookies, and the
+frontend gets the current user from /auth/me. Most of this was built in ACC-04 and ACC-06, so I
+asked it to audit the whole backend for anything that still leaks a token, a password or a
+password hash, and to close the remaining gaps.
+
+How the output was used:
+Used the audit results and the NoStoreInterceptor. The audit found no leak: outside auth/ and
+users/ nothing reads passwordHash or a token, validation errors return only field names and
+messages (never the typed value), the error filter logs only the method and URL, and nothing uses
+localStorage or sessionStorage. The remaining gap was HTTP caching, so every response of the auth,
+admin password reset and users controllers now has Cache-Control: no-store. I also added the
+ACC-19 rules for the Milestone 2 frontend to frontend/README.md (credentials: 'include', user only
+in memory from /auth/me, 401 handling, logout, CORS note). Verified with npm run lint, npm run
+build, local tests (the header on success and error responses, and on all three controllers,
+including checks that fail when the interceptor is removed), and in Swagger / DevTools.
+================================================
+
+================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: NEW-07
+
+Prompt:
+I asked the assistant to implement GitHub issue #118 (NEW-07): token-based sessions with a
+short-lived access token and a rotating refresh token, both in httpOnly, Secure, SameSite cookies,
+refresh tokens stored only as hashes, rotated on each refresh, a 30-minute idle expiry, and reuse
+of a rotated or revoked refresh token rejected with 401. Login, logout and the session revocations
+already existed, so I asked for the missing refresh endpoint, following ASSUMED_REQUIREMENTS.md,
+and for it to be added to docs/api/openapi.yaml.
+
+How the output was used:
+Used as the base for POST /api/auth/refresh, SessionsService.refresh and signTokens, and the
+openapi.yaml entry. I checked it against the acceptance criteria: a refresh issues a new access
+token and a rotated refresh token (each token has a unique jti, so the new one never equals the
+old one), the old one stops working, the rotation is one conditional database update so two
+refreshes with the same token cannot both succeed, reusing a rotated token revokes the whole
+session, an idle (30 minutes), revoked, suspended or deactivated session is rejected, and both
+cookies are cleared on every failure. The refresh token and cookie now last up to 24 hours while
+the server-side idle expiry decides, so an active user is not cut off 30 minutes after login.
+Verified with npm run lint, npm run build, local tests (including checks that fail when the
+rotation, the reuse revoke or the unique token id is removed), and in Swagger.
+================================================
+
+================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-02 (bonus)
+
+Prompt:
+After all mandatory Area 2 requirements were done, I asked the assistant to implement the bonus
+GitHub issue #101 (ACC-02): send a verification link by email after registration and block
+booking until the email is verified, following GET /api/auth/verify-email in
+docs/api/openapi.yaml. Because MailService (GEN-01-B) is still empty, I chose to log the link in
+development for now, and to add the booking block through JwtAuthGuard with a decorator on the
+two booking routes.
+
+How the output was used:
+Used as the base for the EmailToken schema, EmailVerificationService, GET /api/auth/verify-email,
+the emailVerified field, the @RequireVerifiedEmail() decorator and its check in JwtAuthGuard, and
+one decorator line on POST /api/flight-bookings/hold and POST /api/hotel-bookings. I checked it:
+registration creates a one-time link valid for 24 hours and stores only its SHA-256 hash; the link
+is logged only in development and never in production; it works once (atomic update, so two
+clicks cannot both succeed); expired, wrong and empty tokens give 400; an unverified account gets
+403 on the two booking routes but can use everything else; accounts created before ACC-02 and the
+seeded admin count as verified. openapi.yaml is updated (emailVerified, the 200 body, the new
+403). Verified with npm run lint, npm run build, local tests (including checks that fail when the
+booking block, the one-time use or the rule for older accounts is removed), and in Swagger.
+================================================
+
+================================================
+Date: 2026-11-06
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ACC-07 (bonus)
+
+Prompt:
+After ACC-02, I asked the assistant to implement the bonus GitHub issue #102 (ACC-07): a user who
+forgot their password requests a reset link by email; the link expires after 30 minutes, is
+single-use, is invalidated by a newer request, and the response does not reveal whether the email
+exists. I asked it to follow POST /api/auth/forgot-password and POST /api/auth/reset-password in
+docs/api/openapi.yaml (reset revokes all sessions) and to reuse the email tokens from ACC-02,
+logging the link in development until MailService (GEN-01-B) exists.
+
+How the output was used:
+Used as the base for ForgotPasswordDto, ResetPasswordDto, PasswordResetService and the two routes.
+I checked it against the requirement: forgot-password always answers the same message; only an
+active account gets a link; a new request invalidates every older unused link; the link lasts 30
+minutes, works once (atomic update, so two requests cannot both use it) and only its hash is
+stored; a verification token cannot be used as a reset token; reset sets the new password (it must
+meet the rules), revokes every session, clears a login lockout and marks the email verified. The
+link is logged only in development, never in production. Verified with npm run lint, npm run
+build, local tests (including checks that fail when the older-link invalidation, the one-time use,
+the session revoke or the active-account check is removed), and in Swagger.
+================================================
+
+================================================
+Date: 2026-11-11
+Student: Khaled Ahmed
+Tool: Claude (Claude Code)
+Related Requirement: GEN-11, PAY-01, ACC-01, ACC-06, FLT-08, FLT-09, BLG-04, BLG-08, ITN-18, ITN-21, ITN-26, GEN-10, GEN-13
+
+Prompt:
+Summary of the conversation: "Act as an external reviewer of Milestone 1. Write system test
+suites that run the real application against MongoDB Atlas, Stripe test mode and FXRatesAPI, one
+suite per area, with the expected results taken from the requirements workbook and the project
+description. Report every requirement that fails, then fix the approved findings, each on its own
+branch with a test that fails before the fix."
+
+How the output was used:
+Added the system test suites (PR #239). Fixed the confirmed findings in PRs #240-#244 (idle expiry
+restarted on every request and inline error for a taken email, no server error on concurrent policy
+or post edits, refusing a non-test Stripe key, itinerary clone/airport/rounding/hidden-view fixes,
+consistent counts and files after an admin deletion) and gave every success response a documented
+schema checked by the system tests (PR #246). I reviewed every change and merged it only after
+lint, build, the unit tests and the system tests (199/199) passed.
+================================================
+
+================================================
+Date: 2026-11-13
+Student: Khaled Ahmed
+Tool: Claude (Claude Code)
+Related Requirement: FLT-01, HTL-01, GEN-13 (all endpoints, PDF 13.1)
+
+Prompt:
+Summary of the conversation: "Test the whole API through the real Swagger UI in a browser, every
+endpoint, as a TA would during the evaluation, following our manual test plans, and report every
+difference from the documentation."
+
+How the output was used:
+The Swagger UI run (136 operations) found two problems, fixed in PR #247 (an empty multipart form
+field on PATCH /api/airlines/:id and PATCH /api/hotels/:id now means "not changed") and PR #248
+(error examples in openapi.yaml show the real messages). Verified with the system tests and by
+repeating the failing Swagger steps.
+================================================
+
+================================================
+Date: 2026-11-17
+Student: Khaled Ahmed
+Tool: Claude (Claude Code)
+Related Requirement: PAY-02, FLT-26, HTL-21, FLT-01, HTL-01, ACC-19, GEN-13, GEN-10, BLG-09, ACC-13, GEN-08, ACC-12, PAY-03, FLT-23, GEN-09, ACC-15
+
+Prompt:
+Summary: "Act as an external senior engineer auditing Milestone 1 before submission. Use only the
+project description and the requirements workbook as the source of truth. Audit the existing tests
+(including temporarily breaking the code to see if they fail), review the code line by line
+against every requirement, look for placeholders, compare the GitHub issues with the code, test
+every endpoint in Swagger UI in Chrome and against the real database, Stripe test mode and
+FXRatesAPI. Give a report in tables, then fix only the problems I approve, each with a test that
+fails before and passes after."
+
+How the output was used:
+I approved and merged five fixes: refunds follow the cancellation tiers accepted with the policies
+(PR #250, PDF 6.4); edit forms in Swagger UI start empty and the docs explain the 15-minute
+refresh (PR #251); vulnerable production dependencies updated (PR #252); weak tests strengthened
+and missing system tests added (PR #253); hidden comments no longer counted, moderator currency
+and upload message fixed (PR #254). Verified on develop: lint, build, 171 unit tests, the full
+system suite and a full Swagger UI run in Chrome.
 ================================================

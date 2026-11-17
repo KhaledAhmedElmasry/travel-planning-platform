@@ -1,9 +1,24 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import {
+  HotelBooking,
+  HotelBookingSchema,
+} from '../hotel-bookings/schemas/hotel-booking.schema';
+import { Hotel, HotelSchema } from '../hotels/schemas/hotel.schema';
+import { User, UserSchema } from '../users/schemas/user.schema';
 import { ReviewsController } from './reviews.controller';
 import { ReviewsService } from './reviews.service';
+import { Review, ReviewSchema } from './schemas/review.schema';
 
-// TODO: register this module's schemas here with MongooseModule.forFeature([...]).
 @Module({
+  imports: [
+    MongooseModule.forFeature([
+      { name: Review.name, schema: ReviewSchema },
+      { name: HotelBooking.name, schema: HotelBookingSchema },
+      { name: Hotel.name, schema: HotelSchema },
+      { name: User.name, schema: UserSchema },
+    ]),
+  ],
   controllers: [ReviewsController],
   providers: [ReviewsService],
   exports: [ReviewsService],

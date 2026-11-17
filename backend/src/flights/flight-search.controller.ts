@@ -1,15 +1,18 @@
-import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { FlightsService } from './flights.service';
+import { Controller, Get, Query } from '@nestjs/common';
+import { SearchFlightsQueryDto } from './dto/search-flights-query.dto';
+import { FlightSearchService } from './flight-search.service';
 
 // Area: Flight Search & Booking
 // Requirements: FLT-11, FLT-12, FLT-15
-// Endpoints to implement (PDF section 8):
-//   GET /api/flights/search   FLT-11, FLT-12, FLT-15
-@ApiTags('Flights')
+// Endpoints (PDF section 8):
+//   GET /api/flights/search   FLT-11, FLT-12, FLT-15   (done)
+// Public (guests too). Validation by the global ValidationPipe (GEN-02).
 @Controller('flights')
 export class FlightSearchController {
-  constructor(private readonly flightsService: FlightsService) {}
+  constructor(private readonly flightSearchService: FlightSearchService) {}
 
-  // TODO: add the endpoint listed above.
+  @Get('search')
+  search(@Query() query: SearchFlightsQueryDto) {
+    return this.flightSearchService.search(query);
+  }
 }

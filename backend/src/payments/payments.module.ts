@@ -1,11 +1,43 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { FlightBookingsModule } from '../flight-bookings/flight-bookings.module';
+import { HotelBookingsModule } from '../hotel-bookings/hotel-bookings.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { BookingGateway } from './booking-gateway.service';
+import { FareChangeService } from './fare-change.service';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
+import { PoliciesService } from './policies.service';
+import { RefundsService } from './refunds.service';
+import { Payment, PaymentSchema } from './schemas/payment.schema';
+import { Refund, RefundSchema } from './schemas/refund.schema';
+import { stripeProvider } from './stripe.provider';
 
-// TODO: register this module's schemas here with MongooseModule.forFeature([...]).
+// FlightBookingsModule and HotelBookingsModule (hold expiry, FLT-26 / HTL-21 cancellation) use
+// PaymentsService / RefundsService while this module uses their booking services: forwardRef on
+// both sides (circular modules).
+// FLT-06 (Area 5) does not need this module: the flight cancellation calls
+// FlightBookingLifecycleService.cancelBookingsForFlight() / finishFlightCancellation(), so
+// FlightsModule imports FlightBookingsModule.
 @Module({
+  imports: [
+    MongooseModule.forFeature([
+      { name: Payment.name, schema: PaymentSchema },
+      { name: Refund.name, schema: RefundSchema },
+    ]),
+    forwardRef(() => FlightBookingsModule),
+    forwardRef(() => HotelBookingsModule),
+    NotificationsModule,
+  ],
   controllers: [PaymentsController],
-  providers: [PaymentsService],
-  exports: [PaymentsService],
+  providers: [
+    PaymentsService,
+    PoliciesService,
+    RefundsService,
+    BookingGateway,
+    FareChangeService,
+    stripeProvider,
+  ],
+  exports: [PaymentsService, RefundsService, FareChangeService],
 })
 export class PaymentsModule {}

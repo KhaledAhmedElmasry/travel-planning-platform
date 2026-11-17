@@ -15,6 +15,6 @@
 - [ ] Branch is up to date with `develop`
 - [ ] `npm run lint`, `npm run build` and `npm test` pass
 - [ ] Validation and authorization are enforced in the backend
-- [ ] Swagger summaries include requirement IDs; DTOs have examples
+- [ ] Endpoints match `docs/api/openapi.yaml`, and the file is updated for every added or changed endpoint
 - [ ] No secrets, `.env` or unrelated changes
 - [ ] `AI_PROMPTS.txt` updated (if AI was used)

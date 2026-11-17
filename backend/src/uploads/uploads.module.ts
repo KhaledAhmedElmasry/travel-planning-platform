@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
-import { UploadsController } from './uploads.controller';
 import { UploadsService } from './uploads.service';
 
-// TODO: register this module's schemas here with MongooseModule.forFeature([...]).
+// GEN-08: the shared image storage used by blog posts (BLG-10) and activities (ITN-12). The
+// upload endpoints live in the modules that own the images.
 @Module({
-  controllers: [UploadsController],
   providers: [UploadsService],
   exports: [UploadsService],
 })

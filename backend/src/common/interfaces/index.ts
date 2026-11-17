@@ -1,3 +1,19 @@
+import { Role } from '../enums';
+
 // Shared TypeScript interfaces, e.g. the authenticated user attached to the request.
 
-export {};
+// The logged-in account, set on request.user by JwtAuthGuard and read with @CurrentUser()
+// (ACC-04, ACC-11). The role and provider come from the database on every request, so a
+// suspension or role change takes effect at once.
+export interface AuthUser {
+  id: string;
+  role: Role;
+  sessionId: string;
+  // Set only for moderators (ACC-13): the one airline or hotel they manage.
+  airlineId: string | null;
+  hotelId: string | null;
+  // ACC-07a, ACC-13: true while the account still has a temporary password.
+  mustChangePassword: boolean;
+  // ACC-02 (bonus): false only for a new account that has not opened its verification link.
+  emailVerified: boolean;
+}

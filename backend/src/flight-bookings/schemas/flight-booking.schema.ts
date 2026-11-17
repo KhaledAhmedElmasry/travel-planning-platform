@@ -1,12 +1,246 @@
-// Area: Flight Search & Booking
-//
-// TODO: define the Mongoose schema for:
-//   Flight Booking and Passenger (PDF section 5 "Flight Bookings"): user, flights,
-//   passengers, baggage, agreed prices, reference, payment info, status.
-//   See FLT-12, FLT-19, FLT-22, FLT-23, GEN-11.
-//   Also needed: one or two segments (round trip, FLT-12), passenger type, hold expiry (NEW-01),
-//   policy acceptance with timestamp (PAY-02), prices agreed at booking time (NEW-02).
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
+import { BookingStatus, CabinClass, PassengerType } from '../../common/enums';
+import {
+  AcceptedTier,
+  AcceptedTierSchema,
+} from '../../payments/schemas/accepted-tier.schema';
+import {
+  PendingRefund,
+  PendingRefundSchema,
+} from '../../payments/schemas/pending-refund.schema';
+
+// Area: Payments, Holds & Booking Engine
+// Flight Booking and Passenger (PDF section 5 "Flight Bookings"): FLT-12, FLT-19, FLT-22, FLT-23,
+// FLT-26, GEN-11, FLT-05, PAY-01, PAY-02.
+// The flight details and prices are copied into the booking when it is created (a snapshot), so
+// the e-ticket and cancellation rules can be applied from the booking alone. FLT-05: later PRICE
+// changes do not change an existing booking, but TIME changes do: FLT-05 (Area 5) must update the
+// copied departureAt / arrivalAt in the same transaction (see flights/schemas/flight.schema.ts).
 //
 // Bonus FLT-27 / FLT-28: changed flight history and seat numbers per passenger.
 
-export {};
+@Schema({ _id: false })
+export class AirportSnapshot {
+  // Official airport code (e.g. CAI), the airport's _id in the reference data.
+  @Prop({ required: true })
+  code: string;
+
+  // IANA time zone (e.g. Africa/Cairo), used to show local times (FLT-02, GEN-06).
+  @Prop({ required: true })
+  timeZone: string;
+}
+const AirportSnapshotSchema = SchemaFactory.createForClass(AirportSnapshot);
+
+// One flight of the booking: one for one-way, two for a round trip (outbound first, FLT-12).
+@Schema({ _id: false })
+export class BookedSegment {
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  flightId: Types.ObjectId;
+
+  @Prop({ required: true })
+  flightNumber: string;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  airlineId: Types.ObjectId;
+
+  @Prop({ required: true })
+  airlineName: string;
+
+  @Prop({ type: String, enum: CabinClass, required: true })
+  cabinClass: CabinClass;
+
+  @Prop({ type: AirportSnapshotSchema, required: true })
+  departureAirport: AirportSnapshot;
+
+  @Prop({ type: AirportSnapshotSchema, required: true })
+  arrivalAirport: AirportSnapshot;
+
+  // Stored in UTC (FLT-03).
+  @Prop({ required: true })
+  departureAt: Date;
+
+  @Prop({ required: true })
+  arrivalAt: Date;
+
+  // Cabin fare per seat at booking time, integer cents (FLT-05).
+  @Prop({ required: true, min: 0, validate: Number.isInteger })
+  fare: number;
+
+  // The cabin's free baggage allowance at booking time (FLT-04), shown on the e-ticket.
+  @Prop({ required: true, min: 0 })
+  freeBags: number;
+
+  @Prop({ required: true, min: 0 })
+  maxBagWeightKg: number;
+}
+const BookedSegmentSchema = SchemaFactory.createForClass(BookedSegment);
+
+@Schema({ _id: false })
+export class ExtraBag {
+  @Prop({ required: true, min: 0 })
+  weightKg: number;
+}
+const ExtraBagSchema = SchemaFactory.createForClass(ExtraBag);
+
+@Schema({ _id: false })
+export class BookedPassenger {
+  @Prop({ type: String, enum: PassengerType, required: true })
+  type: PassengerType;
+
+  @Prop({ required: true, trim: true })
+  fullName: string;
+
+  // YYYY-MM-DD (a calendar date, so it is stored as text and never shifted by time zones).
+  @Prop({ required: true })
+  dateOfBirth: string;
+
+  @Prop({ required: true, trim: true })
+  passportNumber: string;
+
+  @Prop({ type: [ExtraBagSchema], default: [] })
+  extraBags: ExtraBag[];
+
+  // What this passenger pays for all segments, integer cents (infants pay 10%, FLT-12).
+  @Prop({ required: true, min: 0, validate: Number.isInteger })
+  fare: number;
+
+  // Fees for this passenger's extra bags, integer cents (FLT-08, FLT-19).
+  @Prop({ required: true, min: 0, validate: Number.isInteger })
+  baggageFee: number;
+}
+const BookedPassengerSchema = SchemaFactory.createForClass(BookedPassenger);
+
+// FLT-27 (bonus): one entry per change of a flight, newest last.
+@Schema({ _id: false })
+export class FlightChange {
+  @Prop({ required: true })
+  changeId: string;
+
+  @Prop({ type: Date, required: true })
+  at: Date;
+
+  @Prop({ type: String, enum: ['outbound', 'return'], required: true })
+  segment: 'outbound' | 'return';
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  fromFlightId: Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true })
+  toFlightId: Types.ObjectId;
+
+  @Prop({ required: true })
+  fromFlightNumber: string;
+
+  @Prop({ required: true })
+  toFlightNumber: string;
+
+  // Integer cents of the platform currency.
+  @Prop({ required: true })
+  previousTotal: number;
+
+  @Prop({ required: true })
+  newTotal: number;
+}
+
+const FlightChangeSchema = SchemaFactory.createForClass(FlightChange);
+
+export type FlightBookingDocument = HydratedDocument<FlightBooking>;
+
+@Schema({ timestamps: true })
+export class FlightBooking {
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true, index: true })
+  userId: Types.ObjectId;
+
+  // GEN-11: pending_payment -> confirmed -> completed, pending_payment -> expired,
+  // confirmed -> cancelled. Every change is a conditional update on the current status.
+  @Prop({
+    type: String,
+    enum: BookingStatus,
+    required: true,
+    default: BookingStatus.PendingPayment,
+  })
+  status: BookingStatus;
+
+  @Prop({
+    type: [BookedSegmentSchema],
+    required: true,
+    validate: (segments: unknown[]) =>
+      segments.length >= 1 && segments.length <= 2,
+  })
+  segments: BookedSegment[];
+
+  @Prop({ type: [BookedPassengerSchema], required: true })
+  passengers: BookedPassenger[];
+
+  // Seats held / booked on every segment: adults + children (infants take no seat, FLT-12).
+  @Prop({ required: true, min: 1, validate: Number.isInteger })
+  seats: number;
+
+  // Integer cents of the platform currency (PAY-04).
+  @Prop({ required: true, min: 1, validate: Number.isInteger })
+  totalAmount: number;
+
+  @Prop({ required: true, uppercase: true, minlength: 3, maxlength: 3 })
+  currency: string;
+
+  // End of the 10-minute seat hold (FLT-22, GEN-11).
+  @Prop({ required: true })
+  holdExpiresAt: Date;
+
+  // PAY-02: when the user accepted the airline's policies.
+  @Prop({ type: Date, default: null })
+  policiesAcceptedAt: Date | null;
+
+  // PAY-02, PDF 6.4: the airline's cancellation tiers as accepted with the policies; cancellations
+  // are refunded by these, not by the airline's current tiers. Absent on bookings accepted before
+  // this field existed (those fall back to the current tiers).
+  @Prop({ type: [AcceptedTierSchema], default: undefined })
+  acceptedCancellationTiers?: AcceptedTier[];
+
+  // PAY-01: the payment that confirmed the booking.
+  @Prop({ type: MongooseSchema.Types.ObjectId, default: null })
+  paymentId: Types.ObjectId | null;
+
+  // FLT-23: unique booking reference, set on confirmation.
+  @Prop({ unique: true, sparse: true })
+  reference?: string;
+
+  // Time of each status change (GEN-11).
+  @Prop({ type: Date, default: null })
+  confirmedAt: Date | null;
+
+  @Prop({ type: Date, default: null })
+  expiredAt: Date | null;
+
+  @Prop({ type: Date, default: null })
+  cancelledAt: Date | null;
+
+  // GEN-11: set when the last flight has departed (GEN-11 job).
+  @Prop({ type: Date, default: null })
+  completedAt: Date | null;
+
+  // Set only between a cancellation and its refund (PAY-03, see PendingRefund).
+  @Prop({ type: PendingRefundSchema, default: null })
+  pendingRefund: PendingRefund | null;
+
+  // GEN-01, FLT-05, FLT-06: notifications already sent for events that can be handled twice (the airline
+  // cancelling the flight), so the user gets each one once. See claimNotification().
+  @Prop({ type: [String], default: [] })
+  notified: string[];
+
+  // FLT-27 (bonus): the flights this booking was moved from, in order.
+  @Prop({ type: [FlightChangeSchema], default: [] })
+  changes: FlightChange[];
+
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export const FlightBookingSchema = SchemaFactory.createForClass(FlightBooking);
+
+// Finds the holds to expire quickly (GEN-11 job).
+FlightBookingSchema.index({ status: 1, holdExpiresAt: 1 });
+// Finds the bookings of one flight quickly (FLT-06 cancelBookingsForFlight, FLT-29 bookings and
+// passenger list).
+FlightBookingSchema.index({ 'segments.flightId': 1 });

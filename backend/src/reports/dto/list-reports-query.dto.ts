@@ -1,8 +1,21 @@
+import { IsEnum, IsOptional } from 'class-validator';
+import { PaginationQueryDto } from '../../common/dto/pagination.dto';
+import { ContentType, ReportStatus } from '../../common/enums';
+
 // Area: Community & Cross-cutting
 // Used by: GET /api/admin/reports (query)
-// Requirements: GEN-10, GEN-05
-//
-// TODO: define the DTO class with class-validator rules and @ApiProperty examples
-// for the fields this endpoint needs.
+// Requirements: GEN-09, GEN-10, GEN-05
 
-export {};
+export class ListReportsQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @IsEnum(ReportStatus, {
+    message: 'status must be a valid ReportStatus',
+  })
+  status?: ReportStatus;
+
+  @IsOptional()
+  @IsEnum(ContentType, {
+    message: 'contentType must be a valid ContentType',
+  })
+  contentType?: ContentType;
+}

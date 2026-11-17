@@ -33,13 +33,13 @@ A web platform for flight and hotel booking, itinerary planning and budgeting, a
 
 ## Getting Started (Backend)
 
-Prerequisites: Node.js 20+ and npm. For payments, also install the [Stripe CLI](https://docs.stripe.com/stripe-cli).
+Prerequisites: Node.js 20+, npm, and the [Stripe CLI](https://docs.stripe.com/stripe-cli) for payments.
 
 ```bash
 cd backend
 npm install
-cp ../.env.example .env      # then fill in the values from the team leader
-npm run seed                 # reference data + admin account (once the seed is implemented)
+cp ../.env.example .env      # then fill in the values (see below)
+npm run seed                 # official reference data + the admin account
 npm run start:dev
 ```
 
@@ -47,39 +47,77 @@ npm run start:dev
 - Swagger UI: http://localhost:3000/api/docs
 - Health check: http://localhost:3000/api/health
 
-### Using Swagger
+### Environment Variables (`backend/.env`)
 
-Open http://localhost:3000/api/docs. Every endpoint appears there once it is implemented with Swagger decorators. Authentication uses httpOnly cookies (ACC-19), so after logging in through Swagger the browser sends the cookie automatically.
+All names are listed in [.env.example](.env.example). Never commit `backend/.env`.
+
+| Variable | Needed | Purpose |
+|---|---|---|
+| `MONGODB_URI` | yes | Shared MongoDB Atlas connection string (from the team leader) |
+| `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | yes | Long random strings for the session cookies (ACC-04, ACC-19) |
+| `STRIPE_SECRET_KEY` | yes | Stripe **test mode** secret key (`sk_test_...`) |
+| `STRIPE_WEBHOOK_SECRET` | for payments | The `whsec_...` value printed by `stripe listen` (each developer has their own) |
+| `PLATFORM_CURRENCY` | yes | The single currency of all prices, payments and refunds (`USD`, PAY-04) |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | for the seed | The seeded admin account (ACC-18) |
+| `FXRATES_API_KEY` | no | FXRatesAPI key; the free endpoint also works without one (ITN-18) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` | no (bonus) | Email (GEN-01-B, ACC-02, ACC-07). Use a test inbox such as [Ethereal](https://ethereal.email). When empty, no email is sent and, outside production, the verification and reset links are written to the server log |
+| `REQUIRE_EMAIL_VERIFICATION` | no (bonus) | `true`: a new account cannot book until it opens the emailed verification link (ACC-02). Empty or `false`: new accounts can book at once |
+
+The server stops at start-up with a clear message if a required variable is missing.
 
 ### Stripe Webhooks (Local)
 
+Payments are confirmed only by the Stripe webhook (PAY-01), so keep this running while testing payments:
+
 ```bash
 stripe login
-stripe listen --forward-to localhost:3000/api/payments/webhook
+stripe listen --events payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,refund.created,refund.updated,refund.failed --forward-to localhost:3000/api/payments/webhook
 ```
 
-Copy the printed `whsec_...` value into `STRIPE_WEBHOOK_SECRET` in your `backend/.env`. Each developer has their own value.
+Copy the printed `whsec_...` value into `STRIPE_WEBHOOK_SECRET` and restart the backend.
+
+### Using Swagger
+
+Open http://localhost:3000/api/docs. Every endpoint is documented in [docs/api/openapi.yaml](docs/api/openapi.yaml) with request examples and every error response. Authentication uses httpOnly cookies (ACC-19): after `POST /api/auth/login` the browser sends the cookies automatically, and `POST /api/auth/logout` ends the session.
+
+- **After 15 minutes:** the access cookie lasts 15 minutes. If an endpoint answers `401`, call `POST /api/auth/refresh` (no body) and execute the request again. The session ends only after 30 minutes without activity (ACC-06).
+- **Edit forms (`PATCH /api/airlines/{id}`, `PATCH /api/hotels/{id}`):** start empty; fill only the fields to change. An empty field means "not changed".
+
+- **Admin:** log in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env` (created by `npm run seed`).
+- **Moderators:** the admin creates an airline (`POST /api/airlines`) or a hotel (`POST /api/hotels`), then a moderator for it with a temporary password (`POST /api/admin/moderators`). The moderator logs in and must first set a new password (`PATCH /api/auth/change-password`).
+- **Registered user:** `POST /api/auth/register`, then log in.
+- **Payments in Swagger:** send `paymentMethodId: "pm_card_visa"` (succeeds) or `"pm_card_chargeDeclined"` (fails) in `POST /api/payments`. No card data reaches the backend.
+
+### Demo: Booking a Flight in Swagger
+
+1. Airline moderator: `POST /api/flights` (airports from the seed, e.g. `CAI` → `DXB`), `POST /api/flights/{id}/cabins`, `PUT /api/airlines/{id}/baggage-policy`, `PUT /api/airlines/{id}/cancellation-policy`.
+2. User: `GET /api/flights/search`, `GET /api/flights/{id}`, `POST /api/flight-bookings` (summary), `POST /api/flight-bookings/hold` (seats held for 10 minutes).
+3. `GET /api/bookings/flight/{id}/policies`, `POST /api/bookings/flight/{id}/accept-policies`, `POST /api/payments` with `pm_card_visa`.
+4. The webhook confirms the booking: `GET /api/flight-bookings/{id}` shows the reference and payment status; `GET /api/flight-bookings/{id}/e-ticket` downloads the PDF.
+5. `POST /api/flight-bookings/{id}/cancel` refunds by the airline's tiers; `GET /api/refunds/{id}` shows the refund status.
+
+Hotels follow the same steps: the moderator adds rooms (`POST /api/hotels/{id}/rooms`), their bookable dates (`POST /api/hotels/{id}/rooms/{roomId}/availability`) and policies (`PUT /api/hotels/{id}/policies`); the user searches (`GET /api/hotels/search`), books (`POST /api/hotel-bookings`), accepts the policies and pays.
 
 ### Scripts
 
 | Command | What it does |
 |---|---|
 | `npm run start:dev` | Runs the API with hot reload |
-| `npm run seed` | Runs `src/database/seed.ts` (reference data and admin account, to be implemented) |
+| `npm run seed` | Loads the official reference data and the admin account (safe to run again) |
 | `npm run build` | Compiles to `dist/` |
 | `npm run lint` | Lints and fixes `src/` |
-| `npm test` | Runs unit tests |
+| `npm test` | Runs the unit tests |
 
 ## Reference Data
 
-The official datasets ([docs/requirements/Mock Data.xlsx](docs/requirements/Mock%20Data.xlsx)) are exported as CSV files in [backend/src/database/seed-data/](backend/src/database/seed-data/) for the seed script to load. Keep the official identifiers (`EG`, `cairo`, `CAI`, `att-1`), because the same datasets are used at evaluation (PDF section 5.1).
+`npm run seed` loads the official datasets (PDF section 5.1) from [backend/src/database/seed-data/](backend/src/database/seed-data/): countries, cities, airports (with their IANA time zones) and attractions, keeping the official ids (`EG`, `cairo`, `CAI`, `att-1`). The supported currencies are the currency codes in the countries file. The same records are used at evaluation, so do not change them.
 
 ## Documentation
 
 | Document | Contents |
 |---|---|
-| [docs/requirements/](docs/requirements/) | Official requirements workbook, reference datasets, and [assumed requirements](docs/requirements/ASSUMED_REQUIREMENTS.md) |
-| [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md) | Work areas, dependencies, timeline and design decisions |
+| [docs/requirements/](docs/requirements/) | Official requirements workbook, mock data and the GitHub issue list |
+| [docs/milestone1/](docs/milestone1/) | Project description and task sheets per work area (with the dependencies between areas) |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | Git workflow, code structure and API conventions |
-| [docs/api/](docs/api/) | API notes (Swagger UI is the live reference) |
+| [docs/api/openapi.yaml](docs/api/openapi.yaml) | Swagger documentation of every endpoint (shown at `/api/docs`) |
 | [AI_PROMPTS.txt](AI_PROMPTS.txt) | AI usage log (mandatory) |

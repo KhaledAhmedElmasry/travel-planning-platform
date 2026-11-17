@@ -1,4 +1,96 @@
 // Shared enums (roles, statuses, cabin classes, ...) used by several modules.
 // Add values here instead of repeating string literals in each module.
 
-export {};
+// Account roles (PDF section 4), openapi.yaml "Role". Registration always creates Role.User;
+// admins are seeded (ACC-18) and moderators are created by an admin (ACC-13).
+export enum Role {
+  User = 'user',
+  Admin = 'admin',
+  AirlineModerator = 'airline_moderator',
+  HotelModerator = 'hotel_moderator',
+}
+
+// Account status, openapi.yaml "AccountStatus" (ACC-01, ACC-12, ACC-15, ACC-16).
+export enum AccountStatus {
+  Active = 'active',
+  Suspended = 'suspended',
+  Deactivated = 'deactivated',
+}
+
+// The ":type" of a booking in URLs and payments (openapi.yaml "BookingType").
+export enum BookingType {
+  Flight = 'flight',
+  Hotel = 'hotel',
+}
+
+// Fixed set of cabin categories (FLT-04), openapi.yaml "CabinClass".
+export enum CabinClass {
+  Economy = 'economy',
+  PremiumEconomy = 'premium_economy',
+  Business = 'business',
+  First = 'first',
+}
+
+// Passenger types (FLT-12): adult 12+, child 2-11, infant under 2.
+export enum PassengerType {
+  Adult = 'adult',
+  Child = 'child',
+  Infant = 'infant',
+}
+
+// Booking lifecycle (GEN-11). The only transitions are pending_payment -> confirmed -> completed,
+// pending_payment -> expired, and confirmed -> cancelled.
+export enum BookingStatus {
+  PendingPayment = 'pending_payment',
+  Confirmed = 'confirmed',
+  Completed = 'completed',
+  Expired = 'expired',
+  Cancelled = 'cancelled',
+}
+
+// Content that can be reported, hidden or deleted (GEN-09, GEN-10), openapi.yaml "ContentType".
+export enum ContentType {
+  Post = 'post',
+  Comment = 'comment',
+  Review = 'review',
+  Itinerary = 'itinerary',
+}
+
+// A provider an admin can deactivate or reactivate (ACC-15), the :type of
+// /api/admin/providers/:type/:id/deactivate|reactivate, openapi.yaml "ProviderType".
+export enum ProviderType {
+  Hotel = 'hotel',
+  Airline = 'airline',
+}
+
+// Report lifecycle status (GEN-09, GEN-10), openapi.yaml "ReportStatus".
+export enum ReportStatus {
+  Open = 'open',
+  Dismissed = 'dismissed',
+  ContentHidden = 'content_hidden',
+  ContentDeleted = 'content_deleted',
+}
+
+// Admin actions recorded in the audit log (GEN-07), openapi.yaml "AuditAction".
+export enum AuditAction {
+  CreateModerator = 'create_moderator',
+  SuspendAccount = 'suspend_account',
+  ReactivateAccount = 'reactivate_account',
+  ResetPassword = 'reset_password',
+  DismissReport = 'dismiss_report',
+  HideContent = 'hide_content',
+  DeleteContent = 'delete_content',
+  DeactivateAirline = 'deactivate_airline',
+  ReactivateAirline = 'reactivate_airline',
+  DeactivateHotel = 'deactivate_hotel',
+  ReactivateHotel = 'reactivate_hotel',
+}
+
+export enum TransportMode {
+  Flight = 'flight',
+  Train = 'train',
+  Bus = 'bus',
+  Car = 'car',
+  Ferry = 'ferry',
+  Other = 'other',
+}

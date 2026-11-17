@@ -1,0 +1,28 @@
+{
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
+  "rootDir": "..",
+  "testMatch": [
+    "<rootDir>/test/system/**/*.system-spec.ts"
+  ],
+  "transform": {
+    "^.+[.](t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": "test/tsconfig.json"
+      }
+    ]
+  },
+  "testEnvironment": "node",
+  "globalSetup": "<rootDir>/test/support/global-setup.ts",
+  "globalTeardown": "<rootDir>/test/support/global-teardown.ts",
+  "testTimeout": 180000,
+  "maxWorkers": 1,
+  "setupFiles": [
+    "<rootDir>/test/support/workdir.ts"
+  ],
+  "testSequencer": "<rootDir>/test/support/sequencer.js"
+}

@@ -1,25 +1,179 @@
-import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { AuthService } from './auth.service';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { AllowPendingPasswordChange, CurrentUser } from '../common/decorators';
+import { JwtAuthGuard } from '../common/guards/auth.guard';
+import type { AuthUser } from '../common/interfaces';
+import {
+  clearAuthCookies,
+  REFRESH_COOKIE,
+  setAuthCookies,
+} from './auth-cookies';
+import {
+  AccountResponse,
+  AuthService,
+  ChangePasswordResponse,
+  MeResponse,
+  RegisterResponse,
+} from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { NoStoreInterceptor } from './no-store.interceptor';
+import {
+  PasswordResetService,
+  RESET_REQUESTED,
+} from './password-reset.service';
 
 // Area: Auth & Accounts
-// Requirements: ACC-01, ACC-03, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19, NEW-07
+// Requirements: ACC-01, ACC-04, ACC-05, ACC-06, ACC-08, ACC-19
 // Endpoints to implement (PDF section 8):
-//   POST  /api/auth/register          ACC-01, ACC-03
-//   POST  /api/auth/login             ACC-04, ACC-05
-//   POST  /api/auth/refresh           NEW-07
-//   POST  /api/auth/logout            ACC-06
-//   PATCH /api/auth/change-password   ACC-08
-//   GET   /api/auth/me                ACC-04, ACC-11, ACC-19
+//   POST  /api/auth/register          ACC-01   done
+//   POST  /api/auth/login             ACC-04, ACC-05   done
+//   POST  /api/auth/logout            ACC-06           done
+//   PATCH /api/auth/change-password   ACC-08           done
+//   GET   /api/auth/me                ACC-04, ACC-11   done
+// Extra endpoint (not in the PDF tables):
+//   POST  /api/auth/refresh           ACC-19           done
+// Notes:
+//   Tokens live only in httpOnly cookies, never in localStorage or sessionStorage (ACC-19).
 // BONUS (optional): implement only after all mandatory requirements are done (PDF section 12).
 // Bonus endpoints:
-//   GET  /api/auth/verify-email      ACC-02 (Optional)
-//   POST /api/auth/forgot-password   ACC-07 (Optional)
-//   POST /api/auth/reset-password    ACC-07 (Optional)
-@ApiTags('Auth')
+//   GET  /api/auth/verify-email      ACC-02 (Optional)   done
+//   POST /api/auth/forgot-password   ACC-07 (Optional)   done
+//   POST /api/auth/reset-password    ACC-07 (Optional)   done
+//
+// DONE (Area 3, GEN-02 / GEN-13): the global ValidationPipe and error filter are registered in main.ts.
+// ACC-19: account data is never cached by the browser or a proxy.
+@UseInterceptors(NoStoreInterceptor)
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly passwordReset: PasswordResetService,
+  ) {}
 
-  // TODO: add the endpoints listed above.
+  // ACC-01: public, guests register without logging in. A role in the body is stripped.
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  register(@Body() dto: RegisterDto): Promise<RegisterResponse> {
+    return this.authService.register(dto);
+  }
+
+  // ACC-02 (bonus): public, opened from the verification email. 400 for an invalid, expired or
+  // already used token.
+  @Get('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(
+    @Query('token') token: string,
+  ): Promise<{ message: string }> {
+    await this.authService.verifyEmail(typeof token === 'string' ? token : '');
+    return { message: 'Email verified. You can now book flights and hotels' };
+  }
+
+  // ACC-07 (bonus): public. Always the same answer, so nobody can find out which emails exist.
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    await this.passwordReset.requestReset(dto.email);
+    return { message: RESET_REQUESTED };
+  }
+
+  // ACC-07 (bonus): public, with the token from the reset link. Revokes every session.
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    await this.passwordReset.resetPassword(dto.token, dto.newPassword);
+    return { message: 'Password changed. Log in with your new password' };
+  }
+
+  // ACC-04: public. Sets the access_token and refresh_token httpOnly cookies (ACC-19)
+  // and returns the account; the frontend opens the home page of the returned role.
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AccountResponse> {
+    const { account, tokens } = await this.authService.login(dto);
+    setAuthCookies(res, tokens);
+    return account;
+  }
+
+  // ACC-19: public (the access token has usually just expired). Reads only the refresh_token
+  // cookie, rotates both tokens and sets them as new cookies. On any failure both cookies are
+  // cleared, so a dead session never leaves stale cookies behind; the frontend then sends the
+  // user to login.
+  @Post('refresh')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const cookies = req.cookies as Record<string, string> | undefined;
+    const token = cookies?.[REFRESH_COOKIE];
+    try {
+      if (!token) throw new UnauthorizedException('You must be logged in');
+      setAuthCookies(res, await this.authService.refresh(token));
+    } catch (err) {
+      clearAuthCookies(res);
+      throw err;
+    }
+  }
+
+  // ACC-06: revokes the session on the server and clears both cookies. Its tokens stop working
+  // at once, even if they have not expired yet. Other sessions of the account stay logged in.
+  // Allowed with a temporary password (ACC-07a), so the account can still log out.
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @AllowPendingPasswordChange()
+  async logout(
+    @CurrentUser() user: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.authService.logout(user.sessionId);
+    clearAuthCookies(res);
+  }
+
+  // ACC-08: change the own password with the current one. Allowed with a temporary password
+  // (ACC-07a, ACC-13): this is how such an account gets unblocked.
+  @Patch('change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @AllowPendingPasswordChange()
+  changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<ChangePasswordResponse> {
+    return this.authService.changePassword(user, dto);
+  }
+
+  // ACC-04, ACC-19: the frontend reads the logged-in account here instead of storing it.
+  // Allowed with a temporary password (ACC-07a), so the frontend can see mustChangePassword.
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @AllowPendingPasswordChange()
+  me(@CurrentUser() user: AuthUser): Promise<MeResponse> {
+    return this.authService.me(user.id);
+  }
 }
