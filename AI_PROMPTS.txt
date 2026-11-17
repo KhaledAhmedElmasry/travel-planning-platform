@@ -5,6 +5,21 @@ Every team member records the prompts that materially contributed to the project
 in chronological order, using the format below (project description, section 11).
 Add your entry in the same pull request as the work it relates to.
 
+Entry format (copy this for each new entry):
+
+================================================
+Date: YYYY-MM-DD
+Student: <Full name>
+Tool: <ChatGPT / Claude / Copilot / Gemini / ...>
+Related Requirement: <e.g. FLT-22>
+
+Prompt:
+<the prompt, or a summary of the important prompts in a multi-turn conversation>
+
+How the output was used:
+<what you used, what you changed, and how you verified it>
+================================================
+
 ================================================
 Date: 2026-11-06
 Student: Salaheldin Mahmoud
@@ -45,7 +60,7 @@ OpenAPI YAML parsing passed. Tests use mocks; no live MongoDB or manual Swagger 
 performed.
 ================================================
 Date: 2026-11-03
-Student: [Abdallah Mahmoud]
+Student: Abdallah Mahmoud
 Tool: Codex
 Related Requirement: ITN-01
 
@@ -137,19 +152,6 @@ cases. Verified with npm run lint, npm run build and npm test -- --runInBand.
 ================================================
 
 ================================================
-Date: YYYY-MM-DD
-Student: <Full name>
-Tool: <ChatGPT / Claude / Copilot / Gemini / ...>
-Related Requirement: <e.g. FLT-22>
-
-Prompt:
-<the prompt, or a summary of the important prompts in a multi-turn conversation>
-
-How the output was used:
-<what you used, what you changed, and how you verified it>
-================================================
-
-================================================
 Date: 2026-10-21
 Student: Khaled Ahmed
 Tool: Claude Code (Claude Opus 5.5)
@@ -172,7 +174,7 @@ Verified by building, linting and starting the server against a local MongoDB.
 
 ================================================
 Date: 2026-10-29
-Student: Khaled Ahmed (team leader)
+Student: Khaled Ahmed
 Tool: Claude Code (Claude Opus 5.5)
 Related Requirement: GEN-12, FLT-02, NEW-05, ACC-18
 
@@ -986,7 +988,7 @@ I reviewed the code; the assistant verified it with a successful lint and build.
 Swagger is left to the team leader's review of the pull request.
 ================================================
 Date: 2026-11-03  
-Student: Omar Ahmed Alaga  
+Student: Omar Ahmed Alaga
 Tool: Copilot  
 Related Requirement: FLT-17
 
@@ -1026,7 +1028,7 @@ focused unit coverage, and matching OpenAPI documentation. Verification uses npm
 npm run build, and the focused Jest test.
 ================================================
 Date: 2026-11-03
-Student: [Abdallah Mahmoud]
+Student: Abdallah Mahmoud
 Tool: Codex
 Related Requirement: ITN-03
 
@@ -1050,7 +1052,7 @@ the friendly empty result, the detail route returns the days in order, and anoth
 list, another user's itinerary, no login).
 ================================================
 Date: 2026-11-03
-Student: [Abdallah Mahmoud]
+Student: Abdallah Mahmoud
 Tool: Codex
 Related Requirement: ITN-05
 
@@ -1075,7 +1077,7 @@ user gives 404, and the position numbers always stay consecutive. Verified with 
 npm run build, local tests and by testing every valid and invalid case in Swagger.
 ================================================
 Date: 2026-11-03
-Student: [Abdallah Mahmoud]
+Student: Abdallah Mahmoud
 Tool: Opus 5.5
 Related Requirement: ITN-09
 
@@ -1120,7 +1122,7 @@ routes. I checked it against the issue and openapi.yaml: the upload goes through
 another user's activity gives 404. Verified with npm run lint, npm run build, local tests and in
 Swagger with a wrong file type, a file that is too large and another user's activity.================================================
 Date: 2026-11-03
-Student: [Abdallah Mahmoud]
+Student: Abdallah Mahmoud
 Tool: Codex
 Related Requirement: ITN-08
 
@@ -1208,7 +1210,7 @@ parsed successfully. Manual Swagger and live MongoDB testing have not yet been p
 
 ================================================
 Date: 2026-11-05
-Student: [Abdallah Mahmoud]
+Student: Abdallah Mahmoud
 Tool: Codex
 Related Requirement: ITN-14
 
@@ -1366,7 +1368,7 @@ passed. No live MongoDB or Swagger verification has been performed.
 
 
 Date: 2026-11-07  
-Student: Omar Ahmed Alaga 
+Student: Omar Ahmed Alaga
 Tool: Codex  
 Related Requirement: HTL-20, HTL-22
 
@@ -1382,7 +1384,7 @@ The implementation should cover:
 - Enforce authentication, role-based authorization, and ownership restrictions.
 - Support pagination and appropriate error handling.
 - Ensure users can only access their own reservations and hotel moderators can only access reservations belonging to their assigned hotel.
-Student: Omar Ahmed Alaga  
+Student: Omar Ahmed Alaga
 Tool: Codex  
 Related Requirement: FLT-25, FLT-29
 
@@ -1619,6 +1621,8 @@ Help me implement GEN-01-B (sending GEN-01 notifications and moderator invitatio
 How the output was used:
 Used AI guidance to structure MailModule, configure nodemailer transport with graceful degradation, integrate email dispatch into NotificationsService.notify(), and implement moderator creation (ACC-13) with invitation email delivery. Verified with npm run lint (0 errors) and npm run build.
 ================================================
+Date: 2026-11-09
+Student: Omar Ahmed Alaga
 Related Requirement: ITN-25, ITN-26
 
 **Prompt:**
@@ -1794,4 +1798,68 @@ meet the rules), revokes every session, clears a login lockout and marks the ema
 link is logged only in development, never in production. Verified with npm run lint, npm run
 build, local tests (including checks that fail when the older-link invalidation, the one-time use,
 the session revoke or the active-account check is removed), and in Swagger.
+================================================
+
+================================================
+Date: 2026-11-11
+Student: Khaled Ahmed
+Tool: Claude (Claude Code)
+Related Requirement: GEN-11, PAY-01, ACC-01, ACC-06, FLT-08, FLT-09, BLG-04, BLG-08, ITN-18, ITN-21, ITN-26, GEN-10, GEN-13
+
+Prompt:
+Summary of the conversation: "Act as an external reviewer of Milestone 1. Write system test
+suites that run the real application against MongoDB Atlas, Stripe test mode and FXRatesAPI, one
+suite per area, with the expected results taken from the requirements workbook and the project
+description. Report every requirement that fails, then fix the approved findings, each on its own
+branch with a test that fails before the fix."
+
+How the output was used:
+Added the system test suites (PR #239). Fixed the confirmed findings in PRs #240-#244 (idle expiry
+restarted on every request and inline error for a taken email, no server error on concurrent policy
+or post edits, refusing a non-test Stripe key, itinerary clone/airport/rounding/hidden-view fixes,
+consistent counts and files after an admin deletion) and gave every success response a documented
+schema checked by the system tests (PR #246). I reviewed every change and merged it only after
+lint, build, the unit tests and the system tests (199/199) passed.
+================================================
+
+================================================
+Date: 2026-11-13
+Student: Khaled Ahmed
+Tool: Claude (Claude Code)
+Related Requirement: FLT-01, HTL-01, GEN-13 (all endpoints, PDF 13.1)
+
+Prompt:
+Summary of the conversation: "Test the whole API through the real Swagger UI in a browser, every
+endpoint, as a TA would during the evaluation, following our manual test plans, and report every
+difference from the documentation."
+
+How the output was used:
+The Swagger UI run (136 operations) found two problems, fixed in PR #247 (an empty multipart form
+field on PATCH /api/airlines/:id and PATCH /api/hotels/:id now means "not changed") and PR #248
+(error examples in openapi.yaml show the real messages). Verified with the system tests and by
+repeating the failing Swagger steps.
+================================================
+
+================================================
+Date: 2026-11-17
+Student: Khaled Ahmed
+Tool: Claude (Claude Code)
+Related Requirement: PAY-02, FLT-26, HTL-21, FLT-01, HTL-01, ACC-19, GEN-13, GEN-10, BLG-09, ACC-13, GEN-08, ACC-12, PAY-03, FLT-23, GEN-09, ACC-15
+
+Prompt:
+Summary: "Act as an external senior engineer auditing Milestone 1 before submission. Use only the
+project description and the requirements workbook as the source of truth. Audit the existing tests
+(including temporarily breaking the code to see if they fail), review the code line by line
+against every requirement, look for placeholders, compare the GitHub issues with the code, test
+every endpoint in Swagger UI in Chrome and against the real database, Stripe test mode and
+FXRatesAPI. Give a report in tables, then fix only the problems I approve, each with a test that
+fails before and passes after."
+
+How the output was used:
+I approved and merged five fixes: refunds follow the cancellation tiers accepted with the policies
+(PR #250, PDF 6.4); edit forms in Swagger UI start empty and the docs explain the 15-minute
+refresh (PR #251); vulnerable production dependencies updated (PR #252); weak tests strengthened
+and missing system tests added (PR #253); hidden comments no longer counted, moderator currency
+and upload message fixed (PR #254). Verified on develop: lint, build, 171 unit tests, the full
+system suite and a full Swagger UI run in Chrome.
 ================================================
