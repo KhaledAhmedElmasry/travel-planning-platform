@@ -22,7 +22,7 @@ export class UploadsService {
       file.size > 5 * 1024 * 1024
     ) {
       throw new BadRequestException(
-        'Not JPG/PNG, larger than 5 MB, or the activity already has 5 images.',
+        'The image must be a JPG or PNG file of at most 5 MB.',
       );
     }
 

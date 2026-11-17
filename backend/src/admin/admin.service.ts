@@ -178,6 +178,11 @@ export class AdminService {
     @Optional() private readonly configService?: ConfigService,
   ) {}
 
+  // PAY-04: the platform currency (validated at startup, env.validation.ts).
+  private platformCurrency(): string {
+    return this.configService?.get<string>('PLATFORM_CURRENCY') ?? 'USD';
+  }
+
   // ACC-13, GEN-01-B: Create a hotel or airline moderator account
   async createModerator(
     admin: AuthUser,
@@ -227,7 +232,8 @@ export class AdminService {
       mustChangePassword: true,
       airlineId: dto.role === Role.AirlineModerator ? providerObjectId : null,
       hotelId: dto.role === Role.HotelModerator ? providerObjectId : null,
-      preferredCurrency: 'USD',
+      // PAY-04: like a registered user (ACC-01), the platform currency.
+      preferredCurrency: this.platformCurrency(),
       failedLoginAttempts: 0,
       lockUntil: null,
       deactivatedAt: null,
@@ -1065,8 +1071,7 @@ export class AdminService {
       hotelFilter.hotelId = providerObjectId;
     }
 
-    const currency =
-      this.configService?.get<string>('PLATFORM_CURRENCY') ?? 'USD';
+    const currency = this.platformCurrency();
     const providerMap = new Map<string, ProviderAnalyticsItem>();
 
     // Seed known providers from airlines collection

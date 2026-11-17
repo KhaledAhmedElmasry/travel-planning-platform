@@ -121,20 +121,23 @@ export class ReportsService {
     if (!db) return;
     let removed = false;
     await this.connection.transaction(async (session) => {
-      const result = await db
+      const deleted = await db
         .collection(this.getCollectionName(type))
-        .deleteOne({ _id: id }, { session });
-      removed = result.deletedCount === 1;
-      if (!removed) return;
+        .findOneAndDelete({ _id: id }, { session });
+      removed = deleted !== null;
+      if (!deleted) return;
       switch (type) {
         case ContentType.Comment:
-          await db
-            .collection('posts')
-            .updateOne(
-              { _id: doc.post as Types.ObjectId, commentCount: { $gt: 0 } },
-              { $inc: { commentCount: -1 } },
-              { session },
-            );
+          // A hidden comment was already taken off the count when it was hidden.
+          if (deleted.hidden === true) break;
+          await db.collection('posts').updateOne(
+            {
+              _id: deleted.post as Types.ObjectId,
+              commentCount: { $gt: 0 },
+            },
+            { $inc: { commentCount: -1 } },
+            { session },
+          );
           break;
         case ContentType.Post:
           await db.collection('comments').deleteMany({ post: id }, { session });
@@ -408,15 +411,11 @@ export class ReportsService {
 
     if (dto.action === ReportResolutionAction.Hide) {
       // Hide content in its collection
-      await this.connection.db?.collection(collectionName).updateOne(
-        { _id: contentId },
-        {
-          $set: {
-            hidden: true,
-            hiddenAt: new Date(),
-            hiddenBy: adminObjectId,
-          },
-        },
+      await this.setHidden(
+        updatedReport.contentType,
+        contentId,
+        true,
+        adminObjectId,
       );
 
       // Cascade resolution: resolve any other open reports about this content item
@@ -591,6 +590,47 @@ export class ReportsService {
     }
   }
 
+  // GEN-10, BLG-03, BLG-09: hides or unhides one item. A post's commentCount counts only the
+  // comments readers can see (it is shown in the lists and orders the blog search), so hiding a
+  // comment takes it off its post's count and unhiding puts it back, in the same transaction. Only
+  // a real change of state does that, so hiding twice (or two admins at once) counts once.
+  private async setHidden(
+    type: ContentType,
+    id: Types.ObjectId,
+    hidden: boolean,
+    adminObjectId: Types.ObjectId,
+  ): Promise<void> {
+    const db = this.connection.db;
+    if (!db) return;
+    await this.connection.transaction(async (session) => {
+      const changed = await db
+        .collection(this.getCollectionName(type))
+        .findOneAndUpdate(
+          { _id: id, hidden: hidden ? { $ne: true } : true },
+          {
+            $set: {
+              hidden,
+              hiddenAt: hidden ? new Date() : null,
+              hiddenBy: hidden ? adminObjectId : null,
+            },
+          },
+          { session },
+        );
+      if (changed && type === ContentType.Comment) {
+        await db.collection('posts').updateOne(
+          hidden
+            ? {
+                _id: changed.post as Types.ObjectId,
+                commentCount: { $gt: 0 },
+              }
+            : { _id: changed.post as Types.ObjectId },
+          { $inc: { commentCount: hidden ? -1 : 1 } },
+          { session },
+        );
+      }
+    });
+  }
+
   // GEN-10: Admin hides or unhides content directly
   async hideContentDirect(
     admin: AuthUser,
@@ -618,16 +658,7 @@ export class ReportsService {
 
     const adminObjectId = new Types.ObjectId(admin.id);
 
-    await this.connection.db?.collection(collectionName).updateOne(
-      { _id: contentObjectId },
-      {
-        $set: {
-          hidden,
-          hiddenAt: hidden ? new Date() : null,
-          hiddenBy: hidden ? adminObjectId : null,
-        },
-      },
-    );
+    await this.setHidden(type, contentObjectId, hidden, adminObjectId);
 
     if (hidden) {
       // Resolve open reports as content_hidden
