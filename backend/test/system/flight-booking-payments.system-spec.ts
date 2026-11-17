@@ -1345,4 +1345,40 @@ describe('Flight booking, payment and refunds', () => {
       expect((await owner.client.get('/api/auth/me')).status).toBe(200);
     });
   });
+
+  describe('ACC-15 deactivating an airline (Mandatory row 14, PDF 8.2 "affected parties")', () => {
+    it('notifies each user with a Confirmed booking once; the booking stays valid; a pending hold gets no message', async () => {
+      const admin = await t.admin();
+      const own = await airlineWithModerator(t);
+      const flight = await bookableFlight(own, { inDays: 20 });
+      const booked = await t.user('Booked Traveller');
+      const holding = await t.user('Holding Traveller');
+      const first = (await hold(booked, flight.id)).body.id as string;
+      const second = (await hold(booked, flight.id)).body.id as string;
+      await payAndConfirm(t, booked.client, 'flight', first);
+      await payAndConfirm(t, booked.client, 'flight', second);
+      expect((await hold(holding, flight.id)).status).toBe(201);
+
+      const off = await admin.patch(
+        `/api/admin/providers/airline/${own.airlineId}/deactivate`,
+        { reason: 'Operating licence suspended' },
+      );
+      expect(off.status).toBe(200);
+
+      const messages = (await notifications(booked.client)).filter((n) =>
+        /deactivated/i.test(n.title),
+      );
+      expect(messages).toHaveLength(1);
+      expect(messages[0].message).toContain('Operating licence suspended');
+      expect(messages[0].message).toContain('2 Confirmed flight bookings');
+      expect(
+        (await notifications(holding.client)).some((n) =>
+          /deactivated/i.test(n.title),
+        ),
+      ).toBe(false);
+      expect(
+        (await bookingDetails(booked.client, 'flight', first)).body.status,
+      ).toBe('confirmed');
+    });
+  });
 });

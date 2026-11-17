@@ -229,14 +229,30 @@ describe('RefundsService (PAY-03)', () => {
     expect(result?.status).toBe(RefundStatus.Refunded);
   });
 
-  it("returns 404 for another user's refund", async () => {
+  it("returns 404 for another user's refund (ACC-11), the owner sees it", async () => {
+    const REFUND_ID = '665f1c2a9b1e8a0012345699';
+    const OTHER_USER_ID = '665f1c2a9b1e8a0012345611';
+    // Behaves like MongoDB: a document is found only if it matches every field of the filter.
+    const stored = { _id: REFUND_ID, userId: USER_ID };
+    refundModel.findOne.mockImplementation((filter: Record<string, unknown>) =>
+      Promise.resolve(
+        Object.entries(filter).every(
+          ([key, value]) => stored[key as keyof typeof stored] === value,
+        )
+          ? fakeRefundDoc({ amount: 12500, status: RefundStatus.Refunded })
+          : null,
+      ),
+    );
+
+    await expect(service.getRefund(USER_ID, REFUND_ID)).resolves.toMatchObject({
+      amount: 12500,
+    });
+    await expect(service.getRefund(OTHER_USER_ID, REFUND_ID)).rejects.toThrow(
+      NotFoundException,
+    );
     await expect(service.getRefund(USER_ID, 'not-an-id')).rejects.toThrow(
       NotFoundException,
     );
-    refundModel.findOne.mockResolvedValue(null);
-    await expect(
-      service.getRefund(USER_ID, '665f1c2a9b1e8a0012345699'),
-    ).rejects.toThrow(NotFoundException);
   });
 
   it('updates the status from Stripe on a refund webhook', async () => {

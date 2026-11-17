@@ -102,7 +102,8 @@ describe('Blog public detail and author pages', () => {
               id === '665f1c2a9b1e8a0012345680'
                 ? {
                     _id: new Types.ObjectId(id),
-                    name: 'Deleted user',
+                    // ACC-12: the account keeps its real name; the API must hide it.
+                    name: 'Karim Saleh',
                     status: AccountStatus.Deactivated,
                   }
                 : author,
@@ -141,6 +142,8 @@ describe('Blog public detail and author pages', () => {
       { id: 'image-1', url: 'https://example.test/image.jpg' },
     ]);
     expect(JSON.stringify(response)).not.toContain('secret-key');
+    // ACC-12: a deactivated author's name is never shown.
+    expect(JSON.stringify(response)).not.toContain('Karim Saleh');
     expect(commentsQuery.sort).toHaveBeenCalledWith({ createdAt: 1, _id: 1 });
     expect(commentModel.find).toHaveBeenCalledWith({
       post: postId,
