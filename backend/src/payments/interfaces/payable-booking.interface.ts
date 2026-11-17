@@ -89,7 +89,13 @@ export interface BookingPaymentHandler {
   // The provider policies that apply to this booking (PAY-02), or null if it does not exist.
   getBookingPolicies(bookingId: string): Promise<BookingPolicies | null>;
 
-  // Stores policiesAcceptedAt on the booking (PAY-02). Must be atomic: only if the booking is
-  // still pending_payment and its hold has not expired. Returns false if that is not the case.
-  recordPolicyAcceptance(bookingId: string, acceptedAt: Date): Promise<boolean>;
+  // Stores policiesAcceptedAt and the accepted cancellation tiers on the booking (PAY-02; the
+  // refund of a later cancellation follows these tiers, PDF 6.4). Must be atomic: only if the
+  // booking is still pending_payment and its hold has not expired. Returns false if that is not
+  // the case.
+  recordPolicyAcceptance(
+    bookingId: string,
+    acceptedAt: Date,
+    cancellationTiers: CancellationTier[],
+  ): Promise<boolean>;
 }

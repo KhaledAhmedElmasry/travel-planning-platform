@@ -14,12 +14,11 @@ import { platformCurrency } from './platform-currency';
 // baggage; hotel: cancellation tiers and check-in/check-out times) and must accept them. The
 // acceptance is stored with a timestamp on the booking; PaymentsService refuses payment without it.
 //
-// Flights: done in flight-bookings.service.ts (FLT-22); the policies themselves still wait for
-// AirlinesService.getBookingPolicies() (Area 5: FLT-08, FLT-09), so GET policies answers 501 until
-// then (accepting works).
-// Hotels: done in hotel-bookings.service.ts (HTL-18); the policies themselves still wait for
-// HotelsService.getBookingPolicies() (Area 7: HTL-09, HTL-10), so GET policies answers 501 until
-// then (accepting works).
+// The policies come from the booking services: flights from AirlinesService.getBookingPolicies()
+// (FLT-04, FLT-08, FLT-09), hotels from HotelsService.getBookingPolicies() (HTL-09, HTL-10).
+// Accepting also stores a copy of the cancellation tiers on the booking, so a cancellation is
+// refunded by the policy the user accepted, even if the provider edits its tiers later
+// (PDF 6.4, FLT-26, HTL-21).
 
 export interface PoliciesResponse {
   bookingType: BookingType;
@@ -94,10 +93,17 @@ export class PoliciesService {
       );
     }
 
+    // The tiers the user is accepting now (the same ones GET policies shows).
+    const handler = this.bookings.handlerFor(bookingType);
+    const policies = await handler.getBookingPolicies(bookingId);
+    if (!policies) throw new NotFoundException('Booking not found.');
+
     const acceptedAt = new Date();
-    const recorded = await this.bookings
-      .handlerFor(bookingType)
-      .recordPolicyAcceptance(bookingId, acceptedAt);
+    const recorded = await handler.recordPolicyAcceptance(
+      bookingId,
+      acceptedAt,
+      policies.cancellationTiers,
+    );
     if (!recorded) {
       // Accepted by another request at the same moment (a double click): same answer as accepting
       // twice, the first acceptance time.

@@ -118,6 +118,19 @@ describe('PoliciesService (PAY-02)', () => {
     expect(result.acceptedAt).toBe(acceptedAt);
   });
 
+  it('stores a copy of the cancellation tiers the user accepted (PDF 6.4)', async () => {
+    await service.acceptPolicies(USER_ID, BookingType.Flight, BOOKING_ID);
+    const [, , tiers] = flightBookings.recordPolicyAcceptance.mock.calls[0] as [
+      string,
+      Date,
+      unknown,
+    ];
+    expect(tiers).toEqual([
+      { daysBefore: 30, refundPercentage: 100 },
+      { daysBefore: 7, refundPercentage: 50 },
+    ]);
+  });
+
   it('keeps the first acceptance time when accepted twice', async () => {
     const first = new Date('2026-11-01T10:00:00Z');
     flightBookings.findPayableBooking.mockResolvedValue(
