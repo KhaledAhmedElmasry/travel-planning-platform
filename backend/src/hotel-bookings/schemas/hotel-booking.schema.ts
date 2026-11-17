@@ -2,6 +2,10 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 import { BookingStatus } from '../../common/enums';
 import {
+  AcceptedTier,
+  AcceptedTierSchema,
+} from '../../payments/schemas/accepted-tier.schema';
+import {
   PendingRefund,
   PendingRefundSchema,
 } from '../../payments/schemas/pending-refund.schema';
@@ -106,6 +110,12 @@ export class HotelBooking {
   // PAY-02: when the user accepted the hotel's policies.
   @Prop({ type: Date, default: null })
   policiesAcceptedAt: Date | null;
+
+  // PAY-02, PDF 6.4: the hotel's cancellation tiers as accepted with the policies; cancellations
+  // are refunded by these, not by the hotel's current tiers. Absent on bookings accepted before
+  // this field existed (those fall back to the current tiers).
+  @Prop({ type: [AcceptedTierSchema], default: undefined })
+  acceptedCancellationTiers?: AcceptedTier[];
 
   // PAY-01: the payment that confirmed the reservation.
   @Prop({ type: MongooseSchema.Types.ObjectId, default: null })

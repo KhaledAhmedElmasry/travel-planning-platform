@@ -3,6 +3,7 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ClientSession, Connection, Model, Types } from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
+import { pickRefundTier } from '../common/utils';
 import { NotificationsService } from '../notifications/notifications.service';
 import { BookingStatus, BookingType, CabinClass } from '../common/enums';
 import { allowedFrom, canTransition } from '../payments/booking-lifecycle';
@@ -42,7 +43,8 @@ import { SeatInventoryService } from './seat-inventory.service';
 //   - cancelBookingsForFlight() + finishFlightCancellation(): POST /api/flights/:id/cancel
 //     (FLT-06; Area 5).
 //
-// The refund tier comes from AirlinesService.getRefundTier() (FLT-09).
+// The refund tier: the airline's tiers the user accepted with the policies (PAY-02, PDF 6.4), stored
+// on the booking; only bookings without that copy use AirlinesService.getRefundTier() (FLT-09).
 // GEN-01: the user is notified of each cancellation (with the refund); RefundsService notifies
 // when the refund is refunded or failed.
 // GEN-11: every status change below uses allowedFrom() / canTransition() from
@@ -111,10 +113,14 @@ export class FlightBookingLifecycleService {
       );
     }
     const daysBefore = daysBeforeDeparture(outbound.departureAt, now);
-    const tier = await this.airlines.getRefundTier(
-      outbound.airlineId.toString(),
-      daysBefore,
-    );
+    // PDF 6.4: the tiers the user accepted with the policies (PAY-02); bookings accepted before
+    // they were stored use the airline's current tiers.
+    const tier = booking.acceptedCancellationTiers
+      ? pickRefundTier(booking.acceptedCancellationTiers, daysBefore)
+      : await this.airlines.getRefundTier(
+          outbound.airlineId.toString(),
+          daysBefore,
+        );
     return cancellablePreview(
       booking.totalAmount,
       booking.currency,

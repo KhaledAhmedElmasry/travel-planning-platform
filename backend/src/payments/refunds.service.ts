@@ -29,9 +29,10 @@ import { STRIPE_CLIENT } from './stripe.provider';
 // Who calls refundBooking():
 //   - PaymentsService, when a payment succeeds after the hold expired (100%, done).
 //   - FlightBookingLifecycleService.cancel (FLT-26, done), with the airline tier for the days
-//     left before departure (AirlinesService.getRefundTier, FLT-09, Area 5).
+//     left before departure, from the tiers accepted with the policies (PAY-02, FLT-09).
 //   - HotelBookingLifecycleService.cancel (HTL-21, done), with the hotel tier for the days left
-//     before check-in, on the full total (HotelsService.getRefundTier, HTL-10, Area 7).
+//     before check-in, on the full total, from the tiers accepted with the policies (PAY-02,
+//     HTL-10).
 //   - FlightBookingLifecycleService.finishFlightCancellation (FLT-06, done; called by
 //     Area 5 when the airline cancels a flight): 100% for each Confirmed booking.
 //   Those modules need forwardRef to PaymentsModule (see payments.module.ts).

@@ -872,6 +872,48 @@ describe('Flight booking, payment and refunds', () => {
       }
     });
 
+    it('PDF 6.4: the refund follows the tiers accepted with the booking, even after the airline changes them', async () => {
+      const { bookingId } = await bookAndPay(10, 20000);
+      const policy = `/api/airlines/${airline.airlineId}/cancellation-policy`;
+      // After the user paid, the airline drops its 7-day and 2-day tiers (10 days left -> 0%).
+      const changed = await airline.moderator.client.put(policy, {
+        tiers: [{ daysBefore: 30, refundPercentage: 100 }],
+      });
+      expect(changed.status).toBe(200);
+      try {
+        const preview = (await bookingDetails(user.client, 'flight', bookingId))
+          .body.cancellation;
+        expect(preview).toMatchObject({
+          refundPercentage: 50,
+          tierDaysBefore: 7,
+          refundAmount: 10000,
+        });
+        const cancelled = await user.client.post(
+          `/api/flight-bookings/${bookingId}/cancel`,
+        );
+        expect(cancelled.status).toBe(200);
+        expect(cancelled.body.refund).toMatchObject({
+          amount: 10000,
+          refundPercentage: 50,
+        });
+        const refund = await t
+          .collection('refunds')
+          .findOne({ bookingId: t.oid(bookingId) });
+        expect(refund).toMatchObject({
+          refundPercentage: 50,
+          tierDaysBefore: 7,
+        });
+      } finally {
+        await airline.moderator.client.put(policy, {
+          tiers: [
+            { daysBefore: 30, refundPercentage: 100 },
+            { daysBefore: 7, refundPercentage: 50 },
+            { daysBefore: 2, refundPercentage: 10 },
+          ],
+        });
+      }
+    });
+
     it('with no applicable tier the refund is 0%: the booking is cancelled and no refund is created', async () => {
       const { bookingId } = await bookAndPay(1);
       const cancelled = await user.client.post(

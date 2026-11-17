@@ -3,6 +3,7 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Connection, Model } from 'mongoose';
 import { BookingStatus, BookingType } from '../common/enums';
+import { pickRefundTier } from '../common/utils';
 import { HotelsService } from '../hotels/hotels.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { allowedFrom, canTransition } from '../payments/booking-lifecycle';
@@ -36,7 +37,9 @@ import { daysBeforeCheckIn, todayUtc } from './stay-dates';
 // Used by Area 6: previewCancellation(), the refund shown in the reservation details (HTL-20,
 // HTL-21).
 //
-// The refund tier comes from HotelsService.getRefundTier() (HTL-10).
+// The refund tier: the hotel's tiers the user accepted with the policies (PAY-02, PDF 6.4), stored
+// on the reservation; only reservations without that copy use HotelsService.getRefundTier()
+// (HTL-10).
 // GEN-01: the user is notified of the cancellation (with the refund); RefundsService notifies
 // when the refund is refunded or failed.
 // GEN-11: every status change below uses allowedFrom() / canTransition() from
@@ -87,10 +90,11 @@ export class HotelBookingLifecycleService {
         booking.currency,
       );
     }
-    const tier = await this.hotels.getRefundTier(
-      booking.hotelId.toString(),
-      daysBefore,
-    );
+    // PDF 6.4: the tiers the user accepted with the policies (PAY-02); reservations accepted
+    // before they were stored use the hotel's current tiers.
+    const tier = booking.acceptedCancellationTiers
+      ? pickRefundTier(booking.acceptedCancellationTiers, daysBefore)
+      : await this.hotels.getRefundTier(booking.hotelId.toString(), daysBefore);
     return cancellablePreview(
       booking.totalAmount,
       booking.currency,

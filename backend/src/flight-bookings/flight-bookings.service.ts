@@ -20,6 +20,7 @@ import { allowedFrom } from '../payments/booking-lifecycle';
 import type {
   BookingPaymentHandler,
   BookingPolicies,
+  CancellationTier,
   ConfirmPaidBookingResult,
   PayableBooking,
 } from '../payments/interfaces/payable-booking.interface';
@@ -345,6 +346,7 @@ export class FlightBookingsService implements BookingPaymentHandler {
   async recordPolicyAcceptance(
     bookingId: string,
     acceptedAt: Date,
+    cancellationTiers: CancellationTier[],
   ): Promise<boolean> {
     const result = await this.bookingModel.updateOne(
       {
@@ -353,7 +355,15 @@ export class FlightBookingsService implements BookingPaymentHandler {
         holdExpiresAt: { $gt: acceptedAt },
         policiesAcceptedAt: null,
       },
-      { $set: { policiesAcceptedAt: acceptedAt } },
+      {
+        $set: {
+          policiesAcceptedAt: acceptedAt,
+          acceptedCancellationTiers: cancellationTiers.map((tier) => ({
+            daysBefore: tier.daysBefore,
+            refundPercentage: tier.refundPercentage,
+          })),
+        },
+      },
     );
     return result.modifiedCount === 1;
   }
