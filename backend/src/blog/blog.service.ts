@@ -679,6 +679,8 @@ export class BlogService {
         .session(session)
         .exec();
       if (!comment) throw new NotFoundException('Comment not found.');
+      // A comment hidden by an admin was already taken off the count (GEN-10).
+      if (comment.hidden) return;
 
       const post = await this.postModel
         .findOneAndUpdate(

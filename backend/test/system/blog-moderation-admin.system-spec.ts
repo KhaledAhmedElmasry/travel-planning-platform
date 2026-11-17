@@ -730,6 +730,77 @@ describe('Blog, moderation and administration', () => {
       ]);
     });
 
+    it('GEN-10, BLG-03, BLG-09: a hidden comment does not count on its post; unhiding counts it again, once', async () => {
+      const admin = await t.admin();
+      const writer = await t.user('Hidden Count');
+      const mine = await post(writer);
+      const first = await comment(reader, mine.id, 'First comment');
+      const second = await comment(reader, mine.id, 'Second comment');
+      const third = await comment(reader, mine.id, 'Third comment');
+      const count = async () =>
+        (await writer.client.get('/api/posts/mine')).body.items.find(
+          (p: any) => p.id === mine.id,
+        ).commentCount as number;
+      const searched = async () =>
+        (
+          (
+            await t
+              .guest()
+              .get('/api/posts', { query: { keyword: mine.title } })
+          ).body.items as any[]
+        ).find((p) => p.id === mine.id).commentCount as number;
+      const hide = (id: string, action = 'hide') =>
+        admin.patch(`/api/admin/content/comment/${id}/${action}`, {});
+      expect(await count()).toBe(3);
+
+      // Hidden directly, also by several requests at once: counted off once.
+      const hides = await Promise.all([1, 2, 3].map(() => hide(first.id)));
+      expect(hides.map((r) => r.status)).toEqual([200, 200, 200]);
+      expect(await count()).toBe(2);
+      expect(await searched()).toBe(2);
+      // Hidden through a report.
+      const created = (
+        await (
+          await t.user()
+        ).client.post('/api/reports', {
+          contentType: 'comment',
+          contentId: second.id,
+          reason: 'Spam',
+        })
+      ).body;
+      expect(
+        (
+          await admin.patch(`/api/admin/reports/${created.id}`, {
+            action: 'hide',
+          })
+        ).status,
+      ).toBe(200);
+      expect(await count()).toBe(1);
+      expect((await detail(mine.id)).body.commentCount).toBe(1);
+
+      // Unhiding counts it again, once.
+      expect((await hide(first.id, 'unhide')).status).toBe(200);
+      expect((await hide(first.id, 'unhide')).status).toBe(200);
+      expect(await count()).toBe(2);
+
+      // Deleting a comment that is already hidden does not count it off a second time.
+      expect(
+        (await reader.client.delete(`/api/comments/${second.id}`)).status,
+      ).toBe(204);
+      expect(await count()).toBe(2);
+      expect((await hide(third.id)).status).toBe(200);
+      expect(await count()).toBe(1);
+      expect(
+        (await admin.delete(`/api/admin/content/comment/${third.id}`)).status,
+      ).toBe(204);
+      expect(await count()).toBe(1);
+      const shown = await detail(mine.id);
+      expect(shown.body.commentCount).toBe(1);
+      expect((shown.body.comments as any[]).map((c) => c.text)).toEqual([
+        'First comment',
+      ]);
+    });
+
     it('GEN-10: a post deleted by an admin takes its comments, likes and images with it', async () => {
       const admin = await t.admin();
       const writer = await t.user('Deleted Writer');
