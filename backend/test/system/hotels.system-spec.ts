@@ -1352,6 +1352,38 @@ describe('Hotels, reservations and reviews', () => {
       const other = await reviewOf(second, 1, 2);
       expect(other.res.status).toBe(201);
 
+      // GEN-09: a review can be reported like a post, comment or itinerary, once per user, and
+      // the admin sees the report.
+      const reported = await second.client.post('/api/reports', {
+        contentType: 'review',
+        contentId: first.res.body.id,
+        reason: 'Fake review',
+      });
+      expect(reported.status).toBe(201);
+      expect(reported.body).toMatchObject({
+        contentType: 'review',
+        contentId: first.res.body.id,
+        reason: 'Fake review',
+        status: 'open',
+      });
+      expect(
+        (
+          await second.client.post('/api/reports', {
+            contentType: 'review',
+            contentId: first.res.body.id,
+            reason: 'Again',
+          })
+        ).status,
+      ).toBe(409);
+      const openReports = await (
+        await t.admin()
+      ).get('/api/admin/reports', { query: { status: 'open' } });
+      expect(
+        (openReports.body.items as any[]).some(
+          (r) => r.id === reported.body.id && r.contentType === 'review',
+        ),
+      ).toBe(true);
+
       // HTL-24: average, number of ratings, reviews newest first.
       let page = await t.guest().get(`/api/hotels/${hotel.hotelId}/reviews`);
       expect(page.status).toBe(200);

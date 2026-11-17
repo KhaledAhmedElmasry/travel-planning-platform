@@ -1,3 +1,4 @@
+import { inflateSync } from 'zlib';
 import { CabinClass, PassengerType } from '../common/enums';
 import { localTime, renderETicket } from './e-ticket';
 import { daysBeforeDeparture } from './flight-booking-lifecycle.service';
@@ -56,8 +57,32 @@ describe('localTime (GEN-06)', () => {
   });
 });
 
+// The text drawn on the pages of a PDF made by pdfkit: each page content stream is
+// Flate-compressed, and the text is written as hex strings inside TJ arrays (one array per line).
+function pdfText(pdf: Buffer): string {
+  const raw = pdf.toString('latin1');
+  const lines: string[] = [];
+  const streams = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  for (let m = streams.exec(raw); m; m = streams.exec(raw)) {
+    let content: string;
+    try {
+      content = inflateSync(Buffer.from(m[1], 'latin1')).toString('latin1');
+    } catch {
+      continue;
+    }
+    for (const tj of content.match(/\[([^\]]*)\]\s*TJ/g) ?? []) {
+      lines.push(
+        (tj.match(/<([0-9a-fA-F]*)>/g) ?? [])
+          .map((hex) => Buffer.from(hex.slice(1, -1), 'hex').toString('latin1'))
+          .join(''),
+      );
+    }
+  }
+  return lines.join('\n');
+}
+
 describe('renderETicket (FLT-23)', () => {
-  it('returns a PDF file', async () => {
+  it('returns a PDF with the reference, flight, local times, baggage, passengers and total', async () => {
     const pdf = await renderETicket({
       reference: 'K7QM2X',
       totalAmount: 25000,
@@ -88,6 +113,19 @@ describe('renderETicket (FLT-23)', () => {
       ],
     });
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
-    expect(pdf.length).toBeGreaterThan(1000);
+    const text = pdfText(pdf);
+    // FLT-23: booking reference and confirmed status.
+    expect(text).toContain('Booking reference: K7QM2X');
+    expect(text).toContain('Status: Confirmed');
+    // Flight, airline and cabin; times in each airport's local time zone (GEN-06).
+    expect(text).toContain('NA100 - Nile Air');
+    expect(text).toContain('CAI  2026-12-01 20:35 (Africa/Cairo)');
+    expect(text).toContain('DXB  2026-12-02 02:35 (Asia/Dubai)');
+    expect(text).toContain('1 free bag(s) per passenger, up to 23 kg each');
+    // Every passenger with type, passport/ID and extra baggage.
+    expect(text).toContain('Mona Adel (adult) - passport/ID A12345678');
+    expect(text).toContain('extra bags: 20 kg');
+    expect(text).toContain('Total paid:');
+    expect(text).toContain('250.00');
   });
 });
