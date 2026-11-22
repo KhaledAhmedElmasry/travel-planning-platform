@@ -30,7 +30,7 @@ Status: **approved by the team leader (22 Nov 2026)**, pending the visual review
 | Terms page | Placeholder text written by us, clearly marked |
 | Responsive | Every page reflows; detailed mobile designs for public pages, search, booking, payment, My Bookings, itinerary editor. Dashboards reflow sensibly |
 | Deployment | Keep it deployable (decision ~5 Dec): no local-only assets |
-| Mascot | **So3ad**, look A "The Navigator" (§9) |
+| Mascot | **So3ad**, "The Techie": lilac hijab, long purple hoodie, cyan joggers, phone always in hand (§9) |
 
 ---
 
@@ -304,21 +304,23 @@ Active nav item: `--link` text + 2px cyan underline (top nav) or a raised backgr
 
 ---
 
-## 9. Mascot: So3ad (look A, "The Navigator")
+## 9. Mascot: So3ad ("The Techie")
 
-- Egyptian woman in her 20s, no hijab, original character (must not resemble an existing character or brand).
-- **Hair:** shoulder-length dark-brown curls in a half-up puff. **Skin:** warm medium brown.
-- **Outfit:** muted purple bomber jacket (`#6E56B8` family) over a white tee, dark jeans, cyan sneakers (`#6CC4D2`), small crossbody bag.
-- **Signature item:** round cyan sunglasses pushed up on her head. She pulls them down for the sassy smirk.
+- Egyptian woman in her 20s, wearing a hijab, original character (must not resemble an existing character or brand).
+- **Hijab:** soft lilac (`#B3A4DE`, folds and face edge `#9886C8`), fitted close around her face with a short drape at the neck (not oversized). **Skin:** light tan / wheat (`#D9A77E`), big expressive eyes, dark-brown eyebrows (`#3B2416`).
+- **Outfit (modest and sporty):** loose, hip-length purple hoodie (`#6E56B8`, hem band and front pocket `#5F4AA3`), long sleeves, white drawstrings, drawn the same in every image (same length relative to her body, same band, pocket and drawstrings); loose cyan joggers (`#4FA9B7`, cuffs `#3D8E9B`) drawn as one piece, so the legs read as part of her body; low sneakers in soft lavender-white (`#ECEAF4`) with a purple sole (`#5F4AA3`) and cyan laces, toes pointing outward. Nothing tight or cropped.
+- **Same look in every image:** every pose, expression and size uses exactly this hijab, outfit and colors. Only the pose, the face and the prop in her hand change.
+- **Proportions:** friendly cartoon proportions: head with hijab a bit over 1/3 of her height (slightly big, friendly head), legs a little under half; limbs have real width (no stick limbs).
+- **Signature item (techy):** her phone (`#2B2D45` with a cyan screen), always in hand: she finds the deals online. She holds it up to "show" results, prices and countdowns. No headphones.
 - **Style:** flat 2D vector, no outlines heavier than 2px, 2–3 shades per color, transparent background, exported as SVG; simple loops as CSS/SVG or Lottie.
 - **Voice:** spelled "So3ad"; English lines with an occasional yalla / mabrouk / habibi; funny and sassy, never mean.
 - **Character sheet to deliver:** front, side, 3/4; expressions happy, sassy smirk, surprised, sad, thinking; color swatches.
 
 | Pose | Where | Line | Animation |
 |---|---|---|---|
-| Waving with suitcase | Home hero | "Yalla! Where are we going?" | wave loop 2.4s, ease-in-out |
-| Binoculars / rolling suitcase | Search loading | "Hold on, I'm haggling for you…" | loop 1.6s |
-| Tapping card | Payment processing | "Don't blink, the bank is thinking." | loop 1.2s |
+| Waving her phone, rolling suitcase | Home hero | "Yalla! Where are we going?" | wave loop 2.4s, ease-in-out |
+| Scrolling fast on her phone | Search loading | "Hold on, I'm haggling for you…" | loop 1.6s |
+| Tapping phone, waiting | Payment processing | "Don't blink, the bank is thinking." | loop 1.2s |
 | Jumping + confetti | Booking confirmed | "Mabrouk! Your trip is booked." | once 1.2s |
 | Shrug, empty map | Empty search | "Nothing here… try other dates?" | still + blink |
 | Sitting on suitcase | Empty lists | "So empty! Let's plan something." | still + blink |
