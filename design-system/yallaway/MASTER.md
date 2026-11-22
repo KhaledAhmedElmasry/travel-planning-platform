@@ -61,7 +61,7 @@ All ratios were measured against the three surfaces (background / card / raised)
 
 Status colors are **never the only signal**: every pill also has an icon and a word (GEN-17, WCAG color-not-only).
 
-Chart palette (bars): `#8F7AD6`, `#6CC4D2`, `#E3B866`, `#6CC9A1`, `#E68A8A`, each series also gets a label in the table alternative.
+Chart palette (`--chart-1` to `--chart-8`, always in this order, never cycled): `#9085E9` violet, `#D95926` orange, `#199E70` aqua, `#C98500` yellow, `#D55181` magenta, `#0CA30C` green, `#3987E5` blue, `#E66767` red. Validated with the dataviz palette validator on the card surface `#16161F` (dark): lightness band, chroma floor, colorblind separation (worst adjacent 8.4), normal-vision separation (worst adjacent 19.3) and 3:1 contrast all pass. The first draft colors failed (too light, cyan read as gray, red/green collided for colorblind users) and were replaced. One series uses `--chart-1` with no legend; more than 8 series fold into "Other". Every chart has a table view, and labels and values use text colors, never the series color.
 
 ---
 
@@ -71,13 +71,15 @@ Chart palette (bars): `#8F7AD6`, `#6CC4D2`, `#E3B866`, `#6CC9A1`, `#E68A8A`, eac
 
 | Role | Size / line height | Weight | Tailwind |
 |---|---|---|---|
-| Display (home hero only) | 48 / 56 (36 / 44 mobile) | 700 | `text-display` |
-| H1 page title | 32 / 40 (28 / 36 mobile) | 700 | `text-h1` |
-| H2 section | 24 / 32 | 600 | `text-h2` |
-| H3 card title | 18 / 28 | 600 | `text-h3` |
+| Display (home hero only) | 48 / 56 (36 / 44 mobile) | 700 | `text-5xl` |
+| H1 page title | 32 / 40 (28 / 36 mobile) | 700 | `text-3xl` |
+| H2 section | 24 / 32 | 600 | `text-2xl` |
+| H3 card title | 18 / 28 | 600 | `text-lg` |
 | Body | 16 / 24 | 400 | `text-base` |
 | Small / label | 14 / 20 | 500 | `text-sm` |
 | Caption | 12 / 16 (never for body text) | 500 | `text-xs` |
+
+These are Tailwind's standard size names, set to our values in `globals.css`. Don't add custom names like `text-h1`: the class-merging helper `cn()` mistakes unknown `text-*` names for colors and drops one of the two classes.
 
 **Spacing:** 4px base, use 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64. Section gap 48 desktop / 32 mobile. Page side gutter 16 mobile, 24 tablet, 32 desktop. Content max width 1200px (`max-w-6xl`); long text max 70 characters.
 
@@ -95,7 +97,9 @@ Chart palette (bars): `#8F7AD6`, `#6CC4D2`, `#E3B866`, `#6CC9A1`, `#E68A8A`, eac
 
 ## 4. `globals.css` theme (the only place colors are defined)
 
-Follows the shadcn/ui Tailwind v4 theming setup (CSS variables under `:root`, exposed to Tailwind with `@theme inline`). Dark only, so the dark values live directly in `:root` and there is no `.dark` block.
+**The real file is [`frontend/src/app/globals.css`](../../frontend/src/app/globals.css); if this section and the file ever differ, the file wins.** The snippet below shows the idea.
+
+Follows the shadcn/ui Tailwind v4 theming setup (CSS variables under `:root`, exposed to Tailwind with `@theme inline`). Dark only: the values live on `:root` and `<html>` always has `class="dark"` so shadcn's `dark:` styles also apply.
 
 ```css
 @import "tailwindcss";
@@ -171,7 +175,7 @@ Follows the shadcn/ui Tailwind v4 theming setup (CSS variables under `:root`, ex
 }
 ```
 
-When the kit is built, this snippet is checked again against the installed shadcn and Tailwind versions.
+Built and checked against shadcn 4.23.0 and Tailwind CSS 4.3.3 (Next.js 16.4.6). The real file also sets the radius scale (`rounded-lg` 8px, `rounded-xl` 12px), the type-scale and motion tokens, and the So3ad wave animation.
 
 ---
 
@@ -183,7 +187,7 @@ When the kit is built, this snippet is checked again against the installed shadc
 4. **Allowed `className` in pages:** layout only (`grid`, `flex`, `gap-*`, `col-span-*`, `mt-*`, `hidden md:block`). Everything visual comes from props (`variant`, `size`, `tone`).
 5. **Money:** always `<Price cents={...} currency={...} />`. Never format cents by hand (PAY-04).
 6. **Flight times:** always `<LocalTime iso={...} timeZone={airport.timeZone} airport="CAI" />` (GEN-06).
-7. **Statuses:** always `<StatusBadge status="pending_payment" />`. The label, icon and color come with it (GEN-11).
+7. **Statuses:** always `<StatusBadge kind="booking" status={booking.status} />` with the API value. The label, icon and color come with it (GEN-11).
 8. **Lists:** every list over 10 items uses `<Pagination>` (GEN-05) and has an `<EmptyState>` (GEN-04).
 9. **Forms:** every input goes through `<FormField>` so the label and the inline error from the backend's `fieldErrors` appear under the field (GEN-02).
 10. **Destructive actions:** always `<ConfirmDialog>` (GEN-03).
@@ -195,84 +199,84 @@ When the kit is built, this snippet is checked again against the installed shadc
 
 ## 6. Component inventory (what exists, how to call it)
 
-Folder plan: `frontend/components/ui/` = shadcn base components, already themed. `frontend/components/app/` = Yallaway components built on top. `frontend/components/layout/` = shells.
+Folders: `frontend/src/components/ui/` = shadcn base components, already themed. `frontend/src/components/app/` = Yallaway components built on top. `frontend/src/components/layout/` = shells. Live gallery with code: `http://localhost:3001/kit`. Usage rules: `frontend/README.md`.
+
+**Built** = in the kit now (branch `feature/GEN-17-ui-kit`). **Area** = each area builds it from kit parts in `src/components/app/`, following the props and rules listed here.
 
 ### 6.1 Base (`components/ui`, from shadcn, pre-themed)
 
-| Component | Variants / props | Notes |
-|---|---|---|
-| `Button` | `variant`: `primary` (default), `secondary`, `ghost`, `destructive`, `link`; `size`: `sm`, `md` (default, 44px high), `lg`, `icon`; `loading` | `loading` shows a spinner, disables the button and keeps its width. `icon` size requires `aria-label` |
-| `Input`, `Textarea` | `maxLength` shows a counter (500 comments, 1000 reviews) | 44px high, `--input` outline, cyan focus ring |
-| `PasswordInput` | `showRules` | Show/hide toggle + live rule checklist (8+ chars, 1 letter, 1 digit; ACC-01) |
-| `Select`, `Combobox` | `options`, `searchable` | Combobox for airports, cities, countries, currencies |
-| `MultiSelect` | `max` | Chips; countries, tags (max 5, 30 chars) |
-| `Checkbox`, `RadioGroup`, `Switch`, `SegmentedControl` | standard | Segmented: one-way/round-trip, Draft/Publish, Public/Private |
-| `DatePicker`, `DateRangePicker`, `TimePicker` | `min`, `max` | Check-in can't be in the past |
-| `DateTimePicker` | `timeZone` | Shows the airport zone label (FLT-03) |
-| `NumberStepper` | `min`, `max`, `label` | Passengers, guests, rooms, bags |
-| `Card` | `interactive` | `interactive` adds hover + pointer for clickable cards |
-| `Dialog`, `Sheet`, `DropdownMenu`, `Popover`, `Tooltip` | standard | Escape and close button always present |
-| `Tabs` | standard | Upcoming / Past / Cancelled |
-| `Table` | standard | Base for `DataTable` |
-| `Skeleton`, `Spinner` | standard | Skeleton for loads over ~300ms |
-| `Toast` (Sonner) | `success`, `error`, `info` | Auto-dismiss 4s, `aria-live="polite"`, never steals focus |
-| `Avatar`, `Separator`, `Badge` | standard | |
+| Component | Variants / props | Notes | State |
+|---|---|---|---|
+| `Button` | `variant`: `default` (primary), `secondary`, `outline`, `ghost`, `destructive`, `link`; `size`: `sm` (36px), `default` (44px), `lg` (52px), `icon`, `icon-sm`; `loading`; `asChild` (for links) | `loading` shows a spinner, disables the button, keeps its width and its accessible name. `icon` size requires `aria-label` | Built |
+| `Input`, `Textarea`, `Label` | standard; `maxLength` on textarea (500 comments, 1000 reviews) | 44px high, `--input` outline, cyan focus ring, red outline when `aria-invalid` | Built |
+| `Select`, `Command` (searchable list) | standard | `Command` for airports, cities, countries, currencies | Built |
+| `Checkbox`, `RadioGroup`, `Switch`, `ToggleGroup` | standard | `ToggleGroup` = segmented: one-way/round-trip, Draft/Publish, Public/Private | Built |
+| `Calendar`, `Popover` | standard | Base for date pickers | Built |
+| `DatePicker`, `DateRangePicker` (nights count), `DateTimePicker` (airport local time, FLT-03), `TimeInput` | `value`, `onChange`, `min`, `max` | Values are `YYYY-MM-DD` / `YYYY-MM-DDTHH:mm` strings, exactly what the API takes | Built |
+| `MultiSelect` (searchable, chips), `TagInput` (free text, max 5 × 30 chars) | `options`, `value`, `onChange`, `max` | Countries (ITN-01), tags (BLG-01, BLG-08) | Built |
+| `Card`, `Dialog`, `AlertDialog`, `Sheet`, `DropdownMenu`, `Tooltip`, `Tabs`, `Table`, `Skeleton`, `Avatar`, `Badge`, `Separator`, `Breadcrumb`, `ScrollArea` | standard | Escape and close button always present on dialogs and sheets | Built |
+| Toasts (`toast` from `sonner`) | `toast.success`, `toast.error`, `toast.info` | Auto-dismiss 4s, polite live region, never steals focus | Built |
 
-### 6.2 Yallaway components (`components/app`)
+### 6.2 Yallaway components (`components/app` and `components/layout`)
 
-| Component | Props | Requirement |
-|---|---|---|
-| `FormField` | `label`, `name`, `error`, `hint`, `required` | GEN-02 (maps backend `fieldErrors[]` to fields) |
-| `FormErrorSummary` | `errors` | Focused after a failed submit with several errors |
-| `StatusBadge` | `status` | GEN-11, PAY-03, FLT-30, HTL-08, ACC-15, BLG-03, GEN-10 (table §6.3) |
-| `Price` | `cents`, `currency`, `size` | PAY-04 (12000 → "$120.00 USD", tabular figures) |
-| `BudgetAmount` | `amount` (decimal), `currency` | ITN-14, ITN-18 |
-| `LocalTime` | `iso`, `timeZone`, `airport`, `showDate` | GEN-06, FLT-17 |
-| `EmptyState` | `pose`, `title`, `action` | GEN-04 (So3ad pose + line + one action) |
-| `ErrorState` | `onRetry`, `message` | GEN-16 |
-| `ConfirmDialog` | `title`, `consequence`, `confirmLabel`, `tone="destructive"` | GEN-03 |
-| `Pagination` | `page`, `totalPages` | GEN-05 (page size 10, matches backend `{items,page,pageSize,total,totalPages}`) |
-| `DataTable` | `columns`, `data`, `sortable`, `filters`, `rowActions` | ACC-14, ACC-17, GEN-07, FLT-29, HTL-22 |
-| `HoldCountdown` | `expiresAt` | FLT-22, HTL-18 (warning tone + So3ad line under 2 min; `aria-live` only at 5, 2, 1 min and 0) |
-| `Stepper` | `steps`, `current` | P-14, P-19 |
-| `ImageUploader` | `max`, `existing`, `onAdd`, `onRemove` | GEN-08 (JPG/PNG, ≤ 5 MB, ≤ 5; 1 for airline logo) |
-| `TiersEditor` | `value`, `onChange` | FLT-09, HTL-10 |
-| `RefundPreview` | `cancellation` | FLT-26, HTL-21 (uses the backend `cancellation` field) |
-| `PolicyAcceptance` | `policies`, `onAccept` | PAY-02 (Pay stays disabled until accepted) |
-| `StripePaymentPanel` | `clientSecret`, `amountCents` | PAY-01 (Stripe Elements, card data never touches our code) |
-| `PassengerCard` | `index`, `value`, `bagPolicy` | FLT-19, FLT-21, FLT-08 |
-| `GuestsPerRoom` | `rooms` | HTL-16 |
-| `FlightSearchForm`, `HotelSearchForm` | `defaultValues` | FLT-11/12/15, HTL-11/12 |
-| `FilterPanel`, `SortSelect` | `fields` | min > max error inline (FLT-15, HTL-12) |
-| `FlightResultCard`, `HotelResultCard` | data | FLT-11, HTL-11 |
-| `RoundTripSelector` | `outbound`, `return` | FLT-12 |
-| `DayCard`, `CityGroupHeader`, `ActivityCard`, `BudgetRow`, `TransportRow` | data + handlers | ITN-05…ITN-16 |
-| `BudgetSummary` | `summary` | ITN-14, ITN-18 (rate date + stale-rates notice) |
-| `PostCard`, `CommentItem`, `LikeButton`, `ReviewCard` | data | BLG-02/05/06/07, HTL-24; "Deleted user" (ACC-12) |
-| `ReportButton` (+ modal) | `contentType`, `contentId` | GEN-09 |
-| `HiddenBadge` | none | GEN-10 |
-| `NotificationBell` | none (fetches itself) | GEN-01 |
-| `StatCard` | `label`, `value`, `icon`, `href` | role home pages |
-| `AvailabilityGrid` | `rooms`, `days` | HTL-08 |
-| `SeatMap` (Bonus) | `cabin`, `taken`, `selected` | FLT-28 |
-| `BarChart` (+ table) | `series`, `labels` | ITN-14, BON-01 |
-| `So3ad` | `pose`, `size`, `line` | §9 |
+| Component | Props | Requirement | State |
+|---|---|---|---|
+| `PublicShell`, `AppShell`, `DashboardShell`, `AuthLayout`, `WizardLayout` | `user`, `unreadNotifications` | section 7, GEN-14, GEN-16 | Built |
+| `PageHeader` | `title`, `description`, `actions`, `back` | GEN-14 | Built |
+| `FormField` | `label`, `name`, `error`, `hint`, `required` | GEN-02 (with `fieldErrorMap()` for the backend's `fieldErrors[]`) | Built |
+| `FormErrorSummary` | `errors`, `labels`, `message`, `autoFocus` | Focused after a failed submit with several errors | Built |
+| `PasswordInput` | `showRules` | Show/hide + live rule checklist (8+ chars, 1 letter, 1 digit; ACC-01) | Built |
+| `NumberStepper` | `label`, `hint`, `value`, `min`, `max`, `onChange` | FLT-11 passengers, HTL-11 guests/rooms, FLT-21 bags | Built |
+| `StatusBadge` | `kind`, `status` (API value), `detail` | GEN-11, PAY-01, PAY-03, FLT-30, HTL-08, ACC-15, BLG-03, GEN-10 (table 6.3) | Built |
+| `Price` | `cents`, `currency`, `size`, `hideCode` | PAY-04 (12000 -> "$120.00 USD", tabular figures) | Built |
+| `BudgetAmount` | `amount` (decimal), `currency` | ITN-14, ITN-18 | Built |
+| `LocalTime` | `iso`, `timeZone`, `airport`, `showDate`, `size`, `align` | GEN-06, FLT-17 | Built |
+| `EmptyState` | `title`, `line`, `description`, `action`, `pose`, `compact` | GEN-04 | Built |
+| `ErrorState` | `title`, `message`, `onRetry` | GEN-16 | Built |
+| `ConfirmDialog` | `trigger`, `title`, `description`, `confirmLabel`, `cancelLabel`, `tone`, `onConfirm` | GEN-03 (stays open with a spinner while `onConfirm` runs) | Built |
+| `PaginationBar` | `page`, `totalPages`, `total`, `pageSize`, `hrefFor` | GEN-05 (backend `{items,page,pageSize,total,totalPages}`; page kept in the URL) | Built |
+| `DataTable` | `caption`, `columns`, `rows`, `rowKey`, `empty` | ACC-14, ACC-17, GEN-07, FLT-29, HTL-22 | Built |
+| `HoldCountdown` | `expiresAt`, `onExpire` | FLT-22, HTL-18 (warning under 2 min; announced only at 5, 2, 1 min and 0) | Built |
+| `Stepper` | `steps`, `current` | P-14, P-19 | Built |
+| `StatCard` | `label`, `value`, `icon`, `tone`, `href` | role home pages | Built |
+| `NotificationBell` | `unread` | GEN-01 (count from `/notifications/unread-count`) | Built |
+| `So3ad` | `pose` (`wave`, `sit`), `size`, `label` | section 9 (more poses when the final art exists) | Built |
+| `ImageUploader` | `max`, `existing`, `onAdd`, `onRemove`, `noun` | GEN-08 (JPG/PNG, up to 5 MB, up to 5; 1 for airline logo) | Built |
+| `TiersEditor` + `validateTiers()` | `value`, `onChange`, `unit`, `errors` | FLT-09, HTL-10 | Built |
+| `RefundPreview` | `cancellation` | FLT-26, HTL-21 (uses the backend `cancellation` field) | Area |
+| `PolicyAcceptance` | `policies`, `onAccept` | PAY-02 (Pay stays disabled until accepted) | Area |
+| `StripePaymentPanel` | `clientSecret`, `amountCents` | PAY-01 (Stripe Elements, card data never touches our code) | Area |
+| `PassengerCard` | `index`, `value`, `bagPolicy` | FLT-19, FLT-21, FLT-08 | Area |
+| `GuestsPerRoom` | `rooms` | HTL-16 | Area |
+| `FlightSearchForm`, `HotelSearchForm` | `defaultValues` | FLT-11/12/15, HTL-11/12 | Area |
+| `FilterPanel`, `SortSelect` | `fields` | min > max error inline (FLT-15, HTL-12) | Area |
+| `FlightResultCard`, `HotelResultCard` | data | FLT-11, HTL-11 | Area |
+| `RoundTripSelector` | `outbound`, `return` | FLT-12 | Area |
+| `DayCard`, `CityGroupHeader`, `ActivityCard`, `BudgetRow`, `TransportRow` | data + handlers | ITN-05 to ITN-16 | Area |
+| `BudgetSummary` | `summary` | ITN-14, ITN-18 (rate date + stale-rates notice) | Area |
+| `PostCard`, `CommentItem`, `LikeButton`, `ReviewCard` | data | BLG-02/05/06/07, HTL-24; "Deleted user" (ACC-12) | Area |
+| `ReportButton` (+ modal) | `contentType`, `contentId`, `alreadyReported`, `look` | GEN-09 (401 -> login and back, 409 -> "already reported") | Built |
+| `AvailabilityGrid` | `rooms`, `days` | HTL-08 | Area |
+| `SeatMap` (Bonus) | `cabin`, `taken`, `selected` | FLT-28 | Area |
+| `BarChart` (+ table) | `title`, `summary`, `data`, `format`, `keepOrder` | ITN-14, BON-01 (one series, horizontal bars, hover/focus tooltip, "Show as table") | Built |
 
 ### 6.3 `StatusBadge` mapping
 
-| Status | Label | Tone | Icon (Lucide) |
-|---|---|---|---|
-| `pending_payment` | Pending payment | warning | `Clock` |
-| `confirmed` | Confirmed | success | `CircleCheck` |
-| `completed` | Completed | info | `Flag` |
-| `expired` | Expired | error | `TimerOff` |
-| `cancelled` | Cancelled | neutral | `CircleX` |
-| `scheduled` / `departed` / flight `cancelled` | Scheduled / Departed / Cancelled | info / neutral / error | `PlaneTakeoff` / `PlaneLanding` / `Ban` |
-| `available` / `booked` / `blocked` | Available / Booked · ref / Blocked | success / info / neutral | `Check` / `BedDouble` / `Lock` |
-| refund `pending` / `refunded` / `failed` | Refund pending / Refunded / Refund failed | warning / success / error | `Hourglass` / `BadgeDollarSign` / `TriangleAlert` |
-| `active` / `suspended` | Active / Suspended | success / error | `UserCheck` / `UserX` |
-| `draft` / `published` | Draft / Published | neutral / info | `PencilLine` / `Globe` |
-| `hidden` | Hidden | warning | `EyeOff` |
+`<StatusBadge kind="booking" status={booking.status} />`: `kind` says which list the value is from (the same word can mean different things: a cancelled flight is an error, a cancelled booking is neutral). Values are exactly the backend's.
+
+| `kind` | API value: label (tone) |
+|---|---|
+| `booking` (GEN-11) | `pending_payment` Pending payment (warning), `confirmed` Confirmed (success), `completed` Completed (info), `expired` Expired (error), `cancelled` Cancelled (neutral) |
+| `payment` (PAY-01) | `pending` Payment pending (warning), `succeeded` Paid (success), `failed` Payment failed (error), `cancelled` Payment cancelled (neutral) |
+| `refund` (PAY-03) | `pending` Refund pending (warning), `refunded` Refunded (success), `failed` Refund failed (error) |
+| `flight` (FLT-30) | `scheduled` Scheduled (info), `departed` Departed (neutral), `cancelled` Cancelled (error) |
+| `night` (HTL-08) | `available` Available (success), `booked` Booked + reference (info), `blocked` Blocked (neutral) |
+| `account` (ACC-15) | `active` Active (success), `suspended` Suspended (error), `deactivated` Deactivated (neutral) |
+| `provider` (ACC-15) | `active` Active (success), `inactive` Deactivated (neutral) |
+| `post` (BLG-03) | `draft` Draft (neutral), `published` Published (info) |
+| `content` (GEN-10) | `hidden` Hidden (warning) |
+
+Every pill has a Lucide icon and the word; an unknown value shows as a neutral pill instead of crashing the page.
 
 Badge fills are the tone at 15% opacity over the card with the tone color as text. Checked: success 6.8:1, warning 7.2:1, error 5.6:1, info 6.0:1, neutral 5.7:1 (neutral uses `--muted-foreground`).
 
@@ -363,6 +367,4 @@ Kit components are Client Components only where they need interactivity (dialogs
 
 ## 12. Still open
 
-- Confirm the items above (Lucide, type scale, radius detail, motion timings, chart colors, So3ad loop timings).
-- Recheck the `globals.css` snippet when the kit is built against the installed shadcn and Tailwind versions.
 - So3ad artwork: who draws it, or which tool generates it (any AI use must be logged in `AI_PROMPTS.txt`, .md §11).

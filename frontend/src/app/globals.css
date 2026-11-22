@@ -1,0 +1,213 @@
+/*
+ * Yallaway theme (GEN-17). The ONLY place colors, radius and fonts are defined.
+ * Source of truth: design-system/yallaway/MASTER.md, sections 2-4.
+ * Dark mode only: the values live on :root and <html> always has class="dark",
+ * so shadcn's `dark:` styles apply too. Every text pair below is >= 4.5:1 (WCAG AA).
+ * Pages never use raw colors; they use the kit components (see frontend/README.md).
+ */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* shadcn names */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Yallaway extras */
+  --color-primary-hover: var(--primary-hover);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-link: var(--link);
+  --color-cyan: var(--accent-cyan);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+
+  /* radius: 12px cards (rounded-xl), 8px buttons and inputs (rounded-lg) */
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: calc(var(--radius) * 0.6667);
+  --radius-xl: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.3333);
+  --radius-3xl: calc(var(--radius) * 2);
+  --radius-4xl: calc(var(--radius) * 2.6667);
+
+  /* fonts: Plus Jakarta Sans for everything (set in src/app/layout.tsx) */
+  --font-sans: var(--font-jakarta);
+  --font-heading: var(--font-jakarta);
+
+  /* type scale (MASTER.md section 3), on Tailwind's standard names so cn() can merge them:
+     display = text-5xl (48/56), h1 = text-3xl (32/40), h2 = text-2xl (24/32), h3 = text-lg (18/28),
+     body = text-base (16/24), label = text-sm (14/20), caption = text-xs (12/16). */
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 3.5rem;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 2.5rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+
+  /* motion tokens */
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+}
+
+:root {
+  color-scheme: dark;
+  --radius: 0.75rem;
+
+  --background: #0e0e16;
+  --foreground: #e8e7ef;
+  --card: #16161f;
+  --card-foreground: #e8e7ef;
+  --popover: #16161f;
+  --popover-foreground: #e8e7ef;
+  --muted: #1e1e2a;
+  --muted-foreground: #a5a3b6;
+  --subtle-foreground: #8d8ba0;
+
+  --primary: #6e56b8; /* white text on it: 5.7:1 */
+  --primary-hover: #5f4aa3; /* white text on it: 7.0:1 */
+  --primary-foreground: #ffffff;
+  --secondary: #1e1e2a;
+  --secondary-foreground: #e8e7ef;
+  --accent: #1e1e2a;
+  --accent-foreground: #e8e7ef;
+
+  --link: #b3a4de;
+  --accent-cyan: #6cc4d2;
+  --ring: #6cc4d2;
+
+  --success: #6cc9a1;
+  --warning: #e3b866;
+  --error: #e68a8a;
+  --info: #86aee0;
+  --destructive: #c24848; /* white text on it: 4.9:1 */
+  --destructive-foreground: #ffffff;
+
+  --input: #706e88; /* input outlines: 3.4:1+ */
+  --border: #34344a; /* decorative dividers only */
+
+  /* Chart series colors, used in this order and never cycled (dataviz validator,
+     dark, surface #16161F: lightness band, chroma, CVD >= 8.4, normal vision >= 19.3,
+     contrast >= 3:1 all pass). One series = chart-1. More than 8: fold into "Other". */
+  --chart-1: #9085e9;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #0ca30c;
+  --chart-7: #3987e5;
+  --chart-8: #e66767;
+
+  --sidebar: #16161f;
+  --sidebar-foreground: #a5a3b6;
+  --sidebar-primary: #6e56b8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e1e2a;
+  --sidebar-accent-foreground: #b3a4de;
+  --sidebar-border: #34344a;
+  --sidebar-ring: #6cc4d2;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* prices, times and countdowns: digits do not jump (MASTER.md section 3) */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* So3ad's waving arm (stops under prefers-reduced-motion, see @layer base) */
+  .so3ad-wave {
+    transform-box: view-box;
+    transform-origin: 80px 112px;
+    animation: so3ad-wave 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes so3ad-wave {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  15% {
+    transform: rotate(-14deg);
+  }
+  30% {
+    transform: rotate(8deg);
+  }
+  45% {
+    transform: rotate(-10deg);
+  }
+}
