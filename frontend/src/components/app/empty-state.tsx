@@ -37,7 +37,7 @@ export function EmptyState({
       )}
     >
       {!compact && <So3ad pose={pose} size={140} />}
-      <h2 className="text-h3 font-semibold">{title}</h2>
+      <h2 className="text-lg font-semibold">{title}</h2>
       {line && (
         <p className="rounded-2xl rounded-bl-sm border border-border bg-muted px-4 py-2 font-semibold">
           &ldquo;{line}&rdquo;

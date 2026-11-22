@@ -61,7 +61,7 @@ All ratios were measured against the three surfaces (background / card / raised)
 
 Status colors are **never the only signal**: every pill also has an icon and a word (GEN-17, WCAG color-not-only).
 
-Chart palette (bars): `#8F7AD6`, `#6CC4D2`, `#E3B866`, `#6CC9A1`, `#E68A8A`, each series also gets a label in the table alternative.
+Chart palette (`--chart-1` to `--chart-8`, always in this order, never cycled): `#9085E9` violet, `#D95926` orange, `#199E70` aqua, `#C98500` yellow, `#D55181` magenta, `#0CA30C` green, `#3987E5` blue, `#E66767` red. Validated with the dataviz palette validator on the card surface `#16161F` (dark): lightness band, chroma floor, colorblind separation (worst adjacent 8.4), normal-vision separation (worst adjacent 19.3) and 3:1 contrast all pass. The first draft colors failed (too light, cyan read as gray, red/green collided for colorblind users) and were replaced. One series uses `--chart-1` with no legend; more than 8 series fold into "Other". Every chart has a table view, and labels and values use text colors, never the series color.
 
 ---
 
@@ -71,13 +71,15 @@ Chart palette (bars): `#8F7AD6`, `#6CC4D2`, `#E3B866`, `#6CC9A1`, `#E68A8A`, eac
 
 | Role | Size / line height | Weight | Tailwind |
 |---|---|---|---|
-| Display (home hero only) | 48 / 56 (36 / 44 mobile) | 700 | `text-display` |
-| H1 page title | 32 / 40 (28 / 36 mobile) | 700 | `text-h1` |
-| H2 section | 24 / 32 | 600 | `text-h2` |
-| H3 card title | 18 / 28 | 600 | `text-h3` |
+| Display (home hero only) | 48 / 56 (36 / 44 mobile) | 700 | `text-5xl` |
+| H1 page title | 32 / 40 (28 / 36 mobile) | 700 | `text-3xl` |
+| H2 section | 24 / 32 | 600 | `text-2xl` |
+| H3 card title | 18 / 28 | 600 | `text-lg` |
 | Body | 16 / 24 | 400 | `text-base` |
 | Small / label | 14 / 20 | 500 | `text-sm` |
 | Caption | 12 / 16 (never for body text) | 500 | `text-xs` |
+
+These are Tailwind's standard size names, set to our values in `globals.css`. Don't add custom names like `text-h1`: the class-merging helper `cn()` mistakes unknown `text-*` names for colors and drops one of the two classes.
 
 **Spacing:** 4px base, use 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64. Section gap 48 desktop / 32 mobile. Page side gutter 16 mobile, 24 tablet, 32 desktop. Content max width 1200px (`max-w-6xl`); long text max 70 characters.
 
@@ -210,7 +212,8 @@ Folders: `frontend/src/components/ui/` = shadcn base components, already themed.
 | `Select`, `Command` (searchable list) | standard | `Command` for airports, cities, countries, currencies | Built |
 | `Checkbox`, `RadioGroup`, `Switch`, `ToggleGroup` | standard | `ToggleGroup` = segmented: one-way/round-trip, Draft/Publish, Public/Private | Built |
 | `Calendar`, `Popover` | standard | Base for date pickers | Built |
-| `DatePicker`, `DateRangePicker`, `DateTimePicker` (`timeZone` label, FLT-03), `TimePicker`, `MultiSelect` (tags up to 5) | `min`, `max` | Composed from `Calendar` + `Popover` / `Command` | Area |
+| `DatePicker`, `DateRangePicker` (nights count), `DateTimePicker` (airport local time, FLT-03), `TimeInput` | `value`, `onChange`, `min`, `max` | Values are `YYYY-MM-DD` / `YYYY-MM-DDTHH:mm` strings, exactly what the API takes | Built |
+| `MultiSelect` (searchable, chips), `TagInput` (free text, max 5 × 30 chars) | `options`, `value`, `onChange`, `max` | Countries (ITN-01), tags (BLG-01, BLG-08) | Built |
 | `Card`, `Dialog`, `AlertDialog`, `Sheet`, `DropdownMenu`, `Tooltip`, `Tabs`, `Table`, `Skeleton`, `Avatar`, `Badge`, `Separator`, `Breadcrumb`, `ScrollArea` | standard | Escape and close button always present on dialogs and sheets | Built |
 | Toasts (`toast` from `sonner`) | `toast.success`, `toast.error`, `toast.info` | Auto-dismiss 4s, polite live region, never steals focus | Built |
 
@@ -238,8 +241,8 @@ Folders: `frontend/src/components/ui/` = shadcn base components, already themed.
 | `StatCard` | `label`, `value`, `icon`, `tone`, `href` | role home pages | Built |
 | `NotificationBell` | `unread` | GEN-01 (count from `/notifications/unread-count`) | Built |
 | `So3ad` | `pose` (`wave`, `sit`), `size`, `label` | section 9 (more poses when the final art exists) | Built |
-| `ImageUploader` | `max`, `existing`, `onAdd`, `onRemove` | GEN-08 (JPG/PNG, up to 5 MB, up to 5; 1 for airline logo) | Area |
-| `TiersEditor` | `value`, `onChange` | FLT-09, HTL-10 | Area |
+| `ImageUploader` | `max`, `existing`, `onAdd`, `onRemove`, `noun` | GEN-08 (JPG/PNG, up to 5 MB, up to 5; 1 for airline logo) | Built |
+| `TiersEditor` + `validateTiers()` | `value`, `onChange`, `unit`, `errors` | FLT-09, HTL-10 | Built |
 | `RefundPreview` | `cancellation` | FLT-26, HTL-21 (uses the backend `cancellation` field) | Area |
 | `PolicyAcceptance` | `policies`, `onAccept` | PAY-02 (Pay stays disabled until accepted) | Area |
 | `StripePaymentPanel` | `clientSecret`, `amountCents` | PAY-01 (Stripe Elements, card data never touches our code) | Area |
@@ -252,10 +255,10 @@ Folders: `frontend/src/components/ui/` = shadcn base components, already themed.
 | `DayCard`, `CityGroupHeader`, `ActivityCard`, `BudgetRow`, `TransportRow` | data + handlers | ITN-05 to ITN-16 | Area |
 | `BudgetSummary` | `summary` | ITN-14, ITN-18 (rate date + stale-rates notice) | Area |
 | `PostCard`, `CommentItem`, `LikeButton`, `ReviewCard` | data | BLG-02/05/06/07, HTL-24; "Deleted user" (ACC-12) | Area |
-| `ReportButton` (+ modal) | `contentType`, `contentId` | GEN-09 | Area |
+| `ReportButton` (+ modal) | `contentType`, `contentId`, `alreadyReported`, `look` | GEN-09 (401 -> login and back, 409 -> "already reported") | Built |
 | `AvailabilityGrid` | `rooms`, `days` | HTL-08 | Area |
 | `SeatMap` (Bonus) | `cabin`, `taken`, `selected` | FLT-28 | Area |
-| `BarChart` (+ table) | `series`, `labels` | ITN-14, BON-01 | Area |
+| `BarChart` (+ table) | `title`, `summary`, `data`, `format`, `keepOrder` | ITN-14, BON-01 (one series, horizontal bars, hover/focus tooltip, "Show as table") | Built |
 
 ### 6.3 `StatusBadge` mapping
 

@@ -37,6 +37,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -69,15 +72,17 @@
   --font-sans: var(--font-jakarta);
   --font-heading: var(--font-jakarta);
 
-  /* type scale (MASTER.md section 3) */
-  --text-display: 3rem;
-  --text-display--line-height: 3.5rem;
-  --text-h1: 2rem;
-  --text-h1--line-height: 2.5rem;
-  --text-h2: 1.5rem;
-  --text-h2--line-height: 2rem;
-  --text-h3: 1.125rem;
-  --text-h3--line-height: 1.75rem;
+  /* type scale (MASTER.md section 3), on Tailwind's standard names so cn() can merge them:
+     display = text-5xl (48/56), h1 = text-3xl (32/40), h2 = text-2xl (24/32), h3 = text-lg (18/28),
+     body = text-base (16/24), label = text-sm (14/20), caption = text-xs (12/16). */
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 3.5rem;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 2.5rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
 
   /* motion tokens */
   --duration-fast: 150ms;
@@ -120,11 +125,17 @@
   --input: #706e88; /* input outlines: 3.4:1+ */
   --border: #34344a; /* decorative dividers only */
 
-  --chart-1: #8f7ad6;
-  --chart-2: #6cc4d2;
-  --chart-3: #e3b866;
-  --chart-4: #6cc9a1;
-  --chart-5: #e68a8a;
+  /* Chart series colors, used in this order and never cycled (dataviz validator,
+     dark, surface #16161F: lightness band, chroma, CVD >= 8.4, normal vision >= 19.3,
+     contrast >= 3:1 all pass). One series = chart-1. More than 8: fold into "Other". */
+  --chart-1: #9085e9;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #0ca30c;
+  --chart-7: #3987e5;
+  --chart-8: #e66767;
 
   --sidebar: #16161f;
   --sidebar-foreground: #a5a3b6;

@@ -10,7 +10,7 @@ export default function NotFound() {
       <div className="flex flex-col items-center gap-4 py-12 text-center">
         <So3ad pose="sit" size={160} />
         <p className="tabular text-sm font-semibold tracking-widest text-cyan uppercase">Error 404</p>
-        <h1 className="text-h1 font-bold">We can&rsquo;t find that page</h1>
+        <h1 className="text-3xl font-bold">We can&rsquo;t find that page</h1>
         <p className="rounded-2xl rounded-bl-sm border border-border bg-muted px-4 py-2 font-semibold">
           &ldquo;Even I got lost. Let&rsquo;s go home.&rdquo;
         </p>

@@ -26,7 +26,7 @@ export function ErrorState({
       <span className="grid size-12 place-items-center rounded-full bg-error/15 text-error">
         <TriangleAlertIcon className="size-6" aria-hidden="true" />
       </span>
-      <h2 className="text-h3 font-semibold">{title}</h2>
+      <h2 className="text-lg font-semibold">{title}</h2>
       <p className="max-w-prose text-muted-foreground">{message}</p>
       {onRetry && (
         <Button variant="secondary" onClick={onRetry}>

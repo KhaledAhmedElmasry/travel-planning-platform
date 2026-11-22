@@ -90,6 +90,12 @@ Menus for every role live in [`src/lib/nav.ts`](src/lib/nav.ts); add a line ther
 | `HoldCountdown`, `Stepper` | FLT-22, HTL-18, PAY-01 |
 | `DataTable`, `PaginationBar`, `StatCard` | ACC-14, ACC-17, GEN-05, GEN-07 |
 | `So3ad` (mascot, poses `wave` and `sit`) | MASTER.md section 9 |
+| `DatePicker`, `DateRangePicker`, `DateTimePicker`, `TimeInput` | ITN-01, HTL-11, HTL-04, FLT-03, HTL-09 |
+| `MultiSelect`, `TagInput` | ITN-01, BLG-01, BLG-08 |
+| `ImageUploader` | GEN-08 |
+| `TiersEditor` + `validateTiers()` | FLT-09, HTL-10 |
+| `ReportButton` | GEN-09 |
+| `BarChart` (with table view) | ITN-14, BON-01 |
 
 **Base components** (`@/components/ui/...`, shadcn/ui, already themed): `Button`, `Input`, `Textarea`, `Label`,
 `Select`, `Checkbox`, `RadioGroup`, `Switch`, `ToggleGroup`, `Card`, `Dialog`, `AlertDialog`, `Sheet`,
@@ -97,12 +103,12 @@ Menus for every role live in [`src/lib/nav.ts`](src/lib/nav.ts); add a line ther
 `Command` (searchable lists, e.g. airports), `Breadcrumb`, `ScrollArea`, and toasts via `toast` from `sonner`.
 Add another shadcn component with `npx shadcn@4.23.0 add <name>` and tune it to MASTER.md the same way.
 
-**Helpers** (`@/lib/...`): `format.ts` (money, dates, countdown), `api-error.ts` (`fieldErrorMap`), `session.ts`
-(`SessionUser` from `/auth/me`), `nav.ts` (menus, home page per role).
+**Helpers** (`@/lib/...`): `format.ts` (money, dates, countdown), `dates.ts` (`YYYY-MM-DD` strings, nights),
+`api-error.ts` (`fieldErrorMap`), `session.ts` (`SessionUser` from `/auth/me`), `nav.ts` (menus, home page per role).
 
-**Area components** (flight result card, seat map, availability grid, tiers editor, image uploader, budget
-summary, post editor...) are built by each area **from these parts**, in `src/components/app/`, following
-MASTER.md section 6.2.
+**Area components** (flight result card, seat map, availability grid, budget summary, post editor, passenger
+card...) are built by each area **from these parts**, in `src/components/app/`, following MASTER.md section 6.2
+(the "Area" rows).
 
 ## Rendering (project description section 9)
 

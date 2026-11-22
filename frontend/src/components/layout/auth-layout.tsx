@@ -27,7 +27,7 @@ export function AuthLayout({ title, description, children, footer }: AuthLayoutP
         <div className="flex w-full max-w-4xl items-center justify-center gap-12">
           <div className="w-full max-w-[440px]">
             <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
-              <h1 className="text-h1 font-bold tracking-tight">{title}</h1>
+              <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
               {description && <p className="mt-2 text-muted-foreground">{description}</p>}
               <div className="mt-6">{children}</div>
             </div>

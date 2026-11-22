@@ -70,7 +70,7 @@ export function ConfirmDialog({
               <TriangleAlertIcon className="size-5" aria-hidden="true" />
             </span>
           )}
-          <AlertDialogTitle className="text-h3 font-semibold">{title}</AlertDialogTitle>
+          <AlertDialogTitle className="text-lg font-semibold">{title}</AlertDialogTitle>
           <AlertDialogDescription className="text-muted-foreground">
             {description}
           </AlertDialogDescription>

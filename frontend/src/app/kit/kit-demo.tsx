@@ -13,7 +13,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { BarChart } from "@/components/app/bar-chart";
 import { BudgetAmount } from "@/components/app/budget-amount";
+import { DatePicker } from "@/components/app/date-picker";
+import { DateRangePicker, type DateRangeValue } from "@/components/app/date-range-picker";
+import { DateTimePicker } from "@/components/app/date-time-picker";
+import { ImageUploader, type ExistingImage } from "@/components/app/image-uploader";
+import { MultiSelect } from "@/components/app/multi-select";
+import { ReportButton } from "@/components/app/report-button";
+import { TagInput } from "@/components/app/tag-input";
+import { TiersEditor, validateTiers, type Tier } from "@/components/app/tiers-editor";
+import { TimeInput } from "@/components/app/time-input";
+import { formatAmount } from "@/lib/format";
+import { todayString } from "@/lib/dates";
 import { ConfirmDialog } from "@/components/app/confirm-dialog";
 import { DataTable } from "@/components/app/data-table";
 import { EmptyState } from "@/components/app/empty-state";
@@ -47,7 +59,7 @@ function Section({ title, req, children }: { title: string; req?: string; childr
   return (
     <section className="grid grid-cols-[minmax(0,1fr)] gap-4 border-t border-border py-10">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-h2 font-semibold">{title}</h2>
+        <h2 className="text-2xl font-semibold">{title}</h2>
         {req && <span className="text-xs font-medium text-subtle-foreground">{req}</span>}
       </div>
       {children}
@@ -73,6 +85,17 @@ export function KitDemo() {
   const [infants, setInfants] = useState(0);
   const [accepted, setAccepted] = useState(false);
   const [holdEnd] = useState(() => new Date(Date.now() + 130_000).toISOString());
+  const [startDate, setStartDate] = useState<string | undefined>();
+  const [stay, setStay] = useState<DateRangeValue>({});
+  const [departure, setDeparture] = useState<string | undefined>();
+  const [checkInTime, setCheckInTime] = useState("14:00");
+  const [countries, setCountries] = useState<string[]>(["EG", "AE"]);
+  const [tags, setTags] = useState<string[]>(["cairo", "food"]);
+  const [photos, setPhotos] = useState<ExistingImage[]>([]);
+  const [tiers, setTiers] = useState<Tier[]>([
+    { daysBefore: 30, refundPercentage: 100 },
+    { daysBefore: 7, refundPercentage: 50 },
+  ]);
 
   return (
     <PublicShell user={DEMO_USER} unreadNotifications={3}>
@@ -221,7 +244,7 @@ export function KitDemo() {
             </>
           }
         >
-          <h2 className="text-h3 font-semibold">Review the policies</h2>
+          <h2 className="text-lg font-semibold">Review the policies</h2>
           <ul className="mt-3 grid gap-1 rounded-lg border border-border bg-background p-4 text-sm text-muted-foreground">
             <li>30+ days before departure: 100% refund</li>
             <li>7–29 days: 50% refund</li>
@@ -302,6 +325,124 @@ export function KitDemo() {
           <PaginationBar page={6} totalPages={20} total={196} hrefFor={(p) => `?page=${p}`} />
           <Code>{`<DataTable caption="Accounts" rows={data.items} rowKey={(a) => a.id} columns={[...]} empty={<EmptyState compact title="No accounts" />} />
 <PaginationBar page={data.page} totalPages={data.totalPages} total={data.total} hrefFor={(p) => \`?page=\${p}\`} />`}</Code>
+        </div>
+      </Section>
+
+      <Section title="Dates and times" req="ITN-01 start date · HTL-11 stay · FLT-03 airport local time · HTL-09 check-in time">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Panel className="grid gap-4">
+            <FormField label="Itinerary start date" name="startDate" required>
+              <DatePicker value={startDate} onChange={setStartDate} min={todayString()} />
+            </FormField>
+            <FormField label="Check-in and check-out" name="stay" required hint="Check-out must be after check-in.">
+              <DateRangePicker value={stay} onChange={setStay} min={todayString()} />
+            </FormField>
+            <Code>{`<DatePicker value={date} onChange={setDate} min={todayString()} />   // "YYYY-MM-DD"
+<DateRangePicker value={{ from, to }} onChange={setStay} min={todayString()} />`}</Code>
+          </Panel>
+          <Panel className="grid gap-4">
+            <FormField label="Departure (local time)" name="departureLocal" required>
+              <DateTimePicker value={departure} onChange={setDeparture} airport="CAI" timeZone="Africa/Cairo" min={todayString()} />
+            </FormField>
+            <FormField label="Check-in time" name="checkInTime" required>
+              <TimeInput value={checkInTime} onChange={(e) => setCheckInTime(e.target.value)} />
+            </FormField>
+            <Code>{`<DateTimePicker value={dep} onChange={setDep} airport="CAI" timeZone="Africa/Cairo" />
+// value "2027-03-01T14:30" = departureLocal for POST /api/flights`}</Code>
+          </Panel>
+        </div>
+      </Section>
+
+      <Section title="Choosing several items" req="ITN-01 countries · BLG-01 / BLG-08 tags (max 5, 30 chars)">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Panel className="grid gap-4">
+            <FormField label="Countries" name="countries" required>
+              <MultiSelect
+                options={[
+                  { value: "EG", label: "Egypt" },
+                  { value: "AE", label: "United Arab Emirates" },
+                  { value: "GB", label: "United Kingdom" },
+                  { value: "US", label: "United States" },
+                  { value: "FR", label: "France" },
+                  { value: "DE", label: "Germany" },
+                  { value: "JP", label: "Japan" },
+                  { value: "SA", label: "Saudi Arabia" },
+                ]}
+                value={countries}
+                onChange={setCountries}
+                placeholder="Add countries"
+                searchPlaceholder="Search countries"
+              />
+            </FormField>
+            <Code>{`<MultiSelect options={countries.map((c) => ({ value: c.code, label: c.name }))} value={codes} onChange={setCodes} />`}</Code>
+          </Panel>
+          <Panel className="grid gap-4">
+            <FormField label="Tags" name="tags">
+              <TagInput value={tags} onChange={setTags} />
+            </FormField>
+            <Code>{`<TagInput value={tags} onChange={setTags} />   // max 5, 30 characters each`}</Code>
+          </Panel>
+        </div>
+      </Section>
+
+      <Section title="Photos and logos" req="GEN-08 JPG/PNG, up to 5 MB, up to 5 per item, 1 airline logo">
+        <Panel className="grid gap-4">
+          <FormField label="Hotel photos" name="photos" hint="Try a PDF or a file over 5 MB to see the error.">
+            <ImageUploader
+              max={5}
+              existing={photos}
+              onAdd={(files) =>
+                new Promise<void>((resolve) =>
+                  setTimeout(() => {
+                    setPhotos((p) => [...p, ...files.map((f, i) => ({ id: `${Date.now()}-${i}`, url: URL.createObjectURL(f) }))]);
+                    resolve();
+                  }, 600),
+                )
+              }
+              onRemove={(id) => setPhotos((p) => p.filter((x) => x.id !== id))}
+            />
+          </FormField>
+          <Code>{`<ImageUploader max={5} existing={photos} onAdd={uploadPhotos} onRemove={deletePhoto} />
+<ImageUploader max={1} noun="logo" existing={logo ? [logo] : []} onAdd={uploadLogo} />`}</Code>
+        </Panel>
+      </Section>
+
+      <Section title="Cancellation tiers" req="FLT-09 airline · HTL-10 hotel">
+        <Panel className="grid gap-4">
+          <TiersEditor value={tiers} onChange={setTiers} unit="departure" errors={validateTiers(tiers)} />
+          <Code>{`<TiersEditor value={tiers} onChange={setTiers} unit="departure" errors={validateTiers(tiers)} />
+// send tiers as [{ daysBefore, refundPercentage }]`}</Code>
+        </Panel>
+      </Section>
+
+      <Section title="Report and charts" req="GEN-09 reports · ITN-14 budget by category · BON-01 analytics">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Panel className="grid content-start gap-3">
+            <p className="text-sm text-muted-foreground">On a post, comment, review or itinerary:</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <ReportButton contentType="post" contentId="demo-post" />
+              <ReportButton contentType="comment" contentId="demo-comment" look="icon" />
+              <ReportButton contentType="review" contentId="demo-review" alreadyReported />
+            </div>
+            <p className="text-[13px] text-subtle-foreground">
+              Sending works once the same-origin setup forwards /api to the backend.
+            </p>
+            <Code>{`<ReportButton contentType="post" contentId={post.id} />`}</Code>
+          </Panel>
+          <div className="grid gap-3">
+            <BarChart
+              title="Budget by category"
+              summary="Accommodation is more than half of the trip budget."
+              format={(v) => formatAmount(v, "EUR")}
+              data={[
+                { label: "Accommodation", value: 640 },
+                { label: "Activities", value: 210 },
+                { label: "Food", value: 180 },
+                { label: "Transport", value: 95 },
+              ]}
+            />
+            <Code>{`<BarChart title="Budget by category" data={rows} format={(v) => formatAmount(v, currency)} />`}</Code>
+          </div>
         </div>
       </Section>
 

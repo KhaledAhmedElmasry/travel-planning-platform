@@ -29,7 +29,7 @@ export function PageHeader({ title, description, actions, back, className }: Pag
       )}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="grid min-w-0 gap-1">
-          <h1 className="text-h1 font-bold tracking-tight">{title}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
           {description && <p className="max-w-prose text-muted-foreground">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
