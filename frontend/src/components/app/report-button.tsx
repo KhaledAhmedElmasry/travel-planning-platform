@@ -7,7 +7,6 @@
 // - already reported (409): shows "You already reported this" instead of an error;
 // - not a registered user (403, admin/moderators): explains that only travelers report.
 import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import { CheckIcon, FlagIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,8 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { FormField } from "@/components/app/form-field";
-import { fieldErrorMap, isApiError } from "@/lib/api-error";
+import { ApiError, apiFetch } from "@/lib/api";
+import { fieldErrorMap } from "@/lib/api-error";
 
 export type ReportableType = "post" | "comment" | "review" | "itinerary";
 
@@ -43,8 +43,6 @@ const NOUN: Record<ReportableType, string> = {
 };
 
 export function ReportButton({ contentType, contentId, alreadyReported = false, look = "text" }: ReportButtonProps) {
-  const router = useRouter();
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | undefined>();
@@ -69,36 +67,26 @@ export function ReportButton({ contentType, contentId, alreadyReported = false, 
     setBusy(true);
     setError(undefined);
     try {
-      const res = await fetch("/api/reports", {
+      // A guest (or an ended session) is sent to login and back to this page by apiFetch (ACC-10).
+      await apiFetch("/api/reports", {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType, contentId, reason: reason.trim() }),
+        json: { contentType, contentId, reason: reason.trim() },
       });
-      if (res.status === 401) {
-        router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
-        return;
-      }
-      if (res.status === 409) {
-        setDone(true);
-        setOpen(false);
-        toast.info(`You already reported this ${noun}.`);
-        return;
-      }
-      if (res.status === 403) {
-        setError("Only registered travelers can report content.");
-        return;
-      }
-      if (!res.ok) {
-        const body: unknown = await res.json().catch(() => null);
-        setError(fieldErrorMap(body).reason ?? (isApiError(body) ? body.message : "We couldn't send the report. Try again."));
-        return;
-      }
       setDone(true);
       setOpen(false);
       toast.success("Thanks. An admin will review your report.");
-    } catch {
-      setError("We couldn't send the report. Check your connection and try again.");
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        setDone(true);
+        setOpen(false);
+        toast.info(`You already reported this ${noun}.`);
+      } else if (error instanceof ApiError && error.status === 403) {
+        setError("Only registered travelers can report content.");
+      } else if (error instanceof ApiError) {
+        setError(fieldErrorMap(error.body).reason ?? error.message);
+      } else {
+        setError("We couldn't send the report. Check your connection and try again.");
+      }
     } finally {
       setBusy(false);
     }

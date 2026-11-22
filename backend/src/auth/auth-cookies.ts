@@ -29,16 +29,30 @@ const BASE: CookieOptions = {
   sameSite: 'strict',
 };
 
+// Milestone 2 (same-origin frontend): the Next.js app serves the pages and forwards /api to this
+// backend, so the browser sees one origin. The access cookie uses path '/' so it also comes with
+// page requests (/bookings, /admin/...): server-rendered pages read it to know who is logged in.
+// It is still httpOnly + SameSite strict, so no script and no other site can use it.
+export const ACCESS_COOKIE_PATH = '/';
+// The refresh token stays narrow: only refresh and logout ever need it.
+export const REFRESH_COOKIE_PATH = '/api/auth';
+// Path used before Milestone 2; logout also clears it so an old cookie can't linger.
+const LEGACY_ACCESS_COOKIE_PATH = '/api';
+
 export function setAuthCookies(res: Response, tokens: AuthTokens): void {
+  // A browser that logged in before Milestone 2 may still hold an access cookie on '/api'; with
+  // two cookies of the same name it could send the stale one first. Remove it. This comes FIRST:
+  // clients that track cookies by name only would otherwise drop the new token right after it.
+  res.clearCookie(ACCESS_COOKIE, { ...BASE, path: LEGACY_ACCESS_COOKIE_PATH });
   res.cookie(ACCESS_COOKIE, tokens.accessToken, {
     ...BASE,
-    path: '/api',
+    path: ACCESS_COOKIE_PATH,
     maxAge: ACCESS_TOKEN_TTL_SECONDS * 1000,
   });
   // Only sent to /api/auth/* (refresh and logout), not with every request.
   res.cookie(REFRESH_COOKIE, tokens.refreshToken, {
     ...BASE,
-    path: '/api/auth',
+    path: REFRESH_COOKIE_PATH,
     maxAge: REFRESH_TOKEN_TTL_SECONDS * 1000,
   });
 }
@@ -46,6 +60,7 @@ export function setAuthCookies(res: Response, tokens: AuthTokens): void {
 // ACC-06: logout. The options must match the ones the cookies were set with, or the browser keeps
 // them.
 export function clearAuthCookies(res: Response): void {
-  res.clearCookie(ACCESS_COOKIE, { ...BASE, path: '/api' });
-  res.clearCookie(REFRESH_COOKIE, { ...BASE, path: '/api/auth' });
+  res.clearCookie(ACCESS_COOKIE, { ...BASE, path: LEGACY_ACCESS_COOKIE_PATH });
+  res.clearCookie(ACCESS_COOKIE, { ...BASE, path: ACCESS_COOKIE_PATH });
+  res.clearCookie(REFRESH_COOKIE, { ...BASE, path: REFRESH_COOKIE_PATH });
 }

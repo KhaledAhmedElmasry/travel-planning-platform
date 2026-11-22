@@ -425,7 +425,7 @@ export function KitDemo() {
               <ReportButton contentType="review" contentId="demo-review" alreadyReported />
             </div>
             <p className="text-[13px] text-subtle-foreground">
-              Sending works once the same-origin setup forwards /api to the backend.
+              The demo ids are fake: logged in, the backend answers with a validation message; as a guest, you go to login.
             </p>
             <Code>{`<ReportButton contentType="post" contentId={post.id} />`}</Code>
           </Panel>
