@@ -40,7 +40,8 @@ export function configureApp(app: INestApplication): void {
   // docs/api/openapi.yaml (statusCode, error, message, fieldErrors?, path, timestamp).
   app.useGlobalFilters(new GlobalHttpExceptionFilter());
 
-  // Milestone 2: enable CORS with credentials for the Next.js frontend here.
+  // No CORS: the Next.js frontend forwards /api and /uploads to this server (frontend/next.config.ts),
+  // so the browser only ever talks to one origin and the SameSite=Strict cookies just work.
 
   const document = load(readFileSync(OPENAPI_FILE, 'utf8')) as OpenAPIObject;
   SwaggerModule.setup('api/docs', app, document, {

@@ -121,6 +121,14 @@ describe('Accounts and sessions', () => {
         expect(attributes).toContain('secure');
         expect(attributes).toMatch(/samesite=(strict|lax)/);
       }
+      // Milestone 2 same-origin frontend: the access cookie comes with page requests too (path /)
+      // so server-rendered pages see the session; the refresh token stays on /api/auth only.
+      expect(
+        client.cookieAttributes.get('access_token')!.toLowerCase(),
+      ).toMatch(/(^|;\s*)path=\/(;|$)/);
+      expect(
+        client.cookieAttributes.get('refresh_token')!.toLowerCase(),
+      ).toMatch(/(^|;\s*)path=\/api\/auth(;|$)/);
       expect(JSON.stringify(res.body)).not.toContain(
         client.cookies.get('access_token'),
       );

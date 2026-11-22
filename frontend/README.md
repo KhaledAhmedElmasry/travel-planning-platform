@@ -6,10 +6,17 @@ Deadline 11 Dec 2026. Design rules: [`design-system/yallaway/MASTER.md`](../desi
 ## Run it
 
 ```bash
+# 1. the backend, in another terminal: cd backend && npm run start:dev   (http://localhost:3000)
 cd frontend
 npm install
-npm run dev          # http://localhost:3001  (the backend stays on :3000)
+cp .env.example .env.local   # BACKEND_URL=http://localhost:3000 (change it if your backend runs elsewhere)
+npm run dev                  # http://localhost:3001
 ```
+
+Always open the app at **http://localhost:3001** (not :3000): the frontend forwards `/api` and `/uploads`
+to the backend, so the browser sees one site and the login cookies work. `BACKEND_URL` must be set both
+when building and when running (`.env.local` covers both). Use Chrome or Edge locally: Safari refuses
+`Secure` cookies on `http://localhost`.
 
 | Command | What it does |
 |---|---|
@@ -149,12 +156,64 @@ way:
 
 | Do | Never |
 |---|---|
-| Send every API call with the cookies: `fetch(url, { credentials: 'include' })`. | Store a token, a password or the user object in `localStorage`, `sessionStorage`, IndexedDB or a non-httpOnly cookie. |
-| Get the logged-in account from `GET /api/auth/me` and keep it only in memory (React state, context, or a server fetch per request). | Read `document.cookie` for auth, or put a token in a URL, a header you build yourself, or a log. |
-| Treat **401** as "not logged in": clear the in-memory user and go to login (then back to the action, ACC-10). | Cache `/api/auth/me` or `/api/users/me` responses yourself (for example with ISR or a service worker). |
-| Log out with `POST /api/auth/logout`; it revokes the session and clears both cookies (the profile menu already does this). | Keep the password field's value after the login request. |
-| If `mustChangePassword` is true in `/auth/me`, send the user to the change-password page (ACC-07a, ACC-13). | |
+| Call the API with the helpers below (they send the cookies and handle 401). | Store a token, a password or the user object in `localStorage`, `sessionStorage`, IndexedDB or a non-httpOnly cookie. |
+| Get the logged-in account with `getSessionUser()` / `requireUser()` (server) and keep it only in memory. | Read `document.cookie` for auth, or put a token in a URL, a header you build yourself, or a log. |
+| Let `apiFetch` handle **401**: it refreshes once, then sends the user to login and back (ACC-10). | Cache `/api/auth/me` or `/api/users/me` responses yourself (for example with ISR or a service worker). |
+| Log out with `POST /api/auth/logout` (the profile menu already does this). | Keep the password field's value after the login request. |
+| `requireUser()` already sends accounts with `mustChangePassword` to `/account/password` (ACC-07a, ACC-13). | |
 
-The cookies are `Secure`: Chrome and Edge accept them on `http://localhost`, Safari does not. Calling the
-API from the browser and from server-rendered pages needs the same-origin setup (Next.js forwarding `/api`
-and `/uploads` to the backend); it comes in its own branch, separately from the kit.
+How the cookies travel: the backend sets `access_token` on path `/` (so page requests carry it and
+server-rendered pages know the user) and `refresh_token` on `/api/auth` only (refresh and logout).
+Both are httpOnly, Secure, SameSite=Strict. The access token lasts 15 minutes; the session ends after
+30 minutes without activity (ACC-06).
+
+## Calling the backend
+
+**Server pages** (Server Components, the default):
+
+```tsx
+import { requireUser, getSessionUser, getUnreadCount } from "@/lib/server/session";
+import { backendFetch, backendJson } from "@/lib/server/backend";
+
+// a page only travelers may open (P-20 My flight bookings)
+export default async function MyBookingsPage() {
+  const user = await requireUser(["user"]);          // guests -> login and back, others -> /forbidden
+  const data = await backendJson<Paginated<FlightBooking>>("/api/flight-bookings?group=upcoming");
+  return <AppShell user={user} unreadNotifications={await getUnreadCount()}>...</AppShell>;
+}
+
+// a public page that changes when someone is logged in
+const user = await getSessionUser();                  // SessionUser | null
+```
+
+- `requireUser(roles)`: no session -> `/resume-session` (refreshes once if the access token expired)
+  -> back to the page, or `/login?returnTo=...`; wrong role -> `/forbidden`; temporary password ->
+  `/account/password` (that page calls `requireUser([...], { allowPendingPasswordChange: true })`).
+- `backendFetch(path)` / `backendJson(path)`: call the backend with the visitor's cookies, never cached.
+- **Public ISR pages** (published post, author page, public itinerary): don't call these (they read
+  cookies, which makes the page dynamic). Use `fetch(\`${BACKEND_URL}/api/...\`, { next: { revalidate: 300 } })`
+  without cookies, and use `<PublicShell>` **without** `user`: the header then checks the session in the
+  browser, so the cached page still shows each visitor their own menu.
+
+**Browser code** (Client Components: forms, buttons, wizard steps):
+
+```tsx
+import { apiFetch, ApiError } from "@/lib/api";
+import { fieldErrorMap } from "@/lib/api-error";
+
+try {
+  const booking = await apiFetch<FlightBooking>("/api/flight-bookings/hold", { method: "POST", json: body });
+  toast.success("Seats held for 10 minutes.");
+} catch (error) {
+  if (error instanceof ApiError) setErrors(fieldErrorMap(error.body)); // GEN-02
+}
+```
+
+- Same origin: always `"/api/..."`, never `http://localhost:3000`.
+- 401 -> one refresh + retry (one at a time, even across tabs: reusing a rotated refresh token would end
+  the session) -> still 401 -> login with `returnTo` (pass `{ redirectOnAuthFail: false }` to handle it).
+- File uploads: `apiFetch(path, { method: "POST", body: formData })`.
+
+**After login** (the login page, P-02): go to `afterLoginPath(user.role, searchParams.get("returnTo"))`
+from `@/lib/return-to`: back to the action (ACC-10) or the role's home page (ACC-04). It accepts only
+local paths, so `returnTo` can't send users to another site.

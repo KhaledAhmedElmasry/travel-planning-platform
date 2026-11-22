@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ApiError, apiFetch } from "@/lib/api";
 import { ACCOUNT_NAV } from "@/lib/nav";
 import { initials, ROLE_LABEL, type SessionUser } from "@/lib/session";
 
@@ -27,10 +28,10 @@ export function UserMenu({ user }: { user: SessionUser }) {
     setLeaving(true);
     try {
       // POST /api/auth/logout revokes the session and clears both cookies (ACC-06).
-      // Same-origin call: works once the same-origin setup (separate branch) makes
-      // Next.js forward /api to the backend.
-      const res = await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-      if (!res.ok && res.status !== 401) throw new Error();
+      // A 401 means the session had already ended: the user is logged out either way.
+      await apiFetch("/api/auth/logout", { method: "POST", redirectOnAuthFail: false }).catch((error: unknown) => {
+        if (!(error instanceof ApiError && error.status === 401)) throw error;
+      });
       router.push("/");
       router.refresh();
     } catch {
