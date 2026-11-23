@@ -43,6 +43,7 @@ export const USER_NAV: NavItem[] = [
   { label: "Explore Itineraries", href: "/itineraries" },
   { label: "Blog", href: "/blog" },
   { label: "My Posts", href: "/my/posts" },
+  { label: "Favourites", href: "/favourites" },
 ];
 
 /** Sidebars for moderators and admin (DashboardShell). */
