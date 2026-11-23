@@ -69,6 +69,7 @@ as needed"). These are the ones the backend adds, all documented in `openapi.yam
 | `GET /api/notifications`, `GET /api/notifications/unread-count`, `PATCH /api/notifications/:id/read`, `PATCH /api/notifications/read-all` | GEN-01 |
 | `POST /api/reports` | GEN-09: a user reports content |
 | `PATCH /api/admin/content/:type/:id/hide`, `PATCH /api/admin/content/:type/:id/unhide` | GEN-10: an admin hides content directly |
+| `GET /api/airlines/:id/flights` | FLT-03, FLT-05: the airline moderator's own flights (airline dashboard) |
 | `GET /api/hotels/:id/rooms` | HTL-03, HTL-06: the hotel moderator's own rooms (hotel dashboard) |
 | `GET /api/admin/analytics` | BON-01 (bonus) |
 | `POST /api/favourites`, `GET /api/favourites`, `DELETE /api/favourites/:id` | BON-02 (bonus) |
