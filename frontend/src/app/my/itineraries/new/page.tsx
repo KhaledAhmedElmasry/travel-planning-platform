@@ -1,7 +1,7 @@
 // P-25 New itinerary: /my/itineraries/new
 // Part: T3 Itinerary editor
-// Requirements: ITN-01, ITN-20
-// Endpoints: POST /api/itineraries, GET /api/countries
+// Requirements: ITN-01, ITN-20, GEN-12
+// Endpoints: POST, GET /api/itineraries; GET, PATCH, DELETE /api/itineraries/{id}; GET /api/countries
 // Rendering: Dynamic SSR + Client Components. Source: .md section 9 "Itinerary Editor".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-25). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.

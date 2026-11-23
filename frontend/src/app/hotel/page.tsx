@@ -1,7 +1,7 @@
 // - Hotel overview: /hotel
 // Part: Lead (foundation)
 // Requirements: ACC-04 (role home)
-// Endpoints: GET /api/hotels/{id}/rooms (new, spec §8), GET /api/hotels/{id}/reservations
+// Endpoints: GET /api/hotels/{id}/availability; GET /api/hotels/{id}/reservations; GET /api/hotels/{id}/rooms
 // Rendering: Dynamic SSR. Source: .md section 9 "Admin / Moderator Dashboards".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page -). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.

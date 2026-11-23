@@ -1,7 +1,7 @@
 // - Admin overview: /admin
 // Part: Lead (foundation)
 // Requirements: ACC-04 (role home)
-// Endpoints: GET /api/admin/reports, GET /api/admin/accounts, GET /api/admin/audit-logs
+// Endpoints: GET /api/admin/accounts; GET /api/admin/reports; GET /api/admin/audit-logs; GET /api/admin/providers
 // Rendering: Dynamic SSR. Source: .md section 9 "Admin / Moderator Dashboards".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page -). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.

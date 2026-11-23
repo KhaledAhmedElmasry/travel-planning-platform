@@ -1,7 +1,7 @@
 // P-40 Baggage policy: /airline/baggage-policy
 // Part: T5 Airline dashboard
 // Requirements: FLT-08
-// Endpoints: PUT /api/airlines/{id}/baggage-policy
+// Endpoints: GET, PATCH /api/airlines/{id}; PUT /api/airlines/{id}/baggage-policy
 // Rendering: Dynamic SSR + Client Components. Source: .md section 9 "Admin / Moderator Dashboards"; Client Components for the interactive form, as section 9 says "where browser-side interactivity is required".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-40). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.

@@ -1,7 +1,7 @@
 // P-33 My posts: /my/posts
 // Part: T2 Hotels + my posts list
 // Requirements: BLG-03
-// Endpoints: GET /api/posts/mine, DELETE /api/posts/{id}
+// Endpoints: GET, PATCH, DELETE /api/posts/{id}; GET /api/posts/mine
 // Rendering: Dynamic SSR + Client Components. Source: .md section 9 "Blog Editor / Drafts".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-33). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.

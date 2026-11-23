@@ -1,7 +1,7 @@
 // - Terms & Privacy: /terms
 // Part: Lead (foundation)
 // Requirements: ACC-01 (consent link)
-// Endpoints: none
+// Endpoints: none (static page)
 // Rendering: Static. Not in .md section 9, decided by the team leader (23 Nov): the same text for everyone, it only changes with a new deploy.
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page -). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
