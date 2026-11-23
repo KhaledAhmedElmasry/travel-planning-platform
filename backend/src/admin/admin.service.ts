@@ -48,6 +48,7 @@ import {
 } from './dto/analytics-query.dto';
 import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
+import { ListProvidersQueryDto } from './dto/list-providers-query.dto';
 
 export interface AccountResponse {
   id: string;
@@ -294,6 +295,83 @@ export class AdminService {
   }
 
   // ACC-14: Paginated list of all accounts with search by name/email and filter by role/status
+  // P-50 / P-49 (extra endpoint, MILESTONE2 spec section 8): airlines or hotels by name A to Z,
+  // 10 per page (GEN-05). search matches the name (and the code of an airline), ignoring case.
+  // A provider may have several moderators (ACC-13 links each moderator to one provider): all
+  // are listed; hasModerator filters on "at least one".
+  async listProviders(query: ListProvidersQueryDto) {
+    const isAirline = query.type === ProviderType.Airline;
+    const link = isAirline ? 'airlineId' : 'hotelId';
+    const moderatorRole = isAirline
+      ? Role.AirlineModerator
+      : Role.HotelModerator;
+    const collection = this.connection.collection(
+      isAirline ? 'airlines' : 'hotels',
+    );
+
+    const filter: Record<string, unknown> = {};
+    if (query.search) {
+      const regex = new RegExp(escapeRegex(query.search), 'i');
+      filter.$or = isAirline
+        ? [{ name: regex }, { code: regex }]
+        : [{ name: regex }];
+    }
+    if (query.active !== undefined) filter.active = query.active;
+    if (query.hasModerator !== undefined) {
+      const moderated = await this.userModel
+        .distinct(link, { role: moderatorRole, [link]: { $ne: null } })
+        .exec();
+      filter._id = query.hasModerator
+        ? { $in: moderated }
+        : { $nin: moderated };
+    }
+
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [providers, total] = await Promise.all([
+      collection
+        .find(filter)
+        .sort({ name: 1, _id: 1 })
+        .skip(skip)
+        .limit(limit)
+        .toArray(),
+      collection.countDocuments(filter),
+    ]);
+    const moderators = await this.userModel
+      .find({
+        role: moderatorRole,
+        [link]: { $in: providers.map((p) => p._id) },
+      })
+      .sort({ name: 1, _id: 1 })
+      .exec();
+
+    const items = providers.map((p) => {
+      const id = String(p._id);
+      return {
+        id,
+        type: query.type,
+        name: p.name as string,
+        ...(isAirline
+          ? {
+              code: p.code as string,
+              logoUrl: (p.logoUrl as string | null) ?? null,
+            }
+          : {
+              cityId: p.cityId as string,
+              countryCode: p.countryCode as string,
+              photoUrl:
+                (p.photos as { url: string }[] | undefined)?.[0]?.url ?? null,
+            }),
+        active: p.active !== false,
+        moderators: moderators
+          .filter((m) => String(m[link]) === id)
+          .map((m) => ({ id: m._id.toString(), name: m.name, email: m.email })),
+        createdAt: p.createdAt as Date,
+      };
+    });
+    return paginate(items, total, page, DEFAULT_PAGE_SIZE);
+  }
+
   async listAccounts(
     query: ListAccountsQueryDto,
   ): Promise<PaginatedList<AccountListItem>> {

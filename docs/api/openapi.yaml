@@ -745,6 +745,61 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 409, "error": "CONFLICT", "message": "The account is not suspended.", "path": "/api/admin/accounts/665f1c2a9b1e8a00123400a1/reactivate", "timestamp": "2026-11-01T10:00:00.000Z"}
 
+  /api/admin/providers:
+    get:
+      operationId: getAdminProviders
+      tags: [Administration]
+      summary: 'List airlines or hotels with their moderators (ACC-13, ACC-15)'
+      description: |
+        **Access:** admin.
+
+        Airlines or hotels by name (A to Z), 10 per page (GEN-05), with their active flag (ACC-15)
+        and every moderator linked to them (ACC-13; a provider may have several). Used by the
+        providers table and the provider select of Create Moderator. Extra endpoint, not in PDF
+        section 8 (see docs/api/README.md).
+      security: *auth
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/ProviderType'
+        - name: search
+          in: query
+          description: Part of the name (or of the code, for airlines), ignoring case.
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+        - name: hasModerator
+          in: query
+          description: Only providers with at least one moderator (`true`) or with none (`false`).
+          schema:
+            type: string
+            enum: ['true', 'false']
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: The providers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Not an admin.", "path": "/api/admin/providers", "timestamp": "2026-11-01T10:00:00.000Z"}
+
   /api/admin/providers/{type}/{id}/deactivate:
     patch:
       operationId: patchAdminProvidersByTypeByIdDeactivate
@@ -10597,6 +10652,63 @@ components:
       oneOf:
         - $ref: '#/components/schemas/FlightSearchPage'
         - $ref: '#/components/schemas/RoundTripFlightSearch'
+    ProviderListItem:
+      type: object
+      required: [id, type, name, active, moderators, createdAt]
+      properties:
+        id:
+          type: string
+        type:
+          $ref: '#/components/schemas/ProviderType'
+        name:
+          type: string
+          example: Nile Air
+        code:
+          type: string
+          description: Airlines only.
+          example: NA
+        logoUrl:
+          type: string
+          nullable: true
+          description: Airlines only.
+        cityId:
+          type: string
+          description: Hotels only.
+          example: cairo
+        countryCode:
+          type: string
+          description: Hotels only.
+          example: EG
+        photoUrl:
+          type: string
+          nullable: true
+          description: Hotels only, the first photo.
+        active:
+          type: boolean
+        moderators:
+          type: array
+          items:
+            type: object
+            required: [id, name, email]
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              email:
+                type: string
+        createdAt:
+          type: string
+          format: date-time
+    ProviderList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProviderListItem'
     AccountList:
       allOf:
         - $ref: '#/components/schemas/PaginatedList'
