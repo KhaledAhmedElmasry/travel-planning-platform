@@ -1,7 +1,7 @@
 // P-52 Reports: /admin/reports
 // Part: T7 Admin dashboard
 // Requirements: GEN-09, GEN-10
-// Endpoints: GET /api/admin/reports, PATCH /api/admin/reports/{id}, DELETE /api/admin/content/{type}/{id}
+// Endpoints: GET /api/admin/reports; PATCH /api/admin/reports/{id}; DELETE /api/admin/content/{type}/{id}; PATCH /api/admin/content/{type}/{id}/hide; PATCH /api/admin/content/{type}/{id}/unhide
 // Rendering: Dynamic SSR + Client Components. Source: .md section 9 "Admin / Moderator Dashboards"; Client Components for the interactive form, as section 9 says "where browser-side interactivity is required".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-52). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.

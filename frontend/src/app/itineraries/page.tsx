@@ -1,7 +1,7 @@
 // P-27 Explore itineraries: /itineraries
 // Part: Lead (foundation)
-// Requirements: ITN-21
-// Endpoints: GET /api/itineraries/public/search, GET /api/countries, GET /api/cities
+// Requirements: ITN-21, GEN-12
+// Endpoints: GET /api/itineraries/public/search; GET /api/countries; GET /api/cities
 // Rendering: Dynamic SSR. Source: .md section 9 "Public Itinerary Search".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-27). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
