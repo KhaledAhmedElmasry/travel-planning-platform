@@ -24,6 +24,10 @@ when building and when running (`.env.local` covers both). Use Chrome or Edge lo
 | `npm run build` | Production build (must pass before a PR) |
 | `npm run lint` | ESLint, including the "no raw colors / no inline styles in pages" rule |
 | `npm run typecheck` | TypeScript check |
+| `npm test` | Component tests (Vitest + React Testing Library), files `src/**/*.test.tsx` |
+| `npm run test:e2e` | Whole pages in a real browser (Playwright), files `e2e/*.spec.ts`, desktop + phone. Start the backend first; it starts the frontend itself. First time: `npx playwright install chromium` |
+
+Async Server Components (most pages) can't be rendered by Vitest (Next.js 16 testing guide): test them with Playwright.
 
 Open **http://localhost:3001/kit** to see every ready-made component with sample data and the code to use it.
 
