@@ -2,7 +2,7 @@
 // Part: Lead (foundation)
 // Requirements: ACC-02
 // Endpoints: GET /api/auth/verify-email
-// Rendering: Dynamic SSR (.md section 9)
+// Rendering: Dynamic SSR. Not in .md section 9, decided by the team leader (23 Nov): the token in the URL is checked against the backend on every request; nothing to cache.
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-08 (Bonus)). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
 export default function Page() {

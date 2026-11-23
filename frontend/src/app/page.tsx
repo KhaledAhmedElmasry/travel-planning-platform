@@ -1,6 +1,7 @@
 // Home page (guest landing). PLACEHOLDER: the real page (hero with So3ad + flight/hotel
 // search, featured public itineraries, popular destinations; spec section 2) is built
 // by its area. Keep using <PublicShell fullWidth> and the kit components.
+// Rendering: ISR / Static. Not in .md section 9, decided by the team leader (23 Nov): same page for every visitor, fast and good for SEO; featured itineraries may be a few minutes old. Add SEO metadata.
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { So3ad } from "@/components/app/so3ad";
