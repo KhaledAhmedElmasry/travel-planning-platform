@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ApiError, apiFetch } from "@/lib/api";
-import { ACCOUNT_NAV } from "@/lib/nav";
+import { ACCOUNT_NAV, forRole } from "@/lib/nav";
 import { initials, ROLE_LABEL, type SessionUser } from "@/lib/session";
 
 export function UserMenu({ user }: { user: SessionUser }) {
@@ -60,7 +60,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {ACCOUNT_NAV.map((item) => (
+        {forRole(ACCOUNT_NAV, user.role).map((item) => (
           <DropdownMenuItem key={item.href} asChild>
             <Link href={item.href}>{item.label}</Link>
           </DropdownMenuItem>

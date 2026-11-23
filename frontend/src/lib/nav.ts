@@ -24,7 +24,13 @@ import {
 } from "lucide-react";
 import type { Role } from "@/lib/session";
 
-export type NavItem = { label: string; href: string; icon?: LucideIcon };
+/** `roles`: only these roles see the item (all roles when omitted). */
+export type NavItem = { label: string; href: string; icon?: LucideIcon; roles?: Role[] };
+
+/** The items of a menu that `role` may see. */
+export function forRole(items: NavItem[], role: Role): NavItem[] {
+  return items.filter((item) => !item.roles || item.roles.includes(role));
+}
 
 /** Top navbar for guests (PublicShell). */
 export const GUEST_NAV: NavItem[] = [
@@ -88,6 +94,7 @@ export const ACCOUNT_NAV: NavItem[] = [
   { label: "Profile", href: "/account", icon: ShieldCheckIcon },
   { label: "Change password", href: "/account/password" },
   { label: "Notifications", href: "/notifications" },
+  { label: "Favourites", href: "/favourites", roles: ["user"] }, // BON-02: registered users only
 ];
 
 /** True when `href` is the current page or a parent of it ("/admin" stays exact). */
