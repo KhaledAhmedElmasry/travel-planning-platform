@@ -2,7 +2,7 @@
 // Part: T4 Blog
 // Requirements: BLG-08
 // Endpoints: GET /api/tags/{tag}/posts
-// Rendering: Dynamic SSR (.md section 9)
+// Rendering: Dynamic SSR. Source: .md section 9 "Blog Listing / Search" (a tag page is the listing filtered by one tag).
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-31). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
 export default function Page() {

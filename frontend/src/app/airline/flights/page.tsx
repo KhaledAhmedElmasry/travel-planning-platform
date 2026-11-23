@@ -2,7 +2,7 @@
 // Part: T5 Airline dashboard
 // Requirements: FLT-30
 // Endpoints: GET /api/airlines/{id}/flights (new, spec §8)
-// Rendering: Dynamic SSR (.md section 9)
+// Rendering: Dynamic SSR. Source: .md section 9 "Admin / Moderator Dashboards".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-36). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
 export default function Page() {

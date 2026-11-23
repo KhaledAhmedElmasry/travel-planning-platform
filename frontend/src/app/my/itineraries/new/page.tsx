@@ -2,7 +2,7 @@
 // Part: T3 Itinerary editor
 // Requirements: ITN-01, ITN-20
 // Endpoints: POST /api/itineraries, GET /api/countries
-// Rendering: Dynamic SSR + Client Components (.md section 9)
+// Rendering: Dynamic SSR + Client Components. Source: .md section 9 "Itinerary Editor".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-25). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
 export default function Page() {

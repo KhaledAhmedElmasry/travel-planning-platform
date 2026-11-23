@@ -1,4 +1,5 @@
 // 404 page for every unknown URL (GEN-16, spec section 3.12).
+// Rendering: Static (a Server Component by default, Next.js 16 docs). Not in .md section 9: the same 404 page for everyone.
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { So3ad } from "@/components/app/so3ad";

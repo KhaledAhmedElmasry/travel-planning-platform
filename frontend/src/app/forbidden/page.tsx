@@ -1,5 +1,6 @@
 // /forbidden: a logged-in account opened a page its role can't use (ACC-11), e.g. a traveler on
 // /admin. requireUser() sends it here. The backend refuses the data anyway (403/404).
+// Rendering: Dynamic SSR. Not in .md section 9, chosen with the kit (#259): it reads the session cookie to link the account to its own home page.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
