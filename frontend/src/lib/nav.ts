@@ -3,6 +3,7 @@
 // the menu. Paths are the agreed page routes; create the page under src/app/ at
 // the same path.
 import {
+  BarChart3Icon,
   BedDoubleIcon,
   BriefcaseIcon,
   BuildingIcon,
@@ -67,6 +68,7 @@ export const DASHBOARD_NAV: Record<Exclude<Role, "user">, NavItem[]> = {
     { label: "Accounts", href: "/admin/accounts", icon: UsersIcon },
     { label: "Create moderator", href: "/admin/moderators/new", icon: UserPlusIcon },
     { label: "Providers", href: "/admin/providers", icon: BriefcaseIcon },
+    { label: "Analytics", href: "/admin/analytics", icon: BarChart3Icon },
     { label: "Bookings", href: "/admin/bookings", icon: ReceiptIcon },
     { label: "Reports", href: "/admin/reports", icon: FlagIcon },
     { label: "Audit log", href: "/admin/audit-log", icon: FileTextIcon },

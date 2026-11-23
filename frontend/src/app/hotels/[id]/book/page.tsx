@@ -1,0 +1,15 @@
+// P-19 Book a hotel: /hotels/[id]/book
+// Part: T2 Hotels + my posts list
+// Requirements: HTL-16, HTL-18, HTL-09, PAY-02
+// Endpoints: POST /api/hotel-bookings, GET/POST /api/bookings/hotel/{id}/policies|accept-policies
+// Rendering: Dynamic SSR + Client Components (.md section 9)
+// Spec: MILESTONE2_FRONTEND_SPEC.md (page P-19). Use a shell and kit components (frontend/README.md).
+// TODO: not built yet. Replace this stub.
+export default function Page() {
+  return (
+    <main className="p-8">
+      <h1 className="text-2xl font-bold">Book a hotel</h1>
+      <p className="text-muted-foreground">Not built yet.</p>
+    </main>
+  );
+}
