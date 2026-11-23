@@ -31,6 +31,7 @@ export function LoginForm({ returnTo, navigate = (path) => window.location.assig
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const safe = safeReturnTo(returnTo);
   const [error, setError] = useState<{ message: string; fields: Record<string, string> } | null>(null);
 
   async function onSubmit(event: FormEvent) {
@@ -48,7 +49,6 @@ export function LoginForm({ returnTo, navigate = (path) => window.location.assig
     }
     if (account.mustChangePassword) {
       // ACC-07a / ACC-13: set a new password first, then continue to the pending action.
-      const safe = safeReturnTo(returnTo);
       navigate(safe ? `/account/password?returnTo=${encodeURIComponent(safe)}` : "/account/password");
       return;
     }
@@ -78,7 +78,7 @@ export function LoginForm({ returnTo, navigate = (path) => window.location.assig
       </Button>
       <p className="text-center text-sm text-muted-foreground">
         No account?{" "}
-        <Link href="/signup" className="text-link underline underline-offset-4">
+        <Link href={safe ? `/signup?returnTo=${encodeURIComponent(safe)}` : "/signup"} className="text-link underline underline-offset-4">
           Sign up
         </Link>
       </p>

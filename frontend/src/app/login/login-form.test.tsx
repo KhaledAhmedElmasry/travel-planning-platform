@@ -151,3 +151,10 @@ test("the form links to sign up and to forgot password", () => {
   expect(screen.getByRole("link", { name: "Forgot password?" }).getAttribute("href")).toBe("/forgot-password");
   expect(screen.getByRole("link", { name: "Sign up" }).getAttribute("href")).toBe("/signup");
 });
+
+// source: Excel ACC-10 + team leader in chat (23 Nov) - the pending action survives switching to sign up
+test("the Sign up link keeps the pending action", () => {
+  render(<LoginForm returnTo="/bookings" navigate={vi.fn()} />);
+
+  expect(screen.getByRole("link", { name: "Sign up" }).getAttribute("href")).toBe("/signup?returnTo=%2Fbookings");
+});
