@@ -6,6 +6,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { RevalidationService } from '../revalidation/revalidation.service';
 import mongoose, { Connection, isValidObjectId, Model, Types } from 'mongoose';
 import {
   DEFAULT_PAGE_SIZE,
@@ -73,6 +74,7 @@ export class ItinerariesService {
     @Optional() private readonly usersService?: UsersService,
     @Optional() private readonly exchangeRatesService?: ExchangeRatesService,
     @Optional() private readonly bookingLinks?: ItineraryBookingsService,
+    @Optional() private readonly revalidation?: RevalidationService,
   ) {}
 
   async create(
@@ -1454,6 +1456,8 @@ export class ItinerariesService {
   private async saveItinerary(itinerary: ItineraryDocument): Promise<void> {
     try {
       await itinerary.save();
+      // B5: refresh the cached public page and the author page (ISR).
+      this.revalidation?.itinerary(itinerary._id, itinerary.userId);
     } catch (error) {
       if (error instanceof mongoose.Error.VersionError) {
         throw new ConflictException(

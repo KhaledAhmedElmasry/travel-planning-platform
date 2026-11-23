@@ -426,6 +426,7 @@ describe('Blog public detail and author pages', () => {
     const controller = new BlogController(
       blogService as unknown as BlogService,
       sessions as never,
+      { post: jest.fn() } as never, // B5 revalidation, not under test here
     );
     const request = { cookies: {} } as never;
 
@@ -455,6 +456,7 @@ describe('Blog public detail and author pages', () => {
     const controller = new BlogController(
       blogService as unknown as BlogService,
       sessions as never,
+      { post: jest.fn() } as never, // B5 revalidation, not under test here
     );
     await expect(
       controller.getPost(postId, { commentsPage: 1 }, {

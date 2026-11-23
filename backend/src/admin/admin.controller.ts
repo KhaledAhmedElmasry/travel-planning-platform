@@ -16,6 +16,7 @@ import { ProviderType, Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
+import { RevalidationService } from '../revalidation/revalidation.service';
 import { AdminService } from './admin.service';
 import { AdminActionDto } from './dto/admin-action.dto';
 import { CreateModeratorDto } from './dto/create-moderator.dto';
@@ -46,7 +47,11 @@ import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.Admin)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    // B5: a suspended or reactivated author's pages are cached (ISR).
+    private readonly revalidation: RevalidationService,
+  ) {}
 
   // ACC-13, GEN-01-B: Create a hotel or airline moderator
   @Post('moderators')
@@ -66,22 +71,26 @@ export class AdminController {
 
   // ACC-15, ACC-16: Suspend a user or moderator account
   @Patch('accounts/:id/suspend')
-  suspendAccount(
+  async suspendAccount(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
     @Body() dto?: AdminActionDto,
   ) {
-    return this.adminService.suspendAccount(admin, id, dto);
+    const result = await this.adminService.suspendAccount(admin, id, dto);
+    this.revalidation.author(id);
+    return result;
   }
 
   // ACC-15, ACC-16: Reactivate a suspended user or moderator account
   @Patch('accounts/:id/reactivate')
-  reactivateAccount(
+  async reactivateAccount(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
     @Body() dto?: AdminActionDto,
   ) {
-    return this.adminService.reactivateAccount(admin, id, dto);
+    const result = await this.adminService.reactivateAccount(admin, id, dto);
+    this.revalidation.author(id);
+    return result;
   }
 
   // ACC-15: deactivate a hotel or airline (:type is hotel or airline). It is hidden from search
