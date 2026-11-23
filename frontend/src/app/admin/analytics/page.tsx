@@ -2,7 +2,7 @@
 // Part: T7 Admin dashboard
 // Requirements: BON-01
 // Endpoints: GET /api/admin/analytics
-// Rendering: Dynamic SSR (.md section 9)
+// Rendering: Dynamic SSR. Source: .md section 9 "Admin / Moderator Dashboards".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page - (Bonus)). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
 export default function Page() {

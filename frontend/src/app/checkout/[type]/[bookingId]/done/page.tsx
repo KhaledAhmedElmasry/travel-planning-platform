@@ -2,7 +2,7 @@
 // Part: Lead (foundation)
 // Requirements: FLT-23, HTL-17
 // Endpoints: GET /api/flight-bookings/{id}, GET /api/hotel-bookings/{id}, GET /api/flight-bookings/{id}/e-ticket
-// Rendering: Dynamic SSR (.md section 9)
+// Rendering: Dynamic SSR. Not in .md section 9, decided by the team leader (23 Nov): per-user data read with the session cookie on every request, so it can't be cached for everyone (the booking reference); closest .md section 9 row: "User Booking Pages".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-17). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
 export default function Page() {

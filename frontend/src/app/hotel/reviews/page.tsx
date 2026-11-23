@@ -2,7 +2,7 @@
 // Part: T6 Hotel dashboard
 // Requirements: HTL-26, HTL-24
 // Endpoints: GET /api/hotels/{id}/reviews, POST /api/reviews/{id}/reply
-// Rendering: Dynamic SSR (.md section 9)
+// Rendering: Dynamic SSR + Client Components. Source: .md section 9 "Admin / Moderator Dashboards"; Client Components for the interactive form, as section 9 says "where browser-side interactivity is required".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page - (Bonus)). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
 export default function Page() {

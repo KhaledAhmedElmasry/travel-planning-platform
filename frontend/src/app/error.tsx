@@ -1,4 +1,5 @@
 "use client";
+// Rendering: Client Component, required by Next.js (error boundaries must be Client Components, Next.js 16 docs). Not in .md section 9.
 
 // Shown when a page crashes while rendering (GEN-16). Offers a retry and a way home.
 // A page that loads data should still handle its own errors with <ErrorState>.

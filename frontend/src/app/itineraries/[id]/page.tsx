@@ -2,7 +2,7 @@
 // Part: Lead (foundation)
 // Requirements: ITN-21, GEN-09, BON-02 (Bonus)
 // Endpoints: GET /api/itineraries/public/{id}, POST /api/itineraries/{id}/clone
-// Rendering: ISR / Static + SEO metadata (.md section 9)
+// Rendering: ISR / Static. Source: .md section 9 "Public Itinerary Detail"; add SEO metadata (public page).
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-28). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
 export default function Page() {
