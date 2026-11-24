@@ -1230,8 +1230,11 @@ describe('Flight booking, payment and refunds', () => {
     // Team leader decision 24 Nov: Upcoming also lists held (Pending Payment) bookings until the hold
     // ends, with holdExpiresAt; ACC-12 still counts Confirmed bookings only.
     it('Upcoming also lists a held booking with its hold time until the hold ends; a hold alone does not block deactivation', async () => {
+      // Own flight: these holds must not change the seats FLT-29 counts on flightId.
+      const heldFlight = await bookableFlight(mine, { inDays: 35 });
       const holder = await t.user('Hold Holder');
-      const held = (await hold(holder, flightId, [adult('Held One')])).body;
+      const held = (await hold(holder, heldFlight.id, [adult('Held One')]))
+        .body;
       const items = (
         await holder.client.get('/api/flight-bookings', {
           query: { group: 'upcoming' },
@@ -1256,7 +1259,7 @@ describe('Flight booking, payment and refunds', () => {
       ).toBe(0);
 
       const other = await t.user('Hold Only');
-      await hold(other, flightId, [adult('Held Two')]);
+      await hold(other, heldFlight.id, [adult('Held Two')]);
       expect((await other.client.delete('/api/users/me')).status).toBe(204);
     });
 
