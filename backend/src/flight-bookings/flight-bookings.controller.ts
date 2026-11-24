@@ -22,7 +22,10 @@ import { ListFlightBookingsQueryDto } from './dto/list-flight-bookings-query.dto
 import { ChangeFlightDto } from './dto/change-flight.dto';
 import { SelectSeatDto } from './dto/select-seat.dto';
 import { FlightBookingChangeService } from './flight-booking-change.service';
-import { FlightSeatSelectionService } from './flight-seat-selection.service';
+import {
+  FlightSeatSelectionService,
+  SeatMapResponse,
+} from './flight-seat-selection.service';
 import { PaymentsService } from '../payments/payments.service';
 import { RefundsService } from '../payments/refunds.service';
 import {
@@ -62,6 +65,7 @@ import { FlightBookingQuote } from './interfaces/flight-booking-quote.interface'
 // Bonus endpoints:
 //   PATCH /api/flight-bookings/:id/change-flight   FLT-27 (Optional)
 //   PATCH /api/flight-bookings/:id/seat            FLT-28 (Optional)
+//   GET   /api/flight-bookings/:id/seats           FLT-28 (Optional, seat map; not in the PDF table)
 @Controller('flight-bookings')
 export class FlightBookingsController {
   constructor(
@@ -151,6 +155,18 @@ export class FlightBookingsController {
       ...this.flightBookingsService.toResponse(booking),
       seatAssignments,
     };
+  }
+
+  // FLT-28 (bonus): the seat map of each flight of the booking (available, taken, this booking's
+  // own). Same owner rule as the details: another user's booking answers 404.
+  @Get(':id/seats')
+  @UseGuards(JwtAuthGuard, RegisteredUserGuard)
+  async seats(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ): Promise<SeatMapResponse> {
+    const booking = await this.flightBookingsService.findOwned(user.id, id);
+    return this.seatSelection.seatMap(booking);
   }
 
   // FLT-23: the e-ticket PDF of a confirmed booking.

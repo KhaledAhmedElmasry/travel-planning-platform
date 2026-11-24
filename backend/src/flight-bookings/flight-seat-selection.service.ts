@@ -61,6 +61,29 @@ const SEATS_PER_ROW: Record<CabinClass, number> = {
 
 const TAKEN = 'The seat is already taken.';
 
+// GET /api/flight-bookings/{id}/seats (FLT-28): every seat of the booking's cabin on each flight.
+// mine = chosen by a passenger of this booking (passengerIndex), taken = held by another booking
+// (isStillHeld rule), available = free.
+export interface SeatMapSeat {
+  seatNumber: string;
+  status: 'available' | 'taken' | 'mine';
+  passengerIndex: number | null;
+}
+
+export interface SeatMapSegment {
+  segment: SeatSegment;
+  flightNumber: string;
+  cabinClass: string;
+  rows: number;
+  letters: string;
+  seats: SeatMapSeat[];
+}
+
+export interface SeatMapResponse {
+  bookingId: string;
+  segments: SeatMapSegment[];
+}
+
 // The seat labels of a cabin with `total` seats, for example ['1A', '1B', ...].
 export function seatLayout(
   cabinClass: CabinClass,
@@ -273,6 +296,94 @@ export class FlightSeatSelectionService implements OnModuleInit {
       });
     }
     return result;
+  }
+
+  // The seat map of every flight of the booking (FLT-28). The layout comes from seatLayout(); a
+  // seat of another booking counts as taken only while that booking is Confirmed and still on this
+  // flight and cabin (the rule of isStillHeld(), checked for all holders in one query).
+  async seatMap(booking: FlightBookingDocument): Promise<SeatMapResponse> {
+    const segments: SeatMapSegment[] = [];
+    for (const [index, segment] of booking.segments.entries()) {
+      const flight = await this.connection
+        .collection<{
+          _id: Types.ObjectId;
+          cabins?: { cabinClass: CabinClass; total: number }[];
+        }>('flights')
+        .findOne({ _id: segment.flightId });
+      const total =
+        flight?.cabins?.find((c) => c.cabinClass === segment.cabinClass)
+          ?.total ?? 0;
+      const { rows, letters, seatsPerRow } = seatLayout(
+        segment.cabinClass,
+        total,
+      );
+
+      const assigned = await this.seats()
+        .find({ flightId: segment.flightId, cabinClass: segment.cabinClass })
+        .toArray();
+      const otherIds = assigned
+        .filter((a) => !a.bookingId.equals(booking._id))
+        .map((a) => a.bookingId);
+      const holders = otherIds.length
+        ? await this.connection
+            .collection<{
+              _id: Types.ObjectId;
+              status: BookingStatus;
+              segments?: { flightId: Types.ObjectId; cabinClass: CabinClass }[];
+            }>('flightbookings')
+            .find({ _id: { $in: otherIds } })
+            .toArray()
+        : [];
+      const byId = new Map(holders.map((h) => [h._id.toString(), h]));
+
+      const status = new Map<string, SeatMapSeat>();
+      for (const a of assigned) {
+        if (a.bookingId.equals(booking._id)) {
+          if (a.segmentIndex === index) {
+            status.set(a.seatNumber, {
+              seatNumber: a.seatNumber,
+              status: 'mine',
+              passengerIndex: a.passengerIndex,
+            });
+          }
+          continue;
+        }
+        const holder = byId.get(a.bookingId.toString());
+        const held = holder?.segments?.[a.segmentIndex];
+        if (
+          holder?.status === BookingStatus.Confirmed &&
+          held?.flightId.equals(a.flightId) &&
+          held.cabinClass === a.cabinClass
+        ) {
+          status.set(a.seatNumber, {
+            seatNumber: a.seatNumber,
+            status: 'taken',
+            passengerIndex: null,
+          });
+        }
+      }
+
+      const seats: SeatMapSeat[] = [];
+      for (let n = 0; n < total; n++) {
+        const seatNumber = `${Math.floor(n / seatsPerRow) + 1}${letters[n % seatsPerRow]}`;
+        seats.push(
+          status.get(seatNumber) ?? {
+            seatNumber,
+            status: 'available',
+            passengerIndex: null,
+          },
+        );
+      }
+      segments.push({
+        segment: index === 1 ? 'return' : 'outbound',
+        flightNumber: segment.flightNumber,
+        cabinClass: segment.cabinClass,
+        rows,
+        letters,
+        seats,
+      });
+    }
+    return { bookingId: booking._id.toString(), segments };
   }
 
   // Used when a segment of a booking is moved to another flight (FLT-27): its seats are freed.

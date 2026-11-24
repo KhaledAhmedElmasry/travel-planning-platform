@@ -2795,6 +2795,47 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 409, "error": "CONFLICT", "message": "The seat is already taken.", "path": "/api/flight-bookings/665f1c2a9b1e8a00123400a1/seat", "timestamp": "2026-11-01T10:00:00.000Z"}
 
+  /api/flight-bookings/{id}/seats:
+    get:
+      operationId: getFlightBookingsByIdSeats
+      tags: [Flight Booking]
+      summary: '[Bonus] Seat map of a booking (FLT-28)'
+      description: |
+        **Access:** the user who made the booking.
+
+        Lists, for each flight of the booking (outbound, then return), every seat of the booked cabin in row
+        order (1A, 1B, ...), using the same layout as `PATCH /api/flight-bookings/{id}/seat`. Each seat is
+        `mine` (chosen by a passenger of this booking; `passengerIndex` says which one), `taken` (held by
+        another Confirmed booking still on that flight and cabin) or `available`. Seats of a cancelled booking,
+        or of a booking moved to another flight, are available again. Not in the PDF table; added so the
+        frontend can draw the seat map.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The seat map of each flight of the booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeatMap'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Only registered users can book, pay and cancel", "path": "/api/flight-bookings/665f1c2a9b1e8a00123400a1/seats", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '404':
+          description: Booking not found, or it belongs to another user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Booking not found.", "path": "/api/flight-bookings/665f1c2a9b1e8a00123400a1/seats", "timestamp": "2026-11-01T10:00:00.000Z"}
+
   # ---------------------------------------------------------------------------
   # 8.5 Hotels and Rooms
   # ---------------------------------------------------------------------------
@@ -8427,6 +8468,31 @@ components:
           example: pm_card_visa
           description: Required only when the new flight costs more; pays the fare difference (Stripe test payment method in Swagger).
 
+    SeatMap:
+      type: object
+      required: [bookingId, segments]
+      properties:
+        bookingId: {type: string, example: 665f1c2a9b1e8a00123400a1}
+        segments:
+          type: array
+          items:
+            type: object
+            required: [segment, flightNumber, cabinClass, rows, letters, seats]
+            properties:
+              segment: {type: string, enum: [outbound, return]}
+              flightNumber: {type: string, example: NA101}
+              cabinClass: {type: string, enum: [economy, premium_economy, business, first]}
+              rows: {type: integer, example: 2}
+              letters: {type: string, description: 'Seat letters of a row.', example: ABCD}
+              seats:
+                type: array
+                items:
+                  type: object
+                  required: [seatNumber, status, passengerIndex]
+                  properties:
+                    seatNumber: {type: string, example: 1B}
+                    status: {type: string, enum: [available, taken, mine]}
+                    passengerIndex: {type: integer, nullable: true, description: 'The passenger of this booking in a `mine` seat, else null.', example: 0}
     SelectSeatRequest:
       type: object
       required: [passengerIndex, seatNumber]
