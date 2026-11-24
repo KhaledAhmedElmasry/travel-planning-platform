@@ -61,15 +61,22 @@ const linked = {
   status: "confirmed",
 };
 
-/** Answers GET by path; POST / DELETE with `write`. */
-function backend(lists: { flights?: Response[]; hotels?: Response[] }, write?: Response) {
-  const flights = [...(lists.flights ?? [page([])])];
-  const hotels = [...(lists.hotels ?? [page([])])];
+/** Answers GET /api/{flight|hotel}-bookings?group=upcoming|past by list; POST / DELETE with `write`. */
+function backend(
+  lists: { flights?: Response[]; hotels?: Response[]; pastFlights?: Response[]; pastHotels?: Response[] },
+  write?: Response,
+) {
+  const queues: Record<string, Response[]> = {
+    "flight-upcoming": [...(lists.flights ?? [])],
+    "hotel-upcoming": [...(lists.hotels ?? [])],
+    "flight-past": [...(lists.pastFlights ?? [])],
+    "hotel-past": [...(lists.pastHotels ?? [])],
+  };
   return vi.fn((path: string, init?: RequestInit) => {
     if (init?.method && init.method !== "GET") return Promise.resolve(write ?? json(500, {}));
-    if (path.startsWith("/api/flight-bookings")) return Promise.resolve(flights.shift() ?? page([]));
-    if (path.startsWith("/api/hotel-bookings")) return Promise.resolve(hotels.shift() ?? page([]));
-    return Promise.resolve(json(404, {}));
+    const match = /^\/api\/(flight|hotel)-bookings\?group=(upcoming|past)&page=\d+$/.exec(path);
+    if (!match) return Promise.resolve(json(404, {}));
+    return Promise.resolve(queues[`${match[1]}-${match[2]}`].shift() ?? page([]));
   });
 }
 
@@ -87,6 +94,7 @@ test("lists only the Confirmed upcoming flights that are not linked yet", async 
   open({ linkedBookingIds: ["f3"] });
 
   const dialog = await screen.findByRole("dialog", { name: "Link a booking to Day 2" });
+  expect(dialog.textContent).toContain("Pick one of your confirmed or completed bookings. Its price is added to this itinerary's budget.");
   await within(dialog).findByText(/NA101/);
   expect(within(dialog).queryByText(/NA102/)).toBeNull();
   expect(within(dialog).queryByText(/NA103/)).toBeNull();
@@ -95,6 +103,30 @@ test("lists only the Confirmed upcoming flights that are not linked yet", async 
   const paths = fetchMock.mock.calls.map((c) => c[0]);
   expect(paths).toContain("/api/flight-bookings?group=upcoming&page=1");
   expect(paths).toContain("/api/hotel-bookings?group=upcoming&page=1");
+});
+
+// source: team leader decision 24 Nov - Completed bookings (past trips) can be linked too
+test("also lists the Completed flights and hotel reservations of the past group, with their status", async () => {
+  const fetchMock = backend({
+    flights: [page([flight("f1")])],
+    pastFlights: [page([flight("f7", "completed", "NA107"), flight("f8", "expired", "NA108")], 1, 2), page([flight("f6", "completed", "NA106")], 2, 2)],
+    pastHotels: [page([hotel("b7", "completed"), hotel("b8", "cancelled")])],
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  open({ linkedBookingIds: ["f6"] });
+
+  const row = (await screen.findByText(/NA107/)).closest("li")!;
+  expect(within(row).getByText("Completed")).toBeTruthy();
+  expect(within(screen.getByText(/NA101/).closest("li")!).getByText("Confirmed")).toBeTruthy();
+  expect(screen.queryByText(/NA108/)).toBeNull();
+  expect(screen.queryByText(/NA106/)).toBeNull();
+  const paths = fetchMock.mock.calls.map((c) => c[0]);
+  expect(paths).toContain("/api/flight-bookings?group=past&page=2");
+  expect(paths).toContain("/api/hotel-bookings?group=past&page=1");
+
+  fireEvent.mouseDown(screen.getByRole("tab", { name: "Hotels" }), { button: 0 });
+  expect(within((await screen.findByText(/Nile View/)).closest("li")!).getByText("Completed")).toBeTruthy();
+  expect(screen.getAllByText(/Nile View/)).toHaveLength(1);
 });
 
 test("reads every page of the backend list", async () => {
@@ -166,10 +198,10 @@ test("shows an empty state with a search action when there is nothing to link", 
   vi.stubGlobal("fetch", backend({}));
   open();
 
-  expect(await screen.findByText("No confirmed flights")).toBeTruthy();
+  expect(await screen.findByText("No confirmed or completed flights")).toBeTruthy();
   expect(screen.getByRole("link", { name: "Search flights" }).getAttribute("href")).toBe("/flights");
   fireEvent.mouseDown(screen.getByRole("tab", { name: "Hotels" }), { button: 0 });
-  expect(await screen.findByText("No confirmed hotel reservations")).toBeTruthy();
+  expect(await screen.findByText("No confirmed or completed hotel reservations")).toBeTruthy();
   expect(screen.getByRole("link", { name: "Search hotels" }).getAttribute("href")).toBe("/hotels");
 });
 

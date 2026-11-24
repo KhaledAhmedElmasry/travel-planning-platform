@@ -4,7 +4,7 @@
 // Part: Lead (foundation)
 // Requirements: ITN-27 (Bonus), GEN-03, GEN-04, GEN-05, GEN-06, GEN-16, PAY-04
 // Used by: P-26
-// Endpoints: GET /api/flight-bookings?group=upcoming; GET /api/hotel-bookings?group=upcoming; POST /api/itineraries/{id}/bookings; DELETE /api/itineraries/{id}/bookings/{linkId}
+// Endpoints: GET /api/flight-bookings?group=upcoming|past; GET /api/hotel-bookings?group=upcoming|past; POST /api/itineraries/{id}/bookings; DELETE /api/itineraries/{id}/bookings/{linkId}
 // Spec: MILESTONE2_FRONTEND_SPEC.md sections 3 and 6. Build it from kit parts (design-system/yallaway/MASTER.md 6.2).
 //
 // On each DayCard of P-26 (owner only):
@@ -12,8 +12,9 @@
 //     itineraryId={itinerary.id} dayId={day.id} dayNumber={day.dayNumber}
 //     linkedBookingIds={itinerary.linkedBookings.map((l) => l.bookingId)}
 //     onLinked={(link) => ...add link to the day, reload the budget summary...} />
-//   Renders its own "Link a booking" button. The dialog lists the user's Confirmed flights and hotel
-//   reservations (Flights / Hotels tabs, 10 per page) that are not linked to this itinerary yet; "Link"
+//   Renders its own "Link a booking" button. The dialog lists the user's Confirmed and Completed
+//   (past trip, team leader decision 24 Nov) flights and hotel reservations, with their status
+//   (Flights / Hotels tabs, 10 per page) that are not linked to this itinerary yet; "Link"
 //   on a row links it to this day (toast "Booking linked to Day N"). An error (e.g. 409 already linked
 //   to another itinerary) is shown inside the dialog. Linked bookings are shown by the page (DayCard,
 //   from GET /api/itineraries/{id} linkedBookings) and their prices by BudgetSummary
@@ -31,6 +32,7 @@ import { ConfirmDialog } from "@/components/app/confirm-dialog";
 import { EmptyState } from "@/components/app/empty-state";
 import { ErrorState } from "@/components/app/error-state";
 import { Price } from "@/components/app/price";
+import { StatusBadge } from "@/components/app/status-badge";
 import type { FlightBookingListItem, HotelBookingListItem } from "@/components/app/bookings/booking-list-item";
 import { CABIN_LABEL_FALLBACK } from "@/components/app/checkout/cabin-labels";
 import { localDateTime } from "@/components/app/checkout/confirmation-panel";
@@ -61,15 +63,23 @@ type Lists = { flight: FlightBookingListItem[]; hotel: HotelBookingListItem[] };
 
 const PAGE_SIZE = 10;
 
-/** Every page of the user's upcoming bookings of one kind (they also hold Pending Payment ones). */
-async function allUpcoming<T>(kind: Kind): Promise<T[]> {
+/** Every page of one group of the user's bookings of one kind. */
+async function allOfGroup<T>(kind: Kind, group: "upcoming" | "past"): Promise<T[]> {
   const items: T[] = [];
   for (let page = 1; ; page++) {
-    const res = await apiFetch<Page<T>>(`/api/${kind}-bookings?group=upcoming&page=${page}`);
+    const res = await apiFetch<Page<T>>(`/api/${kind}-bookings?group=${group}&page=${page}`);
     items.push(...res.items);
     if (page >= res.totalPages) return items;
   }
 }
+
+/** Upcoming (Confirmed, also Pending Payment) then past (Completed, also Expired) bookings. */
+async function allBookings<T>(kind: Kind): Promise<T[]> {
+  const [upcoming, past] = await Promise.all([allOfGroup<T>(kind, "upcoming"), allOfGroup<T>(kind, "past")]);
+  return [...upcoming, ...past];
+}
+
+const LINKABLE = ["confirmed", "completed"];
 
 type Props = {
   itineraryId: string;
@@ -93,7 +103,7 @@ export function LinkBookingDialog({ itineraryId, dayId, dayNumber, linkedBooking
     const id = ++loadId.current;
     setLists(null);
     setLoadError(null);
-    Promise.all([allUpcoming<FlightBookingListItem>("flight"), allUpcoming<HotelBookingListItem>("hotel")])
+    Promise.all([allBookings<FlightBookingListItem>("flight"), allBookings<HotelBookingListItem>("hotel")])
       .then(([flight, hotel]) => id === loadId.current && setLists({ flight, hotel }))
       .catch((error: unknown) => id === loadId.current && setLoadError(error instanceof Error ? error.message : String(error)));
   }
@@ -124,7 +134,7 @@ export function LinkBookingDialog({ itineraryId, dayId, dayNumber, linkedBooking
   }
 
   const linkable = <T extends { id: string; status: string }>(items: T[]) =>
-    items.filter((b) => b.status === "confirmed" && !linkedBookingIds.includes(b.id));
+    items.filter((b) => LINKABLE.includes(b.status) && !linkedBookingIds.includes(b.id));
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
@@ -138,7 +148,7 @@ export function LinkBookingDialog({ itineraryId, dayId, dayNumber, linkedBooking
         <DialogHeader>
           <DialogTitle>Link a booking to Day {dayNumber}</DialogTitle>
           <DialogDescription>
-            Pick one of your confirmed bookings. Its price is added to this itinerary&apos;s budget.
+            Pick one of your confirmed or completed bookings. Its price is added to this itinerary&apos;s budget.
           </DialogDescription>
         </DialogHeader>
         {linkError && (
@@ -166,7 +176,7 @@ export function LinkBookingDialog({ itineraryId, dayId, dayNumber, linkedBooking
                 empty={
                   <EmptyState
                     compact
-                    title="No confirmed flights"
+                    title="No confirmed or completed flights"
                     description="Book a flight first, then link it here."
                     action={
                       <Button asChild>
@@ -181,6 +191,7 @@ export function LinkBookingDialog({ itineraryId, dayId, dayNumber, linkedBooking
                     title={`${b.flightNumber} · ${b.departureAirport} → ${b.arrivalAirport}`}
                     detail={`${localDateTime(b.departureLocal)} · ${CABIN_LABEL_FALLBACK[b.cabinClass] ?? b.cabinClass}`}
                     reference={b.reference}
+                    status={b.status}
                     linkLabel={`Link ${b.flightNumber}`}
                     loading={linking === b.id}
                     disabled={linking !== null}
@@ -195,7 +206,7 @@ export function LinkBookingDialog({ itineraryId, dayId, dayNumber, linkedBooking
                 empty={
                   <EmptyState
                     compact
-                    title="No confirmed hotel reservations"
+                    title="No confirmed or completed hotel reservations"
                     description="Book a hotel first, then link it here."
                     action={
                       <Button asChild>
@@ -211,6 +222,7 @@ export function LinkBookingDialog({ itineraryId, dayId, dayNumber, linkedBooking
                     detail={`${formatDay(b.checkIn)} – ${formatDay(b.checkOut)}`}
                     price={<Price cents={b.totalAmount} currency={b.currency} size="sm" />}
                     reference={b.reference}
+                    status={b.status}
                     linkLabel={`Link ${b.hotel.name}`}
                     loading={linking === b.id}
                     disabled={linking !== null}
@@ -256,6 +268,7 @@ function BookingRow(props: {
   title: string;
   detail: string;
   reference: string | null;
+  status: string;
   price?: ReactNode;
   linkLabel: string;
   loading: boolean;
@@ -265,7 +278,10 @@ function BookingRow(props: {
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
       <div className="grid gap-0.5">
-        <p className="font-medium">{props.title}</p>
+        <p className="flex flex-wrap items-center gap-2 font-medium">
+          {props.title}
+          <StatusBadge kind="booking" status={props.status as "confirmed"} />
+        </p>
         <p className="text-sm text-muted-foreground">{props.detail}</p>
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           {props.reference && <span className="font-mono">{props.reference}</span>}
