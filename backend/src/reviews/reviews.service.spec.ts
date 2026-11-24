@@ -174,6 +174,7 @@ function setup(listRows?: ReturnType<typeof makeReview>[]) {
     review: {
       create: jest.fn().mockResolvedValue([review]),
       findById: jest.fn(() => query(review)),
+      findOne: jest.fn(() => query(review)),
       findOneAndUpdate: jest.fn(() => query(review)),
       deleteOne: jest.fn(() => query({ deletedCount: 1 })),
       find: jest.fn(() => {
@@ -389,6 +390,68 @@ describe('ReviewsService', () => {
           pipelineFrom(models.hotel.updateOne),
         ),
       ).toEqual({ averageRating: 0, ratingCount: 0 });
+    });
+  });
+
+  // HTL-23: the reservation details (GET /api/hotel-bookings/:id) show the user's own review so
+  // P-23 can offer edit / delete after a reload.
+  describe('findForReservation', () => {
+    it("returns the user's review of that reservation with its hidden flag", async () => {
+      const { service, models } = setup();
+      models.review.findOne.mockReturnValue(
+        query(
+          makeReview({
+            hidden: true,
+            reply: {
+              text: 'Thanks!',
+              createdAt: new Date('2026-11-02T09:00:00Z'),
+            },
+          }),
+        ) as never,
+      );
+
+      const result = await service.findForReservation(
+        bookingId.toString(),
+        userId.toString(),
+      );
+
+      expect(models.review.findOne).toHaveBeenCalledWith({
+        reservation: bookingId,
+        user: userId,
+      });
+      expect(result).toEqual({
+        id: reviewId.toString(),
+        rating: 4,
+        text: 'Nice stay',
+        author: { name: 'Ibrahim' },
+        date: new Date('2026-11-01T10:00:00Z'),
+        reply: { text: 'Thanks!', date: new Date('2026-11-02T09:00:00Z') },
+        hidden: true,
+      });
+    });
+
+    it('returns null when the reservation has no review', async () => {
+      const { service, models } = setup();
+      models.review.findOne.mockReturnValue(query(null) as never);
+
+      await expect(
+        service.findForReservation(bookingId.toString(), userId.toString()),
+      ).resolves.toBeNull();
+      expect(models.user.findById).not.toHaveBeenCalled();
+    });
+
+    it('returns text null when the review has no text', async () => {
+      const { service, models } = setup();
+      models.review.findOne.mockReturnValue(
+        query(makeReview({ text: undefined })) as never,
+      );
+
+      const result = await service.findForReservation(
+        bookingId.toString(),
+        userId.toString(),
+      );
+
+      expect(result).toMatchObject({ text: null, hidden: false, reply: null });
     });
   });
 

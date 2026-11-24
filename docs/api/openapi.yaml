@@ -3934,6 +3934,7 @@ paths:
             For an upcoming Confirmed reservation it also shows the refund the user would get if they
             cancelled now, computed from the hotel's tiers on the full total (HTL-21), as
             `cancellation` (`CancellationPreview`, the same calculation `POST .../cancel` uses).
+            It also returns the user's own review of this reservation as `review` (HTL-23), or null.
           content:
             application/json:
               schema:
@@ -7600,7 +7601,8 @@ components:
     HotelBookingDetails:
       description: |
         Reservation details (HTL-20): the reservation fields above plus its payment (with its status),
-        its refund and the refund the user would get by cancelling now.
+        its refund, the refund the user would get by cancelling now, and the user's own review of
+        this reservation (HTL-23).
       allOf:
         - $ref: '#/components/schemas/HotelBooking'
         - type: object
@@ -7619,6 +7621,21 @@ components:
               description: The refund of a cancelled reservation (PAY-03).
             cancellation:
               $ref: '#/components/schemas/CancellationPreview'
+            review:
+              type: object
+              nullable: true
+              description: |
+                The user's review of this reservation (HTL-23), or null while there is none. Only a
+                Completed reservation can have one. `hidden` is true when an admin hid it (GEN-10);
+                its author still sees it here and can edit or delete it.
+              allOf:
+                - $ref: '#/components/schemas/ReviewResponse'
+                - type: object
+                  required: [hidden]
+                  properties:
+                    hidden:
+                      type: boolean
+                      example: false
 
     # --- Fixed value lists ---
 
