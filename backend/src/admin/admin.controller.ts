@@ -22,6 +22,7 @@ import { CreateModeratorDto } from './dto/create-moderator.dto';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { ListAccountsQueryDto } from './dto/list-accounts-query.dto';
 import { ListBookingsQueryDto } from './dto/list-bookings-query.dto';
+import { ListProvidersQueryDto } from './dto/list-providers-query.dto';
 
 // Area: Auth & Accounts
 // Requirements: ACC-07a, ACC-13, ACC-14, ACC-15, ACC-16, ACC-17
@@ -62,6 +63,12 @@ export class AdminController {
   @Get('accounts')
   getAccounts(@Query() query: ListAccountsQueryDto) {
     return this.adminService.listAccounts(query);
+  }
+
+  // P-50 providers table, P-49 provider select (extra endpoint, MILESTONE2 spec section 8)
+  @Get('providers')
+  getProviders(@Query() query: ListProvidersQueryDto) {
+    return this.adminService.listProviders(query);
   }
 
   // ACC-15, ACC-16: Suspend a user or moderator account
