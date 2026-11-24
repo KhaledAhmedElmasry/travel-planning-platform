@@ -9,7 +9,14 @@ import { Suspense } from "react";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { LoginFormFromUrl } from "./login-form";
 
-export const metadata: Metadata = { title: "Log in" };
+const DESCRIPTION = "Log in to Yallaway to book flights and hotels, plan itineraries and share your trips.";
+
+export const metadata: Metadata = {
+  title: "Log in",
+  description: DESCRIPTION,
+  alternates: { canonical: "/login" },
+  openGraph: { type: "website", siteName: "Yallaway", title: "Log in", description: DESCRIPTION },
+};
 
 export default function Page() {
   return (

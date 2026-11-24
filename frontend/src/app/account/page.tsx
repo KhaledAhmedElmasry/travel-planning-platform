@@ -16,7 +16,7 @@ import { getUnreadCount, requireUser } from "@/lib/server/session";
 import { DeactivateAccountSection } from "./deactivate-account";
 import { ProfileForm, type Currency, type Profile } from "./profile-form";
 
-export const metadata: Metadata = { title: "Profile" };
+export const metadata: Metadata = { title: "Profile", robots: { index: false } };
 
 const ALL_ROLES = ["user", "admin", "airline_moderator", "hotel_moderator"] as const;
 

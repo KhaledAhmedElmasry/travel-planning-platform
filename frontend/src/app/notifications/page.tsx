@@ -16,7 +16,7 @@ import { backendJson } from "@/lib/server/backend";
 import { getUnreadCount, requireUser } from "@/lib/server/session";
 import { NotificationsSection } from "./notifications-list";
 
-export const metadata: Metadata = { title: "Notifications" };
+export const metadata: Metadata = { title: "Notifications", robots: { index: false } };
 
 const ALL_ROLES = ["user", "admin", "airline_moderator", "hotel_moderator"] as const;
 

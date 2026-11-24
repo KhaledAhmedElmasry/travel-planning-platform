@@ -149,6 +149,15 @@ The app was created with Next.js "Cache Components" turned off, so classic ISR (
 works as written above. Add `"use client"` only to components that need the browser (clicks, state, timers).
 Kit display components (`Price`, `StatusBadge`, `LocalTime`, `PageHeader`, `EmptyState`) work in Server Components.
 
+### SEO metadata (section 9: "Public pages should include appropriate metadata for SEO")
+
+- **Public page** (a guest can open it): `title`, `description`, `alternates.canonical` (the page's own path)
+  and `openGraph` (`type`, `siteName: "Yallaway"`, `title`, `description`). Example: `src/app/login/page.tsx`;
+  for a page whose content comes from the backend use `generateMetadata` (`src/app/itineraries/[id]/page.tsx`).
+- **Private page** (needs login): only `title` and `robots: { index: false }`.
+- Paths stay relative: the root layout's `metadataBase` (`NEXT_PUBLIC_SITE_URL`, default
+  `http://localhost:3001`) makes them absolute. `src/app/sitemap.ts` lists the public pages; add yours there.
+
 ## Requirements done only in the frontend
 
 These mandatory requirements have no backend work (or only the small backend part noted):

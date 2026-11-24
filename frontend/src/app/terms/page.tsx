@@ -9,9 +9,13 @@ import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
 import { PublicShell } from "@/components/layout/public-shell";
 
+const DESCRIPTION = "How Yallaway handles your account, bookings, payments, refunds, content and data.";
+
 export const metadata: Metadata = {
   title: "Terms & Privacy",
-  description: "How Yallaway handles your account, bookings, payments, refunds, content and data.",
+  description: DESCRIPTION,
+  alternates: { canonical: "/terms" },
+  openGraph: { type: "website", siteName: "Yallaway", title: "Terms & Privacy", description: DESCRIPTION },
 };
 
 const LAST_UPDATED = "24 Nov 2026";

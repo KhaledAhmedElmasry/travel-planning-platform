@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 // Self-hosted by Next.js at build time: no request to Google when the app runs.
@@ -16,6 +17,8 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
+  // Makes relative canonical / Open Graph URLs absolute (.md section 9 SEO); NEXT_PUBLIC_SITE_URL.
+  metadataBase: siteUrl(),
   title: {
     default: "Yallaway",
     template: "%s · Yallaway",

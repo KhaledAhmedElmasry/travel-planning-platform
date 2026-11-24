@@ -14,7 +14,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { getUnreadCount, requireUser } from "@/lib/server/session";
 import { PasswordForm } from "./password-form";
 
-export const metadata: Metadata = { title: "Change password" };
+export const metadata: Metadata = { title: "Change password", robots: { index: false } };
 
 const ALL_ROLES = ["user", "admin", "airline_moderator", "hotel_moderator"] as const;
 
