@@ -66,6 +66,18 @@ test("an invalid, expired or used link shows the backend message and the already
   expect(screen.queryByText(/Email verified/)).toBeNull();
 });
 
+// source: team leader (24 Nov, follow-up 2) - logged-in visitors: "If you already verified, you can ignore this link."
+test("a logged-in visitor with a used link is told to ignore it and offered the home page", async () => {
+  backendFetch.mockResolvedValue(jsonResponse(400, INVALID));
+  getSessionUser.mockResolvedValue({ id: "u1", name: "Mona", email: "m@x.io", role: "user", mustChangePassword: false });
+
+  await renderPage({ token: "used" });
+
+  expect(screen.getByText("If you already verified, you can ignore this link.")).toBeTruthy();
+  expect(screen.queryByText("If you already verified, you can log in.")).toBeNull();
+  expect(screen.getByRole("link", { name: "Go to home" }).getAttribute("href")).toBe("/home");
+});
+
 // source: team leader (24 Nov, Q6A) - no token: the invalid-link state, without calling the backend
 test.each([[{}], [{ token: "" }], [{ token: ["a", "b"] }]])("a link without one token (%j) is invalid and the backend is not called", async (query) => {
   getSessionUser.mockResolvedValue(null);

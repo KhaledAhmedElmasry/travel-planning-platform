@@ -46,7 +46,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       <div className="grid gap-4">
         {result.ok && <So3ad pose="wave" size={120} className="justify-self-center lg:hidden" />}
         <p>{result.message}</p>
-        {!result.ok && <p className="text-muted-foreground">If you already verified, you can log in.</p>}
+        {!result.ok && (
+          <p className="text-muted-foreground">
+            {user ? "If you already verified, you can ignore this link." : "If you already verified, you can log in."}
+          </p>
+        )}
         <Button asChild>{next}</Button>
       </div>
     </AuthLayout>
