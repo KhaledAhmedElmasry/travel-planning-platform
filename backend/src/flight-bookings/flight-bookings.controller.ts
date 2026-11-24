@@ -51,7 +51,7 @@ import { FlightBookingQuote } from './interfaces/flight-booking-quote.interface'
 //   there is no separate refund-preview endpoint: use FlightBookingLifecycleService
 //   .previewCancellation(booking) (the same function cancel uses).
 //   Users see only their own bookings (ACC-11). Group the list as Upcoming / Past / Cancelled (FLT-25);
-//   Upcoming = upcomingFlightBookings() in flight-bookings.service.ts (GEN-11).
+//   Upcoming = upcomingFlightListFilter() in flight-bookings.service.ts (GEN-11 + held bookings).
 //   The e-ticket is a downloadable PDF made with pdfkit (FLT-23).
 //
 //   Hold, e-ticket and cancel need a login (401, JwtAuthGuard) and the role `user` (403 for admins
