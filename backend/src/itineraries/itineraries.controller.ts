@@ -21,6 +21,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
+import { RevalidationService } from '../revalidation/revalidation.service';
 import type { Request } from 'express';
 import { ACCESS_COOKIE } from '../auth/auth-cookies';
 import { SessionsService } from '../auth/sessions.service';
@@ -105,7 +106,21 @@ export class ItinerariesController {
   constructor(
     private readonly itinerariesService: ItinerariesService,
     private readonly sessionsService: SessionsService,
+    private readonly revalidation: RevalidationService,
   ) {}
+
+  // B5: after the owner changed the itinerary, refresh its cached public page and the author page
+  // (ISR). Changes addressed by an activity, budget or transport-cost id are refreshed in
+  // ItinerariesService.saveItinerary(), which knows the itinerary.
+  private async refresh<T>(
+    change: Promise<T>,
+    itineraryId: Types.ObjectId | string,
+    userId: string,
+  ): Promise<T> {
+    const result = await change;
+    this.revalidation.itinerary(itineraryId, userId);
+    return result;
+  }
 
   // ITN-01: registered users create private itineraries only. Visibility changes are ITN-20.
   @Post('itineraries')
@@ -239,7 +254,11 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
     @Body() dto: UpdateItineraryDto,
   ): Promise<ItineraryResponse> {
-    return this.itinerariesService.update(id, user.id, dto);
+    return this.refresh(
+      this.itinerariesService.update(id, user.id, dto),
+      id,
+      user.id,
+    );
   }
 
   @Delete('itineraries/:id')
@@ -250,7 +269,11 @@ export class ItinerariesController {
     @Param('id') id: string,
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
-    await this.itinerariesService.remove(id, user.id);
+    await this.refresh(
+      this.itinerariesService.remove(id, user.id),
+      id,
+      user.id,
+    );
   }
 
   // ITN-05: adds a day at the end; the service sets its number and date.
@@ -262,7 +285,11 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateDayDto,
   ): Promise<DayResponse> {
-    return this.itinerariesService.addDay(id, user.id, dto);
+    return this.refresh(
+      this.itinerariesService.addDay(id, user.id, dto),
+      id,
+      user.id,
+    );
   }
 
   // ITN-08: moves a day to a new position. Declared before PATCH days/:dayId so "reorder" is
@@ -275,7 +302,11 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
     @Body() dto: ReorderDaysDto,
   ): Promise<ItineraryResponse> {
-    return this.itinerariesService.reorderDays(id, user.id, dto);
+    return this.refresh(
+      this.itinerariesService.reorderDays(id, user.id, dto),
+      id,
+      user.id,
+    );
   }
 
   // ITN-05: edits a day's city and notes.
@@ -288,7 +319,11 @@ export class ItinerariesController {
     @CurrentUser() user: AuthUser,
     @Body() dto: UpdateDayDto,
   ): Promise<DayResponse> {
-    return this.itinerariesService.updateDay(id, dayId, user.id, dto);
+    return this.refresh(
+      this.itinerariesService.updateDay(id, dayId, user.id, dto),
+      id,
+      user.id,
+    );
   }
 
   @Delete('itineraries/:id/days/:dayId')
@@ -306,7 +341,11 @@ export class ItinerariesController {
         'Confirmation is required to delete an itinerary day.',
       );
     }
-    await this.itinerariesService.deleteDay(id, dayId, user.id);
+    await this.refresh(
+      this.itinerariesService.deleteDay(id, dayId, user.id),
+      id,
+      user.id,
+    );
   }
 
   @Post('itineraries/:id/days/:dayId/activities')
