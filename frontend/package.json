@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:email": "playwright test --config playwright.email.config.ts"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "7.0.0",
