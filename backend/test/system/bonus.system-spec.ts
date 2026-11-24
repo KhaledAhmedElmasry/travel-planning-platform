@@ -377,6 +377,24 @@ describe('Bonus requirements', () => {
         (await bookingDetails(two.client, 'flight', second)).body
           .seatAssignments[0].seatNumber,
       ).toBe('2F');
+
+      // The seat map (GET .../seats): own seat, the other booking's seat, the rest available.
+      const map = await two.client.get(`/api/flight-bookings/${second}/seats`);
+      expect(map.status).toBe(200);
+      expect(map.body.segments).toHaveLength(1);
+      const seats = map.body.segments[0].seats as {
+        seatNumber: string;
+        status: string;
+      }[];
+      expect(seats).toHaveLength(12);
+      expect(seats.find((s) => s.seatNumber === '2F')?.status).toBe('mine');
+      expect(seats.find((s) => s.seatNumber === '1A')?.status).toBe('taken');
+      expect(seats.find((s) => s.seatNumber === '1B')?.status).toBe(
+        'available',
+      );
+      expect(
+        (await two.client.get(`/api/flight-bookings/${first}/seats`)).status,
+      ).toBe(404);
     });
   });
 
