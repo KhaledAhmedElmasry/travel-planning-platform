@@ -74,6 +74,7 @@ as needed"). These are the ones the backend adds, all documented in `openapi.yam
 | `GET /api/admin/providers` | ACC-13, ACC-15: airlines or hotels with their moderators (admin providers table) |
 | `GET /api/admin/analytics` | BON-01 (bonus) |
 | `POST /api/favourites`, `GET /api/favourites`, `DELETE /api/favourites/:id` | BON-02 (bonus) |
+| `DELETE /api/itineraries/:id/bookings/:linkId` | ITN-27 (bonus): unlink a booking from an itinerary day; the booking stays booked |
 | `GET /api/health` | Not a requirement: health check |
 
 ## Shared Formats

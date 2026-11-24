@@ -1326,6 +1326,11 @@ describe('Hotels, reservations and reviews', () => {
           (await bookingDetails(account.client, 'hotel', booking.id as string))
             .body.status,
         ).toBe('completed');
+        // HTL-23: no review yet, so the details say review null.
+        expect(
+          (await bookingDetails(account.client, 'hotel', booking.id as string))
+            .body.review,
+        ).toBeNull();
         const res = await account.client.post(
           `/api/hotel-bookings/${booking.id}/review`,
           { rating, ...(text ? { text } : {}) },
@@ -1339,6 +1344,19 @@ describe('Hotels, reservations and reviews', () => {
         rating: 5,
         text: 'Lovely stay',
         author: { name: 'Stay Guest' },
+      });
+      // HTL-23: the reservation details show the user's own review (with hidden), so the
+      // details page can offer edit and delete after a reload.
+      expect(
+        (await bookingDetails(guest.client, 'hotel', first.bookingId)).body
+          .review,
+      ).toMatchObject({
+        id: first.res.body.id,
+        rating: 5,
+        text: 'Lovely stay',
+        author: { name: 'Stay Guest' },
+        reply: null,
+        hidden: false,
       });
       // One rating per reservation.
       expect(
@@ -1458,6 +1476,10 @@ describe('Hotels, reservations and reviews', () => {
       page = await t.guest().get(`/api/hotels/${hotel.hotelId}/reviews`);
       expect(page.body).toMatchObject({ averageRating: 2.5, ratingCount: 2 });
       expect(
+        (await bookingDetails(guest.client, 'hotel', first.bookingId)).body
+          .review,
+      ).toMatchObject({ id: reviewId, rating: 3 });
+      expect(
         (await guest.client.delete(`/api/reviews/${reviewId}`)).status,
       ).toBe(204);
       page = await t.guest().get(`/api/hotels/${hotel.hotelId}/reviews`);
@@ -1466,6 +1488,11 @@ describe('Hotels, reservations and reviews', () => {
         ratingCount: 1,
         total: 1,
       });
+      // HTL-23: after the delete the details say review null again (a new review is allowed).
+      expect(
+        (await bookingDetails(guest.client, 'hotel', first.bookingId)).body
+          .review,
+      ).toBeNull();
 
       // HTL-20: completed stays are listed under Past.
       const past = await guest.client.get('/api/hotel-bookings', {

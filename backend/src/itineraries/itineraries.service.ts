@@ -614,7 +614,7 @@ export class ItinerariesService {
     return { pdf, title: itinerary.title };
   }
 
-  // ITN-27 (bonus): link one of the user's Confirmed bookings to a day of the itinerary.
+  // ITN-27 (bonus): link one of the user's Confirmed or Completed bookings to a day of the itinerary.
   async linkBooking(
     itineraryId: string | Types.ObjectId,
     userId: string,
@@ -630,6 +630,21 @@ export class ItinerariesService {
       throw new Error('The itinerary booking links are not configured.');
     }
     return this.bookingLinks.link(itinerary._id, userId, dto);
+  }
+
+  // ITN-27 (bonus): remove a link, so the booking no longer feeds this itinerary's budget. The
+  // booking stays booked.
+  async unlinkBooking(
+    itineraryId: string | Types.ObjectId,
+    linkId: Types.ObjectId,
+    userId: string,
+  ): Promise<void> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    if (!(await this.bookingLinks?.unlink(itinerary._id, linkId))) {
+      throw new NotFoundException(
+        'Itinerary or linked booking not found, or they belong to another user.',
+      );
+    }
   }
 
   async addBudgetEntry(

@@ -19,7 +19,7 @@ afterEach(() => {
 
 const NOW = new Date("2027-02-01T10:00:00.000Z");
 
-// source: backend hotel-bookings.controller.ts details() = toResponse() + hotel check-in/out times, payment, refund, cancellation
+// source: backend hotel-bookings.controller.ts details() = toResponse() + hotel check-in/out times, payment, refund, cancellation, review (HTL-23)
 const booking: HotelBookingDetailsData = {
   id: "hb1",
   reference: "TP9X4Z",
@@ -47,6 +47,7 @@ const booking: HotelBookingDetailsData = {
     refundAmount: 51000,
     currency: "USD",
   },
+  review: null,
 };
 
 function cancelButtonInDialog(dialog: HTMLElement) {
@@ -128,4 +129,24 @@ test("a reservation waiting for payment links to the payment while the hold last
   render(<HotelBookingDetails booking={waiting} now={NOW} />);
   expect(screen.getByRole("link", { name: "Continue payment" }).getAttribute("href")).toBe("/checkout/hotel/hb1");
   expect(screen.queryByRole("button", { name: "Cancel reservation" })).toBeNull();
+});
+
+// source: Excel HTL-23 - review a Completed reservation, later edit or delete it; openapi HotelBookingDetails.review
+test("a Completed reservation shows the user's review from the details with Edit and Delete", () => {
+  const completed = {
+    ...booking,
+    status: "completed",
+    cancellation: { ...booking.cancellation, cancellable: false, reason: "Only a Confirmed reservation can be cancelled." },
+    review: { id: "rv1", rating: 5, text: "Lovely stay", author: { name: "Mona" }, date: "2027-03-05T10:00:00.000Z", reply: null, hidden: false },
+  };
+  render(<HotelBookingDetails booking={completed} now={NOW} />);
+  const section = screen.getByRole("region", { name: "Your review" });
+  expect(section.textContent).toContain("Lovely stay");
+  expect(screen.getByRole("button", { name: "Edit" })).toBeDefined();
+});
+
+// source: team leader (Q3) - a Confirmed reservation shows the review hint
+test("a Confirmed reservation shows the review hint", () => {
+  render(<HotelBookingDetails booking={booking} now={NOW} />);
+  expect(screen.getByText("You can review your stay after check-out.")).toBeDefined();
 });
