@@ -35,7 +35,8 @@ export type Favourite =
   | { id: string; type: "itinerary"; targetId: string; item: ItinerarySummary };
 export type FavouritePage = { items: Favourite[]; page: number; pageSize: number; total: number; totalPages: number };
 
-type Props = { tab: FavouriteTab; data: FavouritePage };
+/** countryNames: code -> name from GET /api/countries (full names, team leader decision 24 Nov). */
+type Props = { tab: FavouriteTab; data: FavouritePage; countryNames: Record<string, string> };
 
 export function FavouritesSection(props: Props) {
   const router = useRouter();
@@ -45,6 +46,7 @@ export function FavouritesSection(props: Props) {
 export function FavouritesView({
   tab,
   data,
+  countryNames,
   navigate,
   refresh,
 }: Props & { navigate: (path: string) => void; refresh: () => void }) {
@@ -96,8 +98,8 @@ export function FavouritesView({
                   </h3>
                   <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                     <MapPinIcon className="size-4" aria-hidden="true" />
-                    {/* TODO(ask team leader): full city / country names here? Needs GET /api/cities and /api/countries, not in this page's endpoint list. */}
-                    {favourite.item.cityId}, {favourite.item.countryCode}
+                    {/* TODO(ask team leader): full city name here? Needs GET /api/cities, not in this page's endpoint list. */}
+                    {favourite.item.cityId}, {countryNames[favourite.item.countryCode] ?? favourite.item.countryCode}
                   </p>
                   <StarRating value={favourite.item.starRating} />
                   <div>{removeButton(favourite)}</div>
@@ -106,7 +108,7 @@ export function FavouritesView({
                 <ItineraryCard
                   key={favourite.id}
                   itinerary={favourite.item}
-                  countryNames={{}}
+                  countryNames={countryNames}
                   href={`/itineraries/${favourite.item.id}`}
                   actions={removeButton(favourite)}
                 />

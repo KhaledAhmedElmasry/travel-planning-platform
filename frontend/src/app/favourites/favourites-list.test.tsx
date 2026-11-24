@@ -37,7 +37,7 @@ const page = (items: FavouritePage["items"], over: Partial<FavouritePage> = {}):
   ...over,
 });
 const view = (tab: "hotels" | "itineraries", data: FavouritePage, extra: { navigate?: () => void; refresh?: () => void } = {}) =>
-  render(<FavouritesView tab={tab} data={data} navigate={extra.navigate ?? vi.fn()} refresh={extra.refresh ?? vi.fn()} />);
+  render(<FavouritesView tab={tab} data={data} countryNames={{ EG: "Egypt" }} navigate={extra.navigate ?? vi.fn()} refresh={extra.refresh ?? vi.fn()} />);
 
 // source: Excel BON-02 "save hotels ... to a favourites list and view it"; team leader decision 24 Nov - Hotels tab
 test("the Hotels tab lists the saved hotels, each linking to its page", () => {
@@ -55,6 +55,15 @@ test("the Itineraries tab lists the saved itineraries, each linking to its publi
   view("itineraries", page([itinerary("i1", "Nile week")]));
 
   expect(screen.getByRole("link", { name: "Nile week" }).getAttribute("href")).toBe("/itineraries/i1");
+});
+
+// source: ItineraryCard header + PR #292 - full country names from GET /api/countries (team leader decision 24 Nov)
+test("saved itineraries and hotels show full country names", () => {
+  view("itineraries", page([itinerary("i1", "Nile week")]));
+  expect(screen.getByText("Egypt")).toBeTruthy();
+  cleanup();
+  view("hotels", page([hotel("h1", "Nile View")]));
+  expect(screen.getByText("cairo, Egypt")).toBeTruthy();
 });
 
 // source: team leader decision 24 Nov - "Hotels | Itineraries tabs"
