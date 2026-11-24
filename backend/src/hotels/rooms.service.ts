@@ -6,7 +6,14 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Connection, isValidObjectId, Model } from 'mongoose';
+import {
+  ClientSession,
+  Connection,
+  FilterQuery,
+  isValidObjectId,
+  Model,
+  Types,
+} from 'mongoose';
 import { RoomInventoryService } from '../hotel-bookings/room-inventory.service';
 import { platformCurrency } from '../payments/platform-currency';
 import { HotelBooking } from '../hotel-bookings/schemas/hotel-booking.schema';
@@ -18,6 +25,12 @@ import {
   UpdateRoomAvailabilityDto,
 } from './dto/update-room-availability.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
+import { ListRoomsQueryDto } from './dto/list-rooms-query.dto';
+import {
+  DEFAULT_PAGE_SIZE,
+  getPaginationOffset,
+  paginate,
+} from '../common/dto';
 import {
   addRange,
   formatRanges,
@@ -50,6 +63,44 @@ export class RoomsService {
     private readonly inventory: RoomInventoryService,
     private readonly config: ConfigService,
   ) {}
+
+  // --- P-43 rooms list (extra endpoint, MILESTONE2 spec section 8) ---
+
+  // The hotel's rooms for its moderator, room number A to Z, 10 per page (GEN-05). everReserved
+  // is the HTL-06 delete rule (see deleteRoom): the room was held at least once, or a
+  // reservation lists it.
+  async listRooms(hotelId: string, actor: AuthUser, query: ListRoomsQueryDto) {
+    await this.assertModeratorOfHotel(hotelId, actor);
+    const filter: FilterQuery<Room> = { hotelId: new Types.ObjectId(hotelId) };
+    if (query.active !== undefined) filter.active = query.active;
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [rooms, total] = await Promise.all([
+      this.roomModel
+        .find(filter)
+        .sort({ roomNumber: 1, _id: 1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.roomModel.countDocuments(filter).exec(),
+    ]);
+    const listed = new Set(
+      (
+        await this.connection
+          .model<HotelBooking>(HotelBooking.name)
+          .distinct('rooms.roomId', {
+            'rooms.roomId': { $in: rooms.map((r) => r._id) },
+          })
+          .exec()
+      ).map((id) => String(id)),
+    );
+    const items = rooms.map((room) => ({
+      ...this.toRoomResponse(room),
+      everReserved:
+        room.lastReservedAt != null || listed.has(room.id as string),
+    }));
+    return paginate(items, total, page, DEFAULT_PAGE_SIZE);
+  }
 
   // --- HTL-05: edit beds, maximum occupancy and price per night; HTL-06: deactivate ---
 
