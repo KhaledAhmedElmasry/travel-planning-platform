@@ -1,6 +1,7 @@
-// P-23 hotel reservation details content (HTL-20, HTL-21, PAY-03).
+// P-23 hotel reservation details content (HTL-20, HTL-21, HTL-23, PAY-03).
 // All details, payment status and refund status; cancel the whole reservation (no partial
-// cancellation) before the check-in date with the refund preview on the full total.
+// cancellation) before the check-in date with the refund preview on the full total; the user's
+// review of a Completed stay (write, edit, delete: ReviewSection).
 import { Price } from "@/components/app/price";
 import { plural } from "@/components/app/bookings/booking-list-item";
 import {
@@ -10,10 +11,11 @@ import {
   type BookingPayment,
   type BookingRefund,
 } from "@/components/app/bookings/booking-status";
+import { ReviewSection, type OwnReview } from "@/components/app/bookings/review-form";
 import type { CancellationPreview } from "@/components/app/checkout/refund-preview";
 import { formatDay } from "@/lib/dates";
 
-/** GET /api/hotel-bookings/{id} (backend toResponse() + hotel times, payment, refund, cancellation): the fields shown. */
+/** GET /api/hotel-bookings/{id} (backend toResponse() + hotel times, payment, refund, cancellation, review): the fields shown. */
 export type HotelBookingDetailsData = {
   id: string;
   reference: string | null;
@@ -39,6 +41,8 @@ export type HotelBookingDetailsData = {
   payment: BookingPayment;
   refund: BookingRefund;
   cancellation: CancellationPreview;
+  /** HTL-23: the user's review of this reservation, or null. */
+  review: OwnReview | null;
 };
 
 export function HotelBookingDetails({ booking, now = new Date() }: { booking: HotelBookingDetailsData; now?: Date }) {
@@ -97,7 +101,7 @@ export function HotelBookingDetails({ booking, now = new Date() }: { booking: Ho
         <CancelBooking kind="hotel" id={booking.id} status={booking.status} cancellation={booking.cancellation} />
       </div>
 
-      {/* TODO(L2): review section (HTL-23) after ReviewCard/StarRating merge */}
+      <ReviewSection bookingId={booking.id} status={booking.status} review={booking.review} />
     </div>
   );
 }
