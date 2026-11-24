@@ -20,7 +20,8 @@ test("the demo user logs in and lands on /home with httpOnly session cookies", a
   await page.getByLabel("Password", { exact: false }).first().fill(demoPassword());
   await page.getByRole("button", { name: "Log in" }).click();
 
-  await expect(page).toHaveURL(/\/home$/);
+  // /home is Dynamic SSR with 6 backend calls (~2 s on Atlas); the 5 s default was flaky.
+  await expect(page).toHaveURL(/\/home$/,{ timeout: 15_000 });
   const access = (await context.cookies()).find((c) => c.name === "access_token");
   expect(access?.httpOnly).toBe(true);
 });
