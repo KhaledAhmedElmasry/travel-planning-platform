@@ -195,6 +195,25 @@ test("saving sends only the changed fields, then shows the success toast and rel
   expect(screen.getByRole("article")).toBeDefined();
 });
 
+// source: team leader (24 Nov) - after "Save changes" the card shows the new values at once (the PATCH 200 body),
+// router.refresh() still follows; the Hidden flag (not in the PATCH body) is kept
+test("after saving, the card shows the review returned by the backend right away", async () => {
+  const updated = { id: "rv1", rating: 2, text: "Noisy at night.", author: { name: "Mona" }, date: review.date, reply: null };
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(200, updated)));
+  render(<ReviewSection bookingId="hb1" status="completed" review={{ ...review, hidden: true }} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+  star(2);
+  fireEvent.change(textBox(), { target: { value: "Noisy at night." } });
+  fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+  const card = await screen.findByRole("article");
+  expect(within(card).getByRole("img", { name: "Rated 2 out of 5" })).toBeDefined();
+  expect(card.textContent).toContain("Noisy at night.");
+  expect(card.textContent).not.toContain("Great view of the Nile.");
+  expect(card.textContent).toContain("Hidden");
+});
+
 // source: team leader (Q8) - editing may clear the text (sends text "")
 test("clearing the text while editing sends an empty text", async () => {
   const fetchMock = vi.fn().mockResolvedValue(json(200, { ...review, text: "" }));

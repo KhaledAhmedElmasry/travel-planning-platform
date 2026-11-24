@@ -11,7 +11,8 @@
 //   POST /api/hotel-bookings/{id}/review.
 // - Completed with a review (GET /api/hotel-bookings/{id} -> review): ReviewCard with Edit (back to the
 //   form, PATCH /api/reviews/{id} with only the changed fields) and Delete (ConfirmDialog, DELETE /api/reviews/{id}).
-// After each change: a toast and router.refresh(), so the page reads the review again.
+// After each change: a toast and router.refresh(), so the page reads the review again. After an edit
+// the card shows the review the PATCH returned at once (team leader, 24 Nov), before the refresh.
 // Texts decided by the team leader (24 Nov).
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -36,10 +37,13 @@ function errorText(err: unknown) {
   return err instanceof ApiError && err.status < 500 ? err.message : GENERIC_ERROR;
 }
 
-export function ReviewSection({ bookingId, status, review }: { bookingId: string; status: string; review: OwnReview | null }) {
+export function ReviewSection({ bookingId, status, review: fromPage }: { bookingId: string; status: string; review: OwnReview | null }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  // The PATCH answer, shown until the refreshed page brings the same review (ignored once the page's review changes id or is gone).
+  const [saved, setSaved] = useState<OwnReview | null>(null);
   if (status !== "confirmed" && status !== "completed") return null;
+  const review = saved && fromPage && saved.id === fromPage.id ? saved : fromPage;
 
   async function remove(id: string) {
     try {
@@ -83,7 +87,9 @@ export function ReviewSection({ bookingId, status, review }: { bookingId: string
           key={review?.id ?? "new"}
           bookingId={bookingId}
           review={review}
-          onDone={() => {
+          onDone={(updated) => {
+            // The PATCH body has no `hidden`: keep the current one.
+            if (updated && review) setSaved({ ...updated, hidden: review.hidden });
             setEditing(false);
             router.refresh();
           }}
@@ -98,8 +104,8 @@ type ReviewFormProps = {
   bookingId: string;
   /** Given -> edit this review; null -> write a new one. */
   review: OwnReview | null;
-  /** After a successful save (also when nothing changed in edit mode, without a request). */
-  onDone: () => void;
+  /** After a successful save with the review the backend returned (PATCH), or nothing (POST, or no change). */
+  onDone: (updated?: HotelReview) => void;
   onCancel: () => void;
 };
 
@@ -120,7 +126,7 @@ export function ReviewForm({ bookingId, review, onDone, onCancel }: ReviewFormPr
     setRatingError(undefined);
     const trimmed = text.trim();
 
-    let request: () => Promise<unknown>;
+    let request: () => Promise<HotelReview | undefined>;
     let success: string;
     if (review) {
       // PATCH: only the changed fields; an emptied text is sent as "" (removes it).
@@ -128,20 +134,23 @@ export function ReviewForm({ bookingId, review, onDone, onCancel }: ReviewFormPr
       if (rating !== review.rating) changes.rating = rating;
       if (trimmed !== (review.text ?? "")) changes.text = trimmed;
       if (Object.keys(changes).length === 0) return onDone();
-      request = () => apiFetch(`/api/reviews/${review.id}`, { method: "PATCH", json: changes });
+      request = () => apiFetch<HotelReview>(`/api/reviews/${review.id}`, { method: "PATCH", json: changes });
       success = "Review updated";
     } else {
-      request = () =>
-        apiFetch(`/api/hotel-bookings/${bookingId}/review`, {
+      request = async () => {
+        await apiFetch(`/api/hotel-bookings/${bookingId}/review`, {
           method: "POST",
           json: trimmed ? { rating, text: trimmed } : { rating },
         });
+        return undefined; // the refreshed page shows the new review
+      };
       success = "Review posted";
     }
 
     setSubmitting(true);
+    let updated: HotelReview | undefined;
     try {
-      await request();
+      updated = await request();
     } catch (err) {
       setError(errorText(err));
       return;
@@ -149,7 +158,7 @@ export function ReviewForm({ bookingId, review, onDone, onCancel }: ReviewFormPr
       setSubmitting(false);
     }
     toast.success(success);
-    onDone();
+    onDone(updated);
   }
 
   return (
