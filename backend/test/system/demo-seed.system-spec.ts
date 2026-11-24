@@ -151,7 +151,14 @@ describe('Demo data (npm run seed:demo)', () => {
       hotels: await t
         .collection('hotels')
         .countDocuments({ name: { $regex: '^Demo Hotel' } }),
-      rooms: await t.collection('rooms').countDocuments({}),
+      // Only the demo hotels' rooms: other suites share this database and add rooms of their own.
+      rooms: await t.collection('rooms').countDocuments({
+        hotelId: {
+          $in: await t
+            .collection('hotels')
+            .distinct('_id', { name: { $regex: '^Demo Hotel' } }),
+        },
+      }),
     });
     const before = await count();
     // 1 user + 1 airline moderator + 8 hotel moderators; 8 hotels x 3 rooms.
