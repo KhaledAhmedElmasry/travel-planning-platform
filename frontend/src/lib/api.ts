@@ -13,6 +13,7 @@
 //   Pass { redirectOnAuthFail: false } to handle it yourself (then it throws ApiError 401).
 // - Any other error -> throws ApiError with the backend's message and fieldErrors
 //   (use fieldErrorMap(error.body) for the form, GEN-02).
+// - Files (PDF): apiBlob(path) returns { blob, filename } with the same rules.
 import { isApiError, type ApiError as ApiErrorBody } from "@/lib/api-error";
 import { loginPath } from "@/lib/return-to";
 
@@ -75,21 +76,47 @@ async function recover(path: string, init: ApiInit): Promise<Response> {
   });
 }
 
-export async function apiFetch<T = unknown>(path: string, init: ApiInit = {}): Promise<T> {
+/** Sends with the 401 handling above; null when the page is leaving for login. */
+async function request(path: string, init: ApiInit): Promise<Response | null> {
   let res = await send(path, init);
   const isAuthCall = path.startsWith("/api/auth/login") || path.startsWith("/api/auth/refresh");
   if (res.status === 401 && !isAuthCall) res = await recover(path, init);
 
   if (res.status === 401 && !isAuthCall && init.redirectOnAuthFail !== false) {
     window.location.assign(loginPath(window.location.pathname + window.location.search));
-    return new Promise<T>(() => {}); // the page is leaving; never settle
+    return null;
   }
-  if (res.status === 204) return undefined as T;
+  return res;
+}
 
+async function toApiError(res: Response): Promise<ApiError> {
   const text = await res.text();
   const data: unknown = text ? safeJson(text) : undefined;
-  if (!res.ok) throw new ApiError(res.status, isApiError(data) ? data : null);
-  return data as T;
+  return new ApiError(res.status, isApiError(data) ? data : null);
+}
+
+export async function apiFetch<T = unknown>(path: string, init: ApiInit = {}): Promise<T> {
+  const res = await request(path, init);
+  if (!res) return new Promise<T>(() => {}); // the page is leaving; never settle
+  if (res.status === 204) return undefined as T;
+  if (!res.ok) throw await toApiError(res);
+
+  const text = await res.text();
+  return (text ? safeJson(text) : undefined) as T;
+}
+
+/**
+ * A file from the backend (e.g. the itinerary PDF, ITN-28), with the same session and error
+ * handling as apiFetch. `filename` is the one in the backend's Content-Disposition, else null.
+ *
+ *   const { blob, filename } = await apiBlob(`/api/itineraries/${id}/pdf`);
+ */
+export async function apiBlob(path: string, init: ApiInit = {}): Promise<{ blob: Blob; filename: string | null }> {
+  const res = await request(path, init);
+  if (!res) return new Promise(() => {}); // the page is leaving; never settle
+  if (!res.ok) throw await toApiError(res);
+  const disposition = res.headers.get("content-disposition") ?? "";
+  return { blob: await res.blob(), filename: /filename="([^"]+)"/.exec(disposition)?.[1] ?? null };
 }
 
 function safeJson(text: string): unknown {
