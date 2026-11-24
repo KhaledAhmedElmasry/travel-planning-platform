@@ -24,13 +24,14 @@ export default async function Page() {
   const hotel = `/api/hotels/${encodeURIComponent(user.hotelId)}`;
   // shortcut: "today" is the server's calendar day; fine while the server and the hotel share a time zone.
   const date = todayString();
-  const [today, rooms, activeRooms, upcoming, unread] = await Promise.all([
+  const [today, rooms, activeRooms, upcoming, confirmed, unread] = await Promise.all([
     allPages((page) =>
       backendJson<Page<Reservation>>(`${hotel}/reservations?status=confirmed&from=${date}&to=${date}&page=${page}`),
     ),
     backendJson<Page<{ id: string }>>(`${hotel}/rooms`),
     allPages((page) => backendJson<Page<{ id: string }>>(`${hotel}/rooms?active=true&page=${page}`)),
     backendJson<Page<Reservation>>(`${hotel}/reservations?from=${date}`),
+    allPages((page) => backendJson<Page<Reservation>>(`${hotel}/reservations?status=confirmed&from=${date}&page=${page}`)),
     getUnreadCount(),
   ]);
 
@@ -43,6 +44,7 @@ export default async function Page() {
         roomsTotal={rooms?.total ?? 0}
         activeRoomIds={activeRooms.map((room) => room.id)}
         upcoming={upcoming?.items ?? []}
+        confirmed={confirmed}
       />
     </DashboardShell>
   );

@@ -5,10 +5,12 @@
 //   today         Confirmed stays that include `date` (GET /api/hotels/{id}/reservations?status=confirmed&from=date&to=date)
 //   roomsTotal    every room of the hotel (GET /api/hotels/{id}/rooms total)
 //   activeRoomIds the active rooms (GET /api/hotels/{id}/rooms?active=true)
-//   upcoming      reservations for the list
+//   upcoming      reservations for the list: stays from today on, soonest check-in first, all statuses (team leader 24 Nov)
+//   confirmed     Confirmed stays from today on (GET .../reservations?status=confirmed&from=date, all pages)
+// Reservations card (team leader 24 Nov) = Confirmed reservations with a check-in date from today on.
 // Occupancy (team leader 24 Nov) = active rooms with a booked night for today / active rooms.
 // The night of `date` is booked when checkIn <= date < checkOut (the check-out day is not a night).
-import { BedDoubleIcon, CalendarOffIcon, PercentIcon, PlusIcon, ScrollTextIcon } from "lucide-react";
+import { BedDoubleIcon, CalendarCheckIcon, CalendarOffIcon, PercentIcon, PlusIcon, ScrollTextIcon } from "lucide-react";
 import { HOME_LIST_SIZE, HomeList, HomeListRow, HomeSection, QuickActions } from "@/components/app/home-section";
 import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
@@ -33,6 +35,7 @@ type Props = {
   roomsTotal: number;
   activeRoomIds: string[];
   upcoming: Reservation[];
+  confirmed: Reservation[];
 };
 
 function StayRows({ stays, empty }: { stays: Reservation[]; empty: string }) {
@@ -53,7 +56,7 @@ function StayRows({ stays, empty }: { stays: Reservation[]; empty: string }) {
   );
 }
 
-export function HotelOverview({ date, today, roomsTotal, activeRoomIds, upcoming }: Props) {
+export function HotelOverview({ date, today, roomsTotal, activeRoomIds, upcoming, confirmed }: Props) {
   const active = new Set(activeRoomIds);
   const occupied = new Set(
     today
@@ -68,8 +71,12 @@ export function HotelOverview({ date, today, roomsTotal, activeRoomIds, upcoming
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Rooms" value={roomsTotal} icon={BedDoubleIcon} href="/hotel/rooms" />
         <StatCard label="Occupancy" value={`${occupancy}%`} icon={PercentIcon} />
-        {/* TODO(ask team leader): the "reservations" stat card (spec section 2): count of which
-            reservations (confirmed upcoming, all, this month)? */}
+        <StatCard
+          label="Reservations"
+          value={confirmed.filter((stay) => stay.checkIn >= date).length}
+          icon={CalendarCheckIcon}
+          href="/hotel/reservations"
+        />
       </div>
       <div className="grid gap-8 lg:grid-cols-2">
         <HomeSection title="Today's check-ins">
@@ -79,9 +86,6 @@ export function HotelOverview({ date, today, roomsTotal, activeRoomIds, upcoming
           <StayRows stays={today.filter((stay) => stay.checkOut === date)} empty="No check-outs today" />
         </HomeSection>
       </div>
-      {/* TODO(ask team leader): "recent reservations" (spec section 2): the backend lists
-          reservations by check-in date only (no "newest first"); this shows current and future
-          stays, soonest check-in first. Is that what you want, or a backend sort by creation? */}
       <HomeSection title="Reservations" seeAll="/hotel/reservations">
         {upcoming.length === 0 ? (
           <p className="text-sm text-muted-foreground">No reservations yet</p>

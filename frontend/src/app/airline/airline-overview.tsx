@@ -1,5 +1,6 @@
 // Airline moderator home (ACC-04; spec section 2, Airline Moderator row): upcoming flights with
-// seats remaining (5, team leader 24 Nov), stat cards, quick actions. No notifications block
+// seats remaining (5, team leader 24 Nov), stat cards (Scheduled flights, Seats left; no bookings card,
+// team leader 24 Nov), quick actions. No notifications block
 // (team leader 24 Nov: the header bell covers it).
 // `flights` = every Scheduled flight of the airline (GET /api/airlines/{id}/flights?status=scheduled,
 // all pages), soonest departure first as the backend returns them.
@@ -42,8 +43,6 @@ export function AirlineOverview({ flights }: { flights: AirlineFlight[] }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Scheduled flights" value={flights.length} icon={PlaneIcon} href="/airline/flights" />
         <StatCard label="Seats left" value={seatsLeft} icon={TicketsIcon} />
-        {/* TODO(ask team leader): the "bookings" stat card (spec section 2): count of what (confirmed
-            bookings, booked seats?) over which flights? No endpoint gives an airline's booking count. */}
       </div>
       <HomeSection title="Upcoming flights" seeAll={flights.length > 0 ? "/airline/flights" : undefined}>
         {flights.length === 0 ? (

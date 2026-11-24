@@ -54,8 +54,7 @@ export default async function HomePage() {
     publicList<Country>("/api/countries"),
     publicList<City>("/api/cities"),
     publicList<Attraction>("/api/attractions"),
-    // TODO(ask team leader): the public search is sorted by last update (updatedAt), and has no
-    // "newest first" option; this shows the first 6 of that order. Add a sort to the backend?
+    // "Newest" = most recently updated (the search's updatedAt order), per the team leader (24 Nov).
     publicPage<ItinerarySummary>("/api/itineraries/public/search"),
   ]);
 

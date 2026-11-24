@@ -17,7 +17,7 @@ const stay = (id: string, checkIn: string, checkOut: string, roomIds: string[], 
   status: "confirmed",
 });
 const TODAY = "2027-03-10";
-const base = { date: TODAY, roomsTotal: 5, activeRoomIds: ["r01", "r02", "r03", "r04"], upcoming: [] as Reservation[] };
+const base = { date: TODAY, roomsTotal: 5, activeRoomIds: ["r01", "r02", "r03", "r04"], upcoming: [] as Reservation[], confirmed: [] as Reservation[] };
 
 // source: MILESTONE2_FRONTEND_SPEC.md section 2 Hotel Moderator row - today's check-ins and check-outs
 test("stays starting today are check-ins, stays ending today are check-outs, others are neither", () => {
@@ -73,6 +73,23 @@ test("rooms counts every room; occupancy counts active rooms whose night of toda
 test("occupancy is 0% when the hotel has no active room", () => {
   render(<HotelOverview {...base} activeRoomIds={[]} today={[]} />);
   expect(screen.getByText("Occupancy").parentElement!.textContent).toBe("Occupancy0%");
+});
+
+// source: team leader decision 24 Nov - "Reservations" stat card = Confirmed reservations with check-in date from today on
+test("the Reservations card counts confirmed stays checking in today or later, not stays already in progress", () => {
+  render(
+    <HotelOverview
+      {...base}
+      today={[]}
+      confirmed={[
+        stay("a1", TODAY, "2027-03-12", ["r01"]), // checks in today: counted
+        stay("b2", "2027-03-20", "2027-03-22", ["r02"]), // later: counted
+        stay("c3", "2027-03-09", "2027-03-11", ["r03"]), // in progress since yesterday: not counted
+      ]}
+    />,
+  );
+
+  expect(screen.getByText("Reservations", { selector: "span" }).parentElement!.textContent).toBe("Reservations2");
 });
 
 // source: team leader decision 24 Nov - lists on the homes show 5 items + a "See all" link
