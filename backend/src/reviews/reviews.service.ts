@@ -33,6 +33,12 @@ export interface ReviewResponse {
   reply: { text: string; date: Date } | null;
 }
 
+// HTL-23: the user's own review shown in the reservation details; `hidden` tells the author
+// that an admin hid it (GEN-10).
+export interface OwnReviewResponse extends ReviewResponse {
+  hidden: boolean;
+}
+
 export interface HotelReviewsResponse extends PaginatedList<ReviewResponse> {
   averageRating: number;
   ratingCount: number;
@@ -333,6 +339,26 @@ export class ReviewsService {
       averageRating: hotel.averageRating ?? 0,
       ratingCount: hotel.ratingCount ?? 0,
       ...paginate(items, total, page),
+    };
+  }
+
+  // HTL-23: the review of one reservation by its owner (null if none). The caller has already
+  // checked that the reservation belongs to the user (ACC-11).
+  async findForReservation(
+    reservationId: string,
+    userId: string,
+  ): Promise<OwnReviewResponse | null> {
+    const userObjectId = new Types.ObjectId(userId);
+    const review = await this.reviewModel
+      .findOne({
+        reservation: new Types.ObjectId(reservationId),
+        user: userObjectId,
+      })
+      .exec();
+    if (!review) return null;
+    return {
+      ...this.toResponse(review, await this.findAuthorName(userObjectId)),
+      hidden: review.hidden,
     };
   }
 
