@@ -646,6 +646,29 @@ describe('Bonus requirements', () => {
           })
         ).body.total,
       ).toBe(1);
+      // Lookup of one item (team leader decision 24 Nov): 1 item with the favourite's id, or 0.
+      const lookup = await account.client.get('/api/favourites', {
+        query: { type: 'hotel', targetId: hotel.hotelId },
+      });
+      expect(lookup.status).toBe(200);
+      expect(lookup.body).toMatchObject({
+        total: 1,
+        items: [{ id: savedHotel.body.id, targetId: hotel.hotelId }],
+      });
+      expect(
+        (
+          await account.client.get('/api/favourites', {
+            query: { type: 'itinerary', targetId: secret.body.id },
+          })
+        ).body.total,
+      ).toBe(0);
+      expect(
+        (
+          await account.client.get('/api/favourites', {
+            query: { targetId: 'not-an-id' },
+          })
+        ).status,
+      ).toBe(400);
       // Private to the user.
       expect((await owner.client.get('/api/favourites')).body.total).toBe(0);
       expect(

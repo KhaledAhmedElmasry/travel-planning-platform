@@ -86,6 +86,20 @@ export function upcomingHotelBookings(
   };
 }
 
+// HTL-20 Upcoming group of the list (team leader, 24 Nov): the upcoming reservations above plus
+// the Pending Payment ones whose hold has not expired, so the user can continue the payment.
+// ACC-12 keeps using upcomingHotelBookings() alone: a held reservation does not block deactivation.
+export function upcomingHotelListFilter(
+  now = new Date(),
+): FilterQuery<HotelBooking> {
+  return {
+    $or: [
+      upcomingHotelBookings(now),
+      { status: BookingStatus.PendingPayment, holdExpiresAt: { $gt: now } },
+    ],
+  };
+}
+
 const HOTELS_COLLECTION = 'hotels';
 const ROOMS_COLLECTION = 'rooms';
 
@@ -158,6 +172,8 @@ export interface HotelBookingListItem {
   totalAmount: number;
   currency: string;
   status: BookingStatus;
+  // Set while the reservation is Pending Payment (continue the payment until then), else null.
+  holdExpiresAt: Date | null;
 }
 
 @Injectable()
@@ -287,9 +303,9 @@ export class HotelBookingsService implements BookingPaymentHandler {
   async listOwned(
     userId: string,
     query: ListHotelBookingsQueryDto,
+    now = new Date(),
   ): Promise<PaginatedList<HotelBookingListItem>> {
     const page = query.page ?? 1;
-    const now = new Date();
     const filter: FilterQuery<HotelBooking> = { userId };
     if (query.group === BookingGroup.Cancelled) {
       filter.status = BookingStatus.Cancelled;
@@ -299,7 +315,7 @@ export class HotelBookingsService implements BookingPaymentHandler {
         { status: BookingStatus.Confirmed, checkIn: { $lte: todayUtc(now) } },
       ];
     } else {
-      Object.assign(filter, upcomingHotelBookings(now));
+      Object.assign(filter, upcomingHotelListFilter(now));
     }
     const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
     const [bookings, total] = await Promise.all([
@@ -340,6 +356,10 @@ export class HotelBookingsService implements BookingPaymentHandler {
       totalAmount: booking.totalAmount,
       currency: booking.currency,
       status: booking.status,
+      holdExpiresAt:
+        booking.status === BookingStatus.PendingPayment
+          ? booking.holdExpiresAt
+          : null,
     };
   }
 
