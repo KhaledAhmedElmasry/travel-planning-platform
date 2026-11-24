@@ -142,6 +142,7 @@ card...) are built by each area **from these parts**, in `src/components/app/`, 
 ## Rendering (project description section 9)
 
 Don't use one strategy for the whole app; each choice is justified at evaluation.
+The full list of pages, why each uses its strategy, and the `next build` check: [docs/RENDERING.md](../docs/RENDERING.md).
 
 | Page | Strategy |
 |---|---|
