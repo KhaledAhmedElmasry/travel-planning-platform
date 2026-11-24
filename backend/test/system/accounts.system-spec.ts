@@ -343,6 +343,17 @@ describe('Accounts and sessions', () => {
       );
     });
 
+    // source: team leader in chat (23 Nov) - an empty phone number removes the phone (ACC-09);
+    // the profile then reports phone null, like an account that never had one.
+    it('an empty phone number removes the phone', async () => {
+      const user = await t.user();
+      await user.client.patch('/api/users/me', { phone: '+20 100 123 4567' });
+      const res = await user.client.patch('/api/users/me', { phone: '' });
+      expect(res.status).toBe(200);
+      expect(res.body.phone).toBeNull();
+      expect((await user.client.get('/api/users/me')).body.phone).toBeNull();
+    });
+
     it('accepts only currencies of the supported list (Countries.csv)', async () => {
       const user = await t.user();
       for (const currency of [
