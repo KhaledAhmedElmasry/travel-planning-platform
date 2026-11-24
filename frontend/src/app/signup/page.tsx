@@ -10,7 +10,14 @@ import { Suspense } from "react";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { SignupFormFromUrl } from "./signup-form";
 
-export const metadata: Metadata = { title: "Sign up" };
+const DESCRIPTION = "Create a free Yallaway account to book flights and hotels, plan itineraries and share your trips.";
+
+export const metadata: Metadata = {
+  title: "Sign up",
+  description: DESCRIPTION,
+  alternates: { canonical: "/signup" },
+  openGraph: { type: "website", siteName: "Yallaway", title: "Sign up", description: DESCRIPTION },
+};
 
 export default function Page() {
   return (

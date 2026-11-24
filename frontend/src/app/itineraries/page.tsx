@@ -22,6 +22,7 @@ export const metadata: Metadata = {
   title: "Explore itineraries",
   description: DESCRIPTION,
   alternates: { canonical: "/itineraries" },
+  openGraph: { type: "website", siteName: "Yallaway", title: "Explore itineraries", description: DESCRIPTION },
 };
 
 type Page<T> = { items: T[]; totalPages: number };
