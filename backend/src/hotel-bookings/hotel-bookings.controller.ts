@@ -42,7 +42,7 @@ import { HotelsService } from '../hotels/hotels.service';
 //   total"); there is no separate refund-preview endpoint: use HotelBookingLifecycleService
 //   .previewCancellation(booking) (the same function cancel uses).
 //   Users see only their own reservations (ACC-11). Group the list as Upcoming / Past / Cancelled (HTL-20);
-//   Upcoming = upcomingHotelBookings() in hotel-bookings.service.ts (GEN-11).
+//   Upcoming = upcomingHotelListFilter() in hotel-bookings.service.ts (GEN-11 + held reservations).
 //   All selected rooms are held together or not at all (HTL-18, PDF section 6.3).
 //   HTL-17 (confirmation) has no endpoint: the Stripe webhook confirms the reservation.
 //
