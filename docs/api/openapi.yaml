@@ -137,11 +137,13 @@ paths:
       tags: [Authentication and Accounts]
       summary: '[Bonus] Verify the email address (ACC-02)'
       description: |
-        **Access:** guests (the user opens the link sent by email after registration).
+        **Access:** guests. The link emailed after registration opens the frontend page
+        `/verify-email?token=...` (`FRONTEND_URL`), which calls this endpoint and shows the result; in
+        Swagger, paste the token from that link.
 
         Marks the email as verified. When the server runs with `REQUIRE_EMAIL_VERIFICATION=true`, booking is blocked until the email is verified (ACC-02); by default (the setting is off) a new account can book at once, so the API can be tried in Swagger without an email inbox.
-        Registration sends the link; it works once, for 24 hours. Until email sending (GEN-01-B)
-        exists, the link is printed in the server log in development.
+        Registration sends the link (GEN-01-B); it works once, for 24 hours. In development the link
+        is also printed in the server log.
       security: []
       parameters:
         - name: token

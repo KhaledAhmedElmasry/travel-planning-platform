@@ -77,7 +77,10 @@ describe('Bonus requirements', () => {
       expect(blocked.body.message).toMatch(/verify/i);
 
       const mail = await lastMail(account.email, /verify/i);
-      expect(mail.text).toContain('/api/auth/verify-email?token=');
+      // B4 (team leader, 17 Nov 2026): the link opens the frontend page /verify-email (P-08), which
+      // calls GET /api/auth/verify-email itself, like the ACC-07 reset link opens /reset-password.
+      expect(mail.text).toContain('/verify-email?token=');
+      expect(mail.text).not.toContain('/api/auth/verify-email');
       expect(
         (
           await t
