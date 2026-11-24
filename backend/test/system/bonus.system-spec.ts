@@ -630,6 +630,57 @@ describe('Bonus requirements', () => {
       expect(booking.body.status).toBe('confirmed');
       expect((await link()).status).toBe(201);
     });
+
+    it('a Completed booking (a past trip) can be linked too', async () => {
+      const hotel = await hotelWithModerator(t);
+      const room = await addRoom(hotel);
+      const account = await verifiedUser();
+      const booking = await account.client.post('/api/hotel-bookings', {
+        hotelId: hotel.hotelId,
+        checkIn: day(5),
+        checkOut: day(6),
+        rooms: [{ roomId: room.id, adults: 1 }],
+      });
+      await payAndConfirm(
+        t,
+        account.client,
+        'hotel',
+        booking.body.id as string,
+      );
+      const at = (offset: number) => new Date(`${day(offset)}T00:00:00.000Z`);
+      await t
+        .collection('hotelbookings')
+        .updateOne(
+          { _id: t.oid(booking.body.id as string) },
+          { $set: { checkIn: at(-3), checkOut: at(-1) } },
+        );
+      await t.service(HotelBookingLifecycleService).completeStays();
+      const trip = await account.client.post('/api/itineraries', {
+        title: 'Past trip',
+        countryCodes: ['EG'],
+        startDate: day(-3),
+      });
+      const tripDay = await account.client.post(
+        `/api/itineraries/${trip.body.id}/days`,
+        { cityId: 'cairo' },
+      );
+
+      const linked = await account.client.post(
+        `/api/itineraries/${trip.body.id}/bookings`,
+        {
+          bookingType: 'hotel',
+          bookingId: booking.body.id,
+          dayId: tripDay.body.id,
+        },
+      );
+
+      expect(linked.status).toBe(201);
+      expect(linked.body).toMatchObject({
+        bookingType: 'hotel',
+        bookingId: booking.body.id,
+        status: 'completed',
+      });
+    });
   });
 
   describe('BON-01 analytics (Bonus row 11), BON-02 favourites (row 12)', () => {

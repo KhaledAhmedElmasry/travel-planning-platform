@@ -614,7 +614,7 @@ export class ItinerariesService {
     return { pdf, title: itinerary.title };
   }
 
-  // ITN-27 (bonus): link one of the user's Confirmed bookings to a day of the itinerary.
+  // ITN-27 (bonus): link one of the user's Confirmed or Completed bookings to a day of the itinerary.
   async linkBooking(
     itineraryId: string | Types.ObjectId,
     userId: string,

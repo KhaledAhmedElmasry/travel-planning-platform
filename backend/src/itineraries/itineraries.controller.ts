@@ -200,7 +200,7 @@ export class ItinerariesController {
     });
   }
 
-  // ITN-27 (bonus): link a Confirmed booking of the user to a day of the itinerary.
+  // ITN-27 (bonus): link a Confirmed or Completed booking of the user to a day of the itinerary.
   @Post('itineraries/:id/bookings')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User)

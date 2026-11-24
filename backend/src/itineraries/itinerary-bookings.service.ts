@@ -11,8 +11,8 @@ import { BookingStatus, BookingType } from '../common/enums';
 import { AttachBookingDto } from './dto/attach-booking.dto';
 
 // Area: Itineraries
-// ITN-27 (bonus): a user's Confirmed flight bookings and hotel reservations can be linked to a
-// day of their own itinerary, and their prices feed the budget summary.
+// ITN-27 (bonus): a user's Confirmed or Completed (past trip) flight bookings and hotel
+// reservations can be linked to a day of their own itinerary, and their prices feed the budget summary.
 //
 // The links live in their own collection with a unique (bookingType, bookingId) index, so one
 // booking is linked at most once, even when two requests link it at the same moment. The
@@ -62,7 +62,8 @@ interface BookingDocument {
 
 const NOT_FOUND =
   'Itinerary, day or booking not found, or they belong to another user.';
-const ALREADY = 'The booking is not Confirmed, or it is already linked.';
+const ALREADY =
+  'The booking is not Confirmed or Completed, or it is already linked.';
 
 // A linked booking keeps feeding the budget while it is Confirmed and after it is Completed;
 // a cancelled or expired one drops out.
@@ -110,7 +111,7 @@ export class ItineraryBookingsService implements OnModuleInit {
       userId: userObjectId,
     });
     if (!booking) throw new NotFoundException(NOT_FOUND);
-    if (booking.status !== BookingStatus.Confirmed) {
+    if (!COUNTED.includes(booking.status)) {
       throw new ConflictException(ALREADY);
     }
 

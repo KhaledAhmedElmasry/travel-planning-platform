@@ -5614,9 +5614,9 @@ paths:
     post:
       operationId: postItinerariesByIdBookings
       tags: [Itineraries]
-      summary: '[Bonus] Link a confirmed booking to an itinerary day (ITN-27)'
+      summary: '[Bonus] Link a confirmed or completed booking to an itinerary day (ITN-27)'
       description: |
-        **Access:** the owner, for the owner's own Confirmed bookings.
+        **Access:** the owner, for the owner's own Confirmed or Completed (past trip) bookings.
 
         The linked booking's price feeds the itinerary budget: `GET /api/itineraries/{id}/budget-summary` lists it
         in `linkedBookings` and adds it in `grandTotalWithBookings`, in the platform currency and never converted
@@ -5650,12 +5650,12 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Itinerary, day or booking not found, or they belong to another user.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/bookings", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
-          description: The booking is not Confirmed, or it is already linked.
+          description: The booking is not Confirmed or Completed, or it is already linked.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The booking is not Confirmed, or it is already linked.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/bookings", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The booking is not Confirmed or Completed, or it is already linked.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/bookings", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/itineraries/{id}/bookings/{linkId}:
     delete:
