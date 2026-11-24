@@ -9,9 +9,8 @@
 // - guest (role null): sees the button; a click goes to /login?returnTo=<this page> (team leader, 24 Nov; ACC-10);
 // - registered user: toggles save (POST /api/favourites) / remove (DELETE /api/favourites/{id});
 // - admins and moderators: nothing (BON-02 is for registered users; the backend refuses them).
-// favouriteId: the page finds it in GET /api/favourites when the item is already saved, else null.
-// TODO(ask team leader): no endpoint says whether ONE item is saved; the page must read GET /api/favourites
-// (paginated) to find favouriteId. Is that fine, or should the backend add a lookup?
+// favouriteId: the page reads GET /api/favourites?type=<hotel|itinerary>&targetId=<id> (team leader, 24 Nov):
+// items[0]?.id when the item is saved, else null (guests: null).
 import { useState } from "react";
 import { HeartIcon } from "lucide-react";
 import { toast } from "sonner";

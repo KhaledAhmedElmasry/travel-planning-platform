@@ -134,3 +134,15 @@ test("when marking fails, the backend's message is shown and the item stays unre
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Notification not found"));
   expect(onRead).not.toHaveBeenCalled();
 });
+
+// source: team leader decision 24 Nov - clicked item whose mark-as-read fails: show the error and STAY
+test("clicking an unread notification whose marking fails shows the error and does not navigate", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(500, { statusCode: 500, error: "INTERNAL", message: "Internal server error" })));
+  const navigate = vi.fn();
+  render(<NotificationItem notification={unread} onRead={vi.fn()} navigate={navigate} />);
+
+  fireEvent.click(screen.getByRole("button", { name: /Booking confirmed/ }));
+
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Internal server error"));
+  expect(navigate).not.toHaveBeenCalled();
+});

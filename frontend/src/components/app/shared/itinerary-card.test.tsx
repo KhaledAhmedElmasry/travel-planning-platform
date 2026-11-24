@@ -16,21 +16,24 @@ const trip: ItinerarySummary = {
   visibility: "private",
 };
 
-// source: Excel ITN-03 - list title, countries, start date, days; open it to view details
-test("shows the title as a link, the countries, the start date and the number of days", () => {
-  render(<ItineraryCard itinerary={trip} href="/my/itineraries/i1" />);
+// source: GET /api/countries (code -> name, Mock Data Countries); the page passes the map
+const names = { EG: "Egypt", AE: "United Arab Emirates" };
+
+// source: Excel ITN-03 - list title, countries, start date, days; team leader decision 24 Nov - full country names
+test("shows the title as a link, the full country names, the start date and the number of days", () => {
+  render(<ItineraryCard itinerary={trip} countryNames={names} href="/my/itineraries/i1" />);
 
   const link = screen.getByRole("link", { name: "Cairo and Dubai in spring" });
   expect(link.getAttribute("href")).toBe("/my/itineraries/i1");
   const card = screen.getByRole("article");
-  expect(card.textContent).toContain("EG, AE");
+  expect(card.textContent).toContain("Egypt, United Arab Emirates");
   expect(card.textContent).toContain("Mon, 1 Mar 2027");
   expect(card.textContent).toContain("5 days");
 });
 
 // source: Excel ITN-03 - days (one day reads "1 day")
 test("one day is written in the singular", () => {
-  render(<ItineraryCard itinerary={{ ...trip, numberOfDays: 1 }} href="/x" />);
+  render(<ItineraryCard itinerary={{ ...trip, numberOfDays: 1 }} countryNames={names} href="/x" />);
 
   expect(screen.getByRole("article").textContent).toContain("1 day");
   expect(screen.getByRole("article").textContent).not.toContain("1 days");
@@ -38,23 +41,30 @@ test("one day is written in the singular", () => {
 
 // source: Excel ITN-03 - visibility in the owner's list
 test("the owner's list shows the visibility", () => {
-  const { rerender } = render(<ItineraryCard itinerary={trip} href="/x" showVisibility />);
+  const { rerender } = render(<ItineraryCard itinerary={trip} countryNames={names} href="/x" showVisibility />);
   expect(screen.getByText("Private")).toBeTruthy();
 
-  rerender(<ItineraryCard itinerary={{ ...trip, visibility: "public" }} href="/x" showVisibility />);
+  rerender(<ItineraryCard itinerary={{ ...trip, visibility: "public" }} countryNames={names} href="/x" showVisibility />);
   expect(screen.getByText("Public")).toBeTruthy();
 });
 
 // source: Excel ITN-21/BLG-12 - public lists: every card is public, so no visibility pill
 test("public lists do not show the visibility", () => {
-  render(<ItineraryCard itinerary={{ ...trip, visibility: "public" }} href="/itineraries/i1" />);
+  render(<ItineraryCard itinerary={{ ...trip, visibility: "public" }} countryNames={names} href="/itineraries/i1" />);
 
   expect(screen.queryByText("Public")).toBeNull();
 });
 
 // source: spec section 1 - content an admin hid shows a "Hidden" badge to its author and admins (GEN-10)
 test("hidden content shows the Hidden badge", () => {
-  render(<ItineraryCard itinerary={trip} href="/x" hidden />);
+  render(<ItineraryCard itinerary={trip} countryNames={names} href="/x" hidden />);
 
   expect(screen.getByText("Hidden")).toBeTruthy();
+});
+
+// source: team leader decision 24 Nov - full country names; a code missing from the map is still shown (no blank)
+test("a country missing from the map falls back to its code", () => {
+  render(<ItineraryCard itinerary={{ ...trip, countryCodes: ["EG", "JP"] }} countryNames={names} href="/x" />);
+
+  expect(screen.getByRole("article").textContent).toContain("Egypt, JP");
 });

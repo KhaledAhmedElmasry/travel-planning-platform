@@ -9,8 +9,7 @@
 // - "Mark as read" (unread only): PATCH /api/notifications/{id}/read, then onRead(saved notification);
 // - clicking the notification marks it read (when unread) AND opens its link (team leader, 24 Nov);
 //   only links on this site are followed (no open redirect).
-// TODO(ask team leader): if marking as read fails when the user clicks the item, we show the error
-// and still open the link (the user asked to go there). Keep that, or stay on the list?
+//   If marking fails, the error is shown and the user stays on the list (team leader, 24 Nov).
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "cn";
@@ -41,19 +40,22 @@ type NotificationItemProps = {
 export function NotificationItem({ notification: n, onRead, navigate }: NotificationItemProps) {
   const [busy, setBusy] = useState(false);
 
-  async function markRead(): Promise<void> {
+  /** true when saved */
+  async function markRead(): Promise<boolean> {
     setBusy(true);
     try {
       onRead(await apiFetch<AppNotification>(`/api/notifications/${n.id}/read`, { method: "PATCH" }));
+      return true;
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "We couldn't update the notification. Try again.");
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
   async function open() {
-    if (!n.read) await markRead();
+    if (!n.read && !(await markRead())) return;
     const link = safeReturnTo(n.link);
     if (link) navigate(link);
   }
