@@ -29,6 +29,11 @@ when building and when running (`.env.local` covers both). Use Chrome or Edge lo
 
 Async Server Components (most pages) can't be rendered by Vitest (Next.js 16 testing guide): test them with Playwright.
 
+**Responsive check (GEN-16):** `npm run test:e2e -- responsive.spec.ts` opens every page at 375, 768, 1024 and
+1440 px (MASTER.md section 3) as the role it is for, and fails when a page scrolls sideways; the message names
+the elements that stick out. Screenshots of every width land in `test-results/`. It logs in with the demo
+accounts (`npm run seed:demo`) and the admin (`ADMIN_EMAIL` / `ADMIN_PASSWORD` in `backend/.env`).
+
 ### Email link tests (opt-in)
 
 `e2e/email/` holds the tests that open the emailed links (ACC-02 verify email, ACC-07 reset password).
