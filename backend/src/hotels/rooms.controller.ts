@@ -2,10 +2,12 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ParseObjectIdPipe } from '@nestjs/mongoose';
@@ -14,12 +16,14 @@ import { Role } from '../common/enums';
 import { JwtAuthGuard } from '../common/guards/auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { AuthUser } from '../common/interfaces';
+import { ListRoomsQueryDto } from './dto/list-rooms-query.dto';
 import { UpdateRoomAvailabilityDto } from './dto/update-room-availability.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { RoomsService } from './rooms.service';
 
 // Area: Hotels & Rooms
 // Room management by the moderator of the hotel, under /api/hotels/:id/rooms/:roomId:
+//   GET    /api/hotels/:id/rooms                        HTL-03, HTL-06 (extra endpoint, MILESTONE2 spec section 8: the rooms list)
 //   PATCH  /api/hotels/:id/rooms/:roomId                HTL-05, HTL-06 (active: false deactivates)
 //   DELETE /api/hotels/:id/rooms/:roomId                HTL-06
 //   PATCH  /api/hotels/:id/rooms/:roomId/availability   HTL-05 (remove), HTL-06 (block, unblock)
@@ -30,6 +34,17 @@ import { RoomsService } from './rooms.service';
 @Roles(Role.HotelModerator)
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
+
+  // The moderator's rooms list (P-43, P-44): room number A to Z, 10 per page, everReserved
+  // tells the UI whether Delete is allowed (HTL-06).
+  @Get(':id/rooms')
+  listRooms(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListRoomsQueryDto,
+  ) {
+    return this.roomsService.listRooms(id, user, query);
+  }
 
   // HTL-05: edit beds, maximum occupancy and price per night. HTL-06: active false / true.
   @Patch(':id/rooms/:roomId')

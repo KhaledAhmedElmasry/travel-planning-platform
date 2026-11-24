@@ -5,6 +5,7 @@ import {
   IsString,
   Matches,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 
 // Area: Auth & Accounts
@@ -34,6 +35,8 @@ export class UpdateProfileDto {
   @IsOptional()
   @Transform(trim)
   @IsString({ message: 'Phone number must be text' })
+  // An empty phone number removes the phone (team leader, 23 Nov), so only a non-empty one is checked.
+  @ValidateIf((dto: UpdateProfileDto) => dto.phone !== '')
   @Matches(PHONE_PATTERN, {
     message:
       'Phone number must be 7 to 20 characters: digits, spaces, ( ) and -, optionally starting with +',

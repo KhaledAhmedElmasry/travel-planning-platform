@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, Model, Types } from 'mongoose';
+import { Connection, FilterQuery, Model, Types } from 'mongoose';
 import { AirlinesService } from '../airlines/airlines.service';
 import { BookingStatus, Role } from '../common/enums';
 import {
@@ -20,6 +20,8 @@ import {
 } from '../flight-bookings/schemas/flight-booking.schema';
 import { NotificationsService } from '../notifications/notifications.service';
 import type { AuthUser } from '../common/interfaces';
+import { assertManagesAirline } from '../common/guards/ownership';
+import { ConfigService } from '@nestjs/config';
 import { ReferenceDataService } from '../reference-data/reference-data.service';
 import { CreateCabinDto } from './dto/create-cabin.dto';
 import { CreateFlightDto } from './dto/create-flight.dto';
@@ -44,6 +46,8 @@ import {
   utcToLocalDate,
 } from './flight-time';
 import { Flight, FlightDocument, FlightStatus } from './schemas/flight.schema';
+import { ListAirlineFlightsQueryDto } from './dto/list-airline-flights-query.dto';
+import { platformCurrency } from '../payments/platform-currency';
 
 // One cabin in a flight response (FLT-04).
 export interface CabinResponse {
@@ -136,7 +140,56 @@ export class FlightsService {
     private readonly bookingLifecycle: FlightBookingLifecycleService,
     private readonly airlinesService: AirlinesService,
     private readonly referenceData: ReferenceDataService,
+    private readonly config: ConfigService,
   ) {}
+
+  // P-36 (new endpoint, MILESTONE2 spec section 8): the moderator's own flights, soonest
+  // departure first, 10 per page (GEN-05). from / to filter the local departure date, both ends
+  // included. hasBookings = any booking in any status: the FLT-05 rule that locks the airports.
+  async listForAirline(
+    user: AuthUser,
+    airlineId: Types.ObjectId,
+    query: ListAirlineFlightsQueryDto,
+  ): Promise<
+    PaginatedList<FlightResponse & { hasBookings: boolean; currency: string }>
+  > {
+    assertManagesAirline(user, airlineId);
+    const filter: FilterQuery<FlightDocument> = { airlineId };
+    if (query.status) filter.status = query.status;
+    if (query.from || query.to) {
+      filter.departureDate = {
+        ...(query.from ? { $gte: query.from } : {}),
+        ...(query.to ? { $lte: query.to } : {}),
+      };
+    }
+    const page = query.page ?? 1;
+    const { skip, limit } = getPaginationOffset(page, DEFAULT_PAGE_SIZE);
+    const [flights, total] = await Promise.all([
+      this.flightModel
+        .find(filter)
+        .sort({ departureAt: 1, _id: 1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.flightModel.countDocuments(filter).exec(),
+    ]);
+    const booked = new Set(
+      (
+        await this.bookingModel
+          .distinct('segments.flightId', {
+            'segments.flightId': { $in: flights.map((f) => f._id) },
+          })
+          .exec()
+      ).map((id) => String(id)),
+    );
+    const currency = platformCurrency(this.config);
+    const items = flights.map((f) => ({
+      ...this.toResponse(f),
+      hasBookings: booked.has(f._id.toString()),
+      currency,
+    }));
+    return paginate(items, total, page, DEFAULT_PAGE_SIZE);
+  }
 
   // FLT-29: view confirmed/cancelled bookings for a managed flight, with remaining inventory.
   async listFlightBookings(
