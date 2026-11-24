@@ -79,6 +79,20 @@ export function upcomingFlightBookings(
   };
 }
 
+// FLT-25 Upcoming group of the list (team leader, 24 Nov): the upcoming bookings above plus the
+// Pending Payment bookings whose hold has not expired, so the user can continue the payment.
+// ACC-12 keeps using upcomingFlightBookings() alone: a held booking does not block deactivation.
+export function upcomingFlightListFilter(
+  now = new Date(),
+): FilterQuery<FlightBooking> {
+  return {
+    $or: [
+      upcomingFlightBookings(now),
+      { status: BookingStatus.PendingPayment, holdExpiresAt: { $gt: now } },
+    ],
+  };
+}
+
 export interface FlightBookingResponse {
   id: string;
   reference: string | null;
@@ -141,6 +155,8 @@ export interface FlightBookingListItem {
   departureLocal: string;
   passengers: number;
   cabinClass: string;
+  // Set while the booking is Pending Payment (continue the payment until then), else null.
+  holdExpiresAt: Date | null;
 }
 
 @Injectable()
@@ -271,11 +287,12 @@ export class FlightBookingsService implements BookingPaymentHandler {
   async listOwn(
     userId: string,
     query: ListFlightBookingsQueryDto,
+    now = new Date(),
   ): Promise<PaginatedList<FlightBookingListItem>> {
     const filter: FilterQuery<FlightBooking> = { userId };
     switch (query.group) {
       case FlightBookingGroup.Upcoming:
-        Object.assign(filter, upcomingFlightBookings());
+        Object.assign(filter, upcomingFlightListFilter(now));
         break;
       case FlightBookingGroup.Past:
         filter.status = {
@@ -323,6 +340,10 @@ export class FlightBookingsService implements BookingPaymentHandler {
       ),
       passengers: booking.passengers.length,
       cabinClass: segment.cabinClass,
+      holdExpiresAt:
+        booking.status === BookingStatus.PendingPayment
+          ? booking.holdExpiresAt
+          : null,
     };
   }
 

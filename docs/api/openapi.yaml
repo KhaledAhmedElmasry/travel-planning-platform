@@ -2516,7 +2516,7 @@ paths:
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: Each item - id, booking reference, flight(s), departure date, number of passengers, cabin, status.
+          description: Each item - id, booking reference, flight(s), departure date, number of passengers, cabin, status, and holdExpiresAt (Pending Payment only).
           content:
             application/json:
               schema:
@@ -3863,7 +3863,7 @@ paths:
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: Each item - id, booking reference, hotel, rooms, check-in and check-out dates, guests, total, status.
+          description: Each item - id, booking reference, hotel, rooms, check-in and check-out dates, guests, total, status, and holdExpiresAt (Pending Payment only).
           content:
             application/json:
               schema:
@@ -7594,7 +7594,9 @@ components:
       type: string
       description: |
         How a user's bookings are grouped (FLT-25, HTL-20). `upcoming` (GEN-11): Confirmed with a flight
-        not yet departed (a round trip until its return flight departs), or a stay not yet started.
+        not yet departed (a round trip until its return flight departs), or a stay not yet started; the list
+        also shows Pending Payment bookings whose 10-minute hold has not expired yet, with `holdExpiresAt`,
+        so the user can continue the payment. (Account deactivation, ACC-12, counts only the Confirmed ones.)
       enum: [upcoming, past, cancelled]
     CabinClass:
       type: string
@@ -10409,7 +10411,7 @@ components:
     FlightBookingListItem:
       type: object
       description: One booking in the user's list (FLT-25).
-      required: [id, reference, status, flightNumber, departureAirport, arrivalAirport, departureAt, departureLocal, passengers, cabinClass]
+      required: [id, reference, status, flightNumber, departureAirport, arrivalAirport, departureAt, departureLocal, passengers, cabinClass, holdExpiresAt]
       properties:
         id:
           type: string
@@ -10436,6 +10438,11 @@ components:
           type: integer
         cabinClass:
           $ref: '#/components/schemas/CabinClass'
+        holdExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: End of the 10-minute hold while the booking is Pending Payment, otherwise null.
     HotelReservationListItem:
       type: object
       description: One reservation of the hotel, for its moderator (HTL-22).
@@ -10477,7 +10484,7 @@ components:
     HotelBookingListItem:
       type: object
       description: One reservation in the user's list (HTL-20).
-      required: [id, reference, hotel, rooms, checkIn, checkOut, guests, totalAmount, currency, status]
+      required: [id, reference, hotel, rooms, checkIn, checkOut, guests, totalAmount, currency, status, holdExpiresAt]
       properties:
         id:
           type: string
@@ -10514,6 +10521,11 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/BookingStatus'
+        holdExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: End of the 10-minute hold while the booking is Pending Payment, otherwise null.
     MyPostSummary:
       type: object
       description: One of the author's own posts, drafts included (BLG-03).
