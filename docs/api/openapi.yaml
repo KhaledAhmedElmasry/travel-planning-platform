@@ -6559,7 +6559,14 @@ paths:
           schema: {type: integer, minimum: 1, default: 1}
         - name: type
           in: query
+          description: Only favourites of this kind.
           schema: {type: string, enum: [hotel, itinerary]}
+        - name: targetId
+          in: query
+          description: |
+            Only the favourite of this hotel or itinerary (BON-02). With `type`, the list has 0 items
+            (not saved) or 1 item whose `id` is the favourite to delete. Example: `?type=hotel&targetId=507f1f77bcf86cd799439011`.
+          schema: {type: string, pattern: '^[0-9a-fA-F]{24}$'}
       responses:
         '200':
           description: Paginated favourites. Inactive or no-longer-public targets are omitted.
@@ -6567,6 +6574,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedFavourites'
+        '400':
+          description: Invalid type or target ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

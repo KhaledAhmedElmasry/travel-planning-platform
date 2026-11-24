@@ -97,6 +97,7 @@ export class FavouritesService {
       userId: new Types.ObjectId(userId),
     };
     if (query.type) filter.type = query.type;
+    if (query.targetId) filter.targetId = new Types.ObjectId(query.targetId);
 
     const page = query.page ?? 1;
     const favourites = await this.favouriteModel
