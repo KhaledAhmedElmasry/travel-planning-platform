@@ -233,7 +233,7 @@ export function KitDemo() {
           current={2}
           aside={
             <>
-              <HoldCountdown expiresAt={holdEnd} />
+              <HoldCountdown bookingType="flight" expiresAt={holdEnd} />
               <Panel className="grid gap-2 text-[15px]">
                 <p className="text-xs font-semibold tracking-wide text-subtle-foreground uppercase">Summary</p>
                 <div className="flex justify-between"><span className="text-muted-foreground">2 adults × $320.00</span><Price cents={64000} currency="USD" size="sm" hideCode /></div>

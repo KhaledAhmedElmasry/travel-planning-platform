@@ -111,7 +111,7 @@ function PaymentForm({ bookingType, bookingId, holdExpiresAt, onConfirmed }: Pro
 
   return (
     <div className="grid gap-4">
-      <HoldCountdown expiresAt={holdExpiresAt} onExpire={() => setPhase("expired")} />
+      <HoldCountdown bookingType={bookingType} expiresAt={holdExpiresAt} onExpire={() => setPhase("expired")} />
       <div className="rounded-lg border border-input bg-background p-3">
         <CardElement />
       </div>
