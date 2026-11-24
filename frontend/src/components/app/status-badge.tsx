@@ -11,6 +11,7 @@
 //   provider ACC-15  active | inactive               (airline / hotel)
 //   post     BLG-03  draft | published
 //   content  GEN-10  hidden
+//   itinerary ITN-03 public | private
 // MASTER.md section 6.3. Badge text on its 15% tint passes 4.5:1 for every tone.
 import {
   BanIcon,
@@ -83,6 +84,10 @@ const STATUSES = {
   },
   content: {
     hidden: { label: "Hidden", tone: "warning", icon: EyeOffIcon },
+  },
+  itinerary: {
+    public: { label: "Public", tone: "info", icon: GlobeIcon },
+    private: { label: "Private", tone: "neutral", icon: LockIcon },
   },
 } satisfies Record<string, Record<string, Look>>;
 
