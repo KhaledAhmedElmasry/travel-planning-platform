@@ -3934,6 +3934,7 @@ paths:
             For an upcoming Confirmed reservation it also shows the refund the user would get if they
             cancelled now, computed from the hotel's tiers on the full total (HTL-21), as
             `cancellation` (`CancellationPreview`, the same calculation `POST .../cancel` uses).
+            It also returns the user's own review of this reservation as `review` (HTL-23), or null.
           content:
             application/json:
               schema:
@@ -5614,9 +5615,9 @@ paths:
     post:
       operationId: postItinerariesByIdBookings
       tags: [Itineraries]
-      summary: '[Bonus] Link a confirmed booking to an itinerary day (ITN-27)'
+      summary: '[Bonus] Link a confirmed or completed booking to an itinerary day (ITN-27)'
       description: |
-        **Access:** the owner, for the owner's own Confirmed bookings.
+        **Access:** the owner, for the owner's own Confirmed or Completed (past trip) bookings.
 
         The linked booking's price feeds the itinerary budget: `GET /api/itineraries/{id}/budget-summary` lists it
         in `linkedBookings` and adds it in `grandTotalWithBookings`, in the platform currency and never converted
@@ -5650,12 +5651,60 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Itinerary, day or booking not found, or they belong to another user.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/bookings", "timestamp": "2026-11-01T10:00:00.000Z"}
         '409':
-          description: The booking is not Confirmed, or it is already linked.
+          description: The booking is not Confirmed or Completed, or it is already linked.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example: {"statusCode": 409, "error": "CONFLICT", "message": "The booking is not Confirmed, or it is already linked.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/bookings", "timestamp": "2026-11-01T10:00:00.000Z"}
+              example: {"statusCode": 409, "error": "CONFLICT", "message": "The booking is not Confirmed or Completed, or it is already linked.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/bookings", "timestamp": "2026-11-01T10:00:00.000Z"}
+
+  /api/itineraries/{id}/bookings/{linkId}:
+    delete:
+      operationId: deleteItinerariesByIdBookingsByLinkId
+      tags: [Itineraries]
+      summary: '[Bonus] Unlink a booking from an itinerary day (ITN-27)'
+      description: |
+        **Access:** the owner (role `user`). The frontend asks for confirmation first (GEN-03).
+
+        Removes the link, so the booking no longer appears in the itinerary's `linkedBookings` and no
+        longer feeds `grandTotalWithBookings` of the budget summary. The booking itself stays booked and
+        can be linked again. Extra endpoint, not in PDF section 8 (needed to undo ITN-27).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: linkId
+          in: path
+          required: true
+          description: The `id` of the `LinkedBooking` (not the booking id).
+          schema:
+            type: string
+            example: '665f1c2a9b1e8a00123400b1'
+      responses:
+        '204':
+          description: The booking is unlinked.
+        '400':
+          description: An id is not a valid id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 400, "error": "BAD_REQUEST", "message": "Invalid ObjectId: 'abc' is not a valid MongoDB ObjectId", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/bookings/abc", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You do not have permission to do this", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/bookings/665f1c2a9b1e8a00123400b1", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '404':
+          description: Itinerary or linked booking not found, or they belong to another user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Itinerary or linked booking not found, or they belong to another user.", "path": "/api/itineraries/665f1c2a9b1e8a00123400a1/bookings/665f1c2a9b1e8a00123400b1", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/itineraries/{id}/pdf:
     get:
@@ -7600,7 +7649,8 @@ components:
     HotelBookingDetails:
       description: |
         Reservation details (HTL-20): the reservation fields above plus its payment (with its status),
-        its refund and the refund the user would get by cancelling now.
+        its refund, the refund the user would get by cancelling now, and the user's own review of
+        this reservation (HTL-23).
       allOf:
         - $ref: '#/components/schemas/HotelBooking'
         - type: object
@@ -7619,6 +7669,21 @@ components:
               description: The refund of a cancelled reservation (PAY-03).
             cancellation:
               $ref: '#/components/schemas/CancellationPreview'
+            review:
+              type: object
+              nullable: true
+              description: |
+                The user's review of this reservation (HTL-23), or null while there is none. Only a
+                Completed reservation can have one. `hidden` is true when an admin hid it (GEN-10);
+                its author still sees it here and can edit or delete it.
+              allOf:
+                - $ref: '#/components/schemas/ReviewResponse'
+                - type: object
+                  required: [hidden]
+                  properties:
+                    hidden:
+                      type: boolean
+                      example: false
 
     # --- Fixed value lists ---
 

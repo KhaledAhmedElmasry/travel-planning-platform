@@ -549,6 +549,138 @@ describe('Bonus requirements', () => {
       });
       expect((await attach(account.client, null)).body.itineraryId).toBeNull();
     });
+
+    it('the owner unlinks a booking: it leaves the day and the budget but stays booked (extra endpoint)', async () => {
+      const airline = await airlineWithModerator(t);
+      const flight = await bookableFlight(
+        airline,
+        { inDays: 47 },
+        { price: 20000 },
+      );
+      const account = await verifiedUser();
+      const stranger = await verifiedUser();
+      const trip = await account.client.post('/api/itineraries', {
+        title: 'Unlinked trip',
+        countryCodes: ['AE'],
+        startDate: day(47),
+      });
+      const tripDay = await account.client.post(
+        `/api/itineraries/${trip.body.id}/days`,
+        { cityId: 'dubai' },
+      );
+      const held = await account.client.post('/api/flight-bookings/hold', {
+        segments: [{ flightId: flight.id, cabinClass: 'economy' }],
+        passengers: [adult()],
+      });
+      await payAndConfirm(t, account.client, 'flight', held.body.id as string);
+      const link = () =>
+        account.client.post(`/api/itineraries/${trip.body.id}/bookings`, {
+          bookingType: 'flight',
+          bookingId: held.body.id,
+          dayId: tripDay.body.id,
+        });
+      const linked = await link();
+      expect(linked.status).toBe(201);
+      const path = `/api/itineraries/${trip.body.id}/bookings/${linked.body.id}`;
+
+      expect((await t.guest().delete(path)).status).toBe(401);
+      // Another user's itinerary, an unknown link and a bad id never remove anything.
+      expect((await stranger.client.delete(path)).status).toBe(404);
+      expect(
+        (
+          await account.client.delete(
+            `/api/itineraries/${trip.body.id}/bookings/665f1c2a9b1e8a00123400ff`,
+          )
+        ).status,
+      ).toBe(404);
+      expect(
+        (
+          await account.client.delete(
+            `/api/itineraries/${trip.body.id}/bookings/not-an-id`,
+          )
+        ).status,
+      ).toBe(400);
+      const before = await account.client.get(
+        `/api/itineraries/${trip.body.id}`,
+      );
+      expect(before.body.linkedBookings).toHaveLength(1);
+
+      const unlinked = await account.client.delete(path);
+      expect(unlinked.status).toBe(204);
+      expect((await account.client.delete(path)).status).toBe(404);
+
+      const after = await account.client.get(
+        `/api/itineraries/${trip.body.id}`,
+      );
+      expect(after.body.linkedBookings).toEqual([]);
+      const budget = await account.client.get(
+        `/api/itineraries/${trip.body.id}/budget-summary`,
+        { query: { currency: 'USD' } },
+      );
+      expect(budget.body.linkedBookings.items).toEqual([]);
+      expect(budget.body.grandTotalWithBookings).toEqual(
+        budget.body.grandTotal,
+      );
+      // The booking itself is untouched and can be linked again.
+      const booking = await bookingDetails(
+        account.client,
+        'flight',
+        held.body.id as string,
+      );
+      expect(booking.body.status).toBe('confirmed');
+      expect((await link()).status).toBe(201);
+    });
+
+    it('a Completed booking (a past trip) can be linked too', async () => {
+      const hotel = await hotelWithModerator(t);
+      const room = await addRoom(hotel);
+      const account = await verifiedUser();
+      const booking = await account.client.post('/api/hotel-bookings', {
+        hotelId: hotel.hotelId,
+        checkIn: day(5),
+        checkOut: day(6),
+        rooms: [{ roomId: room.id, adults: 1 }],
+      });
+      await payAndConfirm(
+        t,
+        account.client,
+        'hotel',
+        booking.body.id as string,
+      );
+      const at = (offset: number) => new Date(`${day(offset)}T00:00:00.000Z`);
+      await t
+        .collection('hotelbookings')
+        .updateOne(
+          { _id: t.oid(booking.body.id as string) },
+          { $set: { checkIn: at(-3), checkOut: at(-1) } },
+        );
+      await t.service(HotelBookingLifecycleService).completeStays();
+      const trip = await account.client.post('/api/itineraries', {
+        title: 'Past trip',
+        countryCodes: ['EG'],
+        startDate: day(-3),
+      });
+      const tripDay = await account.client.post(
+        `/api/itineraries/${trip.body.id}/days`,
+        { cityId: 'cairo' },
+      );
+
+      const linked = await account.client.post(
+        `/api/itineraries/${trip.body.id}/bookings`,
+        {
+          bookingType: 'hotel',
+          bookingId: booking.body.id,
+          dayId: tripDay.body.id,
+        },
+      );
+
+      expect(linked.status).toBe(201);
+      expect(linked.body).toMatchObject({
+        bookingType: 'hotel',
+        bookingId: booking.body.id,
+        status: 'completed',
+      });
+    });
   });
 
   describe('BON-01 analytics (Bonus row 11), BON-02 favourites (row 12)', () => {

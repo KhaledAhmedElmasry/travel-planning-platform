@@ -29,6 +29,19 @@ when building and when running (`.env.local` covers both). Use Chrome or Edge lo
 
 Async Server Components (most pages) can't be rendered by Vitest (Next.js 16 testing guide): test them with Playwright.
 
+### Email link tests (opt-in)
+
+`e2e/email/` holds the tests that open the emailed links (ACC-02 verify email, ACC-07 reset password).
+They **create accounts**, so `npm run test:e2e` skips them. Run them only against a backend that uses a
+**throwaway database**, never the shared one:
+
+1. Start the backend with a throwaway database and its output in a file, e.g. in `backend/`:
+   `MONGODB_URI=<shared URI with the db name changed to tp_e2e_<time>> NODE_ENV=development node dist/main.js > e2e-backend.log`
+   (outside production the backend prints every emailed link in its log).
+2. Point the frontend at it (`BACKEND_URL` in `frontend/.env.local`) and set `E2E_BACKEND_LOG` to the full path of that log file.
+3. `npm run test:e2e:email`. Without `E2E_BACKEND_LOG` the tests stop at once, before creating anything.
+4. Afterwards drop the `tp_e2e_<time>` database.
+
 Open **http://localhost:3001/kit** to see every ready-made component with sample data and the code to use it.
 
 ## The kit: you don't style anything

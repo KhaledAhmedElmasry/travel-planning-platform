@@ -200,7 +200,7 @@ export class ItinerariesController {
     });
   }
 
-  // ITN-27 (bonus): link a Confirmed booking of the user to a day of the itinerary.
+  // ITN-27 (bonus): link a Confirmed or Completed booking of the user to a day of the itinerary.
   @Post('itineraries/:id/bookings')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User)
@@ -210,6 +210,19 @@ export class ItinerariesController {
     @Body() dto: AttachBookingDto,
   ): Promise<LinkedBookingResponse> {
     return this.itinerariesService.linkBooking(id, user.id, dto);
+  }
+
+  // ITN-27 (bonus): unlink a booking from its day (extra endpoint, not in the PDF table).
+  @Delete('itineraries/:id/bookings/:linkId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  async unlinkBooking(
+    @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
+    @Param('linkId', ParseObjectIdPipe) linkId: Types.ObjectId,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    await this.itinerariesService.unlinkBooking(id, linkId, user.id);
   }
 
   @Get('itineraries/:id/flights')

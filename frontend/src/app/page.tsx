@@ -16,12 +16,8 @@ import { allPages } from "@/lib/all-pages";
 import { ISR_REVALIDATE_SECONDS } from "@/lib/cache-tags";
 import { BACKEND_URL } from "@/lib/server/backend";
 import { HomeSearch } from "./home-search";
-import {
-  FeaturedItineraries,
-  PopularDestinations,
-  type Attraction,
-  type ItinerarySummary,
-} from "./popular-destinations";
+import type { ItinerarySummary } from "@/components/app/shared/itinerary-card";
+import { FeaturedItineraries, PopularDestinations, type Attraction } from "./popular-destinations";
 
 export const revalidate = 60; // = ISR_REVALIDATE_SECONDS (Next.js needs a literal here)
 
@@ -72,7 +68,7 @@ export default async function HomePage() {
           <So3ad pose="wave" size={260} />
         </section>
         <HomeSearch airports={airports} countries={countries} cities={cities} />
-        <FeaturedItineraries itineraries={featured?.items ?? []} />
+        <FeaturedItineraries itineraries={featured?.items ?? []} countries={countries} />
         <PopularDestinations cities={cities} countries={countries} attractions={attractions} />
       </div>
     </PublicShell>
