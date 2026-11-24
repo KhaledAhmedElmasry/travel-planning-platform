@@ -29,6 +29,7 @@ import type { AuthUser } from '../common/interfaces';
 import type { Request } from 'express';
 import { ACCESS_COOKIE } from '../auth/auth-cookies';
 import { SessionsService } from '../auth/sessions.service';
+import { RevalidationService } from '../revalidation/revalidation.service';
 import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -81,7 +82,19 @@ export class BlogController {
   constructor(
     private readonly blogService: BlogService,
     private readonly sessionsService: SessionsService,
+    private readonly revalidation: RevalidationService,
   ) {}
+
+  // B5: after the author changed a post, refresh its cached page and the author page (ISR).
+  private async refresh<T>(
+    change: Promise<T>,
+    postId: (result: T) => Types.ObjectId | string,
+    authorId: string,
+  ): Promise<T> {
+    const result = await change;
+    this.revalidation.post(postId(result), authorId);
+    return result;
+  }
 
   @HttpPost('posts/:id/comments')
   @HttpCode(HttpStatus.CREATED)
@@ -114,7 +127,11 @@ export class BlogController {
     @CurrentUser() user: AuthUser,
     @Body() dto: CreatePostDto,
   ): Promise<CreatedPostResponse> {
-    return this.blogService.createPost(user.id, dto);
+    return this.refresh(
+      this.blogService.createPost(user.id, dto),
+      (created) => created.id,
+      user.id,
+    );
   }
 
   @Get('posts')
@@ -176,7 +193,11 @@ export class BlogController {
     @CurrentUser() user: AuthUser,
     @Body() dto: UpdatePostDto,
   ): Promise<CreatedPostResponse> {
-    return this.blogService.updatePost(id, user.id, dto);
+    return this.refresh(
+      this.blogService.updatePost(id, user.id, dto),
+      () => id,
+      user.id,
+    );
   }
 
   @Patch('posts/:id/itinerary')
@@ -187,7 +208,11 @@ export class BlogController {
     @CurrentUser() user: AuthUser,
     @Body() dto: AttachItineraryDto,
   ): Promise<AttachItineraryResponse> {
-    return this.blogService.attachItinerary(id, user.id, dto.itineraryId);
+    return this.refresh(
+      this.blogService.attachItinerary(id, user.id, dto.itineraryId),
+      () => id,
+      user.id,
+    );
   }
 
   @Delete('posts/:id')
@@ -198,7 +223,11 @@ export class BlogController {
     @Param('id', ParseObjectIdPipe) id: Types.ObjectId,
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
-    return this.blogService.deletePost(id, user.id);
+    return this.refresh(
+      this.blogService.deletePost(id, user.id),
+      () => id,
+      user.id,
+    );
   }
 
   @HttpPost('posts/:id/images')
@@ -211,7 +240,11 @@ export class BlogController {
     @UploadedFile() file: Express.Multer.File | undefined,
   ): Promise<{ id: string; url: string }> {
     if (!file) throw new BadRequestException('image is required');
-    return this.blogService.attachPostImage(id, user.id, file);
+    return this.refresh(
+      this.blogService.attachPostImage(id, user.id, file),
+      () => id,
+      user.id,
+    );
   }
 
   @Delete('posts/:id/images/:imageId')
@@ -223,7 +256,11 @@ export class BlogController {
     @Param('imageId', ParseObjectIdPipe) imageId: Types.ObjectId,
     @CurrentUser() user: AuthUser,
   ): Promise<void> {
-    return this.blogService.removePostImage(id, imageId.toHexString(), user.id);
+    return this.refresh(
+      this.blogService.removePostImage(id, imageId.toHexString(), user.id),
+      () => id,
+      user.id,
+    );
   }
 
   @HttpPost('posts/:id/like')

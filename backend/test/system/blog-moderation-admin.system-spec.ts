@@ -1499,4 +1499,155 @@ describe('Blog, moderation and administration', () => {
       });
     });
   });
+
+  // New endpoint (MILESTONE2_FRONTEND_SPEC section 8, decided by the team leader 23 Nov): the admin's
+  // providers table (P-50) and the provider select of Create Moderator (P-49). ACC-13 a moderator
+  // is linked to one provider (a provider may have several moderators: all are listed), ACC-15
+  // active flag, GEN-05 10 per page, admin only (ACC-11), name A to Z.
+  describe('GET /api/admin/providers (P-50, ACC-13, ACC-15)', () => {
+    const providers = async (query: Record<string, string | number>) =>
+      (await t.admin()).get('/api/admin/providers', { query });
+
+    it('lists airlines by name with code, logo, active, moderators and createdAt', async () => {
+      const prefix = unique('Prov');
+      const beta = await t.airline(`${prefix} Beta`);
+      const alpha = await t.airline(`${prefix} Alpha`);
+      const moderator = await t.moderator('airline_moderator', beta.id);
+      const res = await providers({ type: 'airline', search: prefix });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        page: 1,
+        pageSize: 10,
+        total: 2,
+        totalPages: 1,
+      });
+      expect((res.body.items as any[]).map((p) => p.id)).toEqual([
+        alpha.id,
+        beta.id,
+      ]);
+      expect(res.body.items[0]).toMatchObject({
+        id: alpha.id,
+        type: 'airline',
+        name: `${prefix} Alpha ${alpha.code}`,
+        code: alpha.code,
+        logoUrl: null,
+        active: true,
+        moderators: [],
+      });
+      expect(typeof res.body.items[0].createdAt).toBe('string');
+      expect(res.body.items[1].moderators).toEqual([
+        { id: moderator.id, name: 'Test Moderator', email: moderator.email },
+      ]);
+    });
+
+    it('lists hotels with city, country and photo', async () => {
+      const name = unique('ProvHotel');
+      const hotel = await t.hotel({ name });
+      const res = await providers({ type: 'hotel', search: name });
+      expect(res.body.items).toEqual([
+        expect.objectContaining({
+          id: hotel.id,
+          type: 'hotel',
+          name,
+          cityId: 'cairo',
+          countryCode: 'EG',
+          photoUrl: null,
+          active: true,
+          moderators: [],
+        }),
+      ]);
+    });
+
+    it('searches airlines by code too, ignoring case', async () => {
+      // The name must not contain the code, so only the code can match.
+      const admin = await t.admin();
+      const name = `Provider ${Date.now()}`;
+      let created: { status: number; body: any } = { status: 0, body: {} };
+      let code = '';
+      for (let attempt = 0; attempt < 20 && created.status !== 201; attempt++) {
+        code = Array.from({ length: 3 }, () =>
+          String.fromCharCode(65 + Math.floor(Math.random() * 26)),
+        ).join('');
+        if (name.toUpperCase().includes(code)) continue;
+        created = await admin.post('/api/airlines', undefined, {
+          fields: { name, code },
+        });
+      }
+      expect(created.status).toBe(201);
+      const res = await providers({
+        type: 'airline',
+        search: code.toLowerCase(),
+      });
+      expect((res.body.items as any[]).map((p) => p.id)).toContain(
+        created.body.id,
+      );
+    });
+
+    it('filters by active and hasModerator', async () => {
+      const prefix = unique('ProvFilter');
+      const withMod = await hotelWithModerator(t, { name: `${prefix} A` });
+      const off = await t.hotel({ name: `${prefix} B` });
+      expect(
+        (
+          await (
+            await t.admin()
+          ).patch(`/api/admin/providers/hotel/${off.id}/deactivate`, {
+            reason: 'Test',
+          })
+        ).status,
+      ).toBe(200);
+      const ids = async (query: Record<string, string>) =>
+        (
+          (await providers({ type: 'hotel', search: prefix, ...query })).body
+            .items as any[]
+        ).map((p) => p.id);
+      expect(await ids({ active: 'true' })).toEqual([withMod.hotelId]);
+      expect(await ids({ active: 'false' })).toEqual([off.id]);
+      expect(await ids({ hasModerator: 'true' })).toEqual([withMod.hotelId]);
+      expect(await ids({ hasModerator: 'false' })).toEqual([off.id]);
+    });
+
+    it('pages 10 providers per page (GEN-05)', async () => {
+      const prefix = unique('ProvPage');
+      for (let i = 0; i < 11; i++)
+        await t.hotel({ name: `${prefix} ${String(i).padStart(2, '0')}` });
+      const first = await providers({ type: 'hotel', search: prefix });
+      expect(first.body).toMatchObject({
+        page: 1,
+        pageSize: 10,
+        total: 11,
+        totalPages: 2,
+      });
+      const second = await providers({
+        type: 'hotel',
+        search: prefix,
+        page: 2,
+      });
+      expect((second.body.items as any[]).map((p) => p.name)).toEqual([
+        `${prefix} 10`,
+      ]);
+    });
+
+    it('needs a valid type and valid true/false filters', async () => {
+      expect((await providers({})).status).toBe(400);
+      expect((await providers({ type: 'resort' })).status).toBe(400);
+      expect((await providers({ type: 'hotel', active: 'maybe' })).status).toBe(
+        400,
+      );
+      expect(
+        (await providers({ type: 'hotel', hasModerator: 'maybe' })).status,
+      ).toBe(400);
+    });
+
+    it('is for admins only (ACC-11)', async () => {
+      const airline = await airlineWithModerator(t);
+      const path = '/api/admin/providers';
+      const query = { query: { type: 'airline' } };
+      expect((await t.guest().get(path, query)).status).toBe(401);
+      expect((await (await t.user()).client.get(path, query)).status).toBe(403);
+      expect((await airline.moderator.client.get(path, query)).status).toBe(
+        403,
+      );
+    });
+  });
 });

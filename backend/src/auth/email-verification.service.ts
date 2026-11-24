@@ -62,11 +62,12 @@ export class EmailVerificationService {
     await this.usersService.markEmailVerified(used.userId);
   }
 
+  // The link opens the frontend page /verify-email (P-08), which calls GET /api/auth/verify-email
+  // and shows the result; same base URL as the ACC-07 reset link (password-reset.service.ts).
   private linkFor(token: string): string {
-    const port = this.config.get<string>('PORT') ?? '3000';
-    const base =
-      this.config.get<string>('API_URL') ?? `http://localhost:${port}`;
-    return `${base}/api/auth/verify-email?token=${token}`;
+    const frontend =
+      this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3001';
+    return `${frontend}/verify-email?token=${token}`;
   }
 
   private sendLink(email: string, link: string): void {
