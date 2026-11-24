@@ -1,25 +1,17 @@
 // Public home sections (ACC-04, GEN-12; MILESTONE2 spec section 2, Guest row).
 // PopularDestinations: one card per seeded city with its country and its attraction(s) (spec section 1:
 // attractions are shown only here). FeaturedItineraries: the newest public itineraries, 6 of them
-// (team leader decision 24 Nov).
+// (team leader decision 24 Nov), each an ItineraryCard with full country names and no visibility
+// badge (team leader, 24 Nov: they are all public).
 import Link from "next/link";
 import { LandmarkIcon, MapPinIcon } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
+import { ItineraryCard, type ItinerarySummary } from "@/components/app/shared/itinerary-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { City, Country } from "@/components/app/search/hotel-search-form";
 
 export type Attraction = { attractionId: string; name: string; cityId: string };
-/** One item of GET /api/itineraries/public/search (openapi ItinerarySummaryList). */
-export type ItinerarySummary = {
-  id: string;
-  title: string;
-  countryCodes: string[];
-  startDate: string;
-  numberOfDays: number;
-  visibility: "private" | "public";
-};
-
 export const FEATURED_ITINERARIES = 6;
 
 export function PopularDestinations({
@@ -66,8 +58,9 @@ export function PopularDestinations({
   );
 }
 
-export function FeaturedItineraries({ itineraries }: { itineraries: ItinerarySummary[] }) {
+export function FeaturedItineraries({ itineraries, countries }: { itineraries: ItinerarySummary[]; countries: Country[] }) {
   const shown = itineraries.slice(0, FEATURED_ITINERARIES);
+  const countryNames = Object.fromEntries(countries.map((country) => [country.code, country.name]));
   return (
     <section aria-labelledby="featured-heading" className="grid gap-4">
       <h2 id="featured-heading" className="text-xl font-semibold">
@@ -84,16 +77,10 @@ export function FeaturedItineraries({ itineraries }: { itineraries: ItinerarySum
           }
         />
       ) : (
-        // TODO(L2): show each one with ItineraryCard (components/app/shared) after it merges.
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((itinerary) => (
             <li key={itinerary.id}>
-              <Link href={`/itineraries/${itinerary.id}`} className="block rounded-xl border border-border bg-card p-4 hover:border-input">
-                <span className="block font-semibold">{itinerary.title}</span>
-                <span className="text-sm text-muted-foreground">
-                  {itinerary.numberOfDays} {itinerary.numberOfDays === 1 ? "day" : "days"} · {itinerary.countryCodes.join(", ")}
-                </span>
-              </Link>
+              <ItineraryCard itinerary={itinerary} countryNames={countryNames} href={`/itineraries/${itinerary.id}`} />
             </li>
           ))}
         </ul>

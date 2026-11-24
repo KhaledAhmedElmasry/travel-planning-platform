@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { HotelsModule } from '../hotels/hotels.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsModule } from '../payments/payments.module';
+import { ReviewsModule } from '../reviews/reviews.module';
 import { HotelBookingLifecycleService } from './hotel-booking-lifecycle.service';
 import { HotelBookingsController } from './hotel-bookings.controller';
 import { HotelBookingsService } from './hotel-bookings.service';
@@ -26,6 +27,7 @@ import { RoomNight, RoomNightSchema } from './schemas/room-night.schema';
     HotelsModule,
     forwardRef(() => PaymentsModule),
     NotificationsModule,
+    ReviewsModule, // HTL-23: the user's review in the reservation details
   ],
   controllers: [HotelBookingsController],
   providers: [

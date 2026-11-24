@@ -27,6 +27,7 @@ import {
 import { PaymentsService } from '../payments/payments.service';
 import { RefundsService } from '../payments/refunds.service';
 import { HotelsService } from '../hotels/hotels.service';
+import { ReviewsService } from '../reviews/reviews.service';
 
 // Area: Payments, Holds & Booking Engine (book + hold, cancel) and Search & My Bookings (list,
 // details)
@@ -34,7 +35,7 @@ import { HotelsService } from '../hotels/hotels.service';
 // Endpoints to implement (PDF section 8):
 //   POST /api/hotel-bookings               HTL-16, HTL-18   done
 //   GET  /api/hotel-bookings               HTL-20           done
-//   GET  /api/hotel-bookings/:id           HTL-20           done
+//   GET  /api/hotel-bookings/:id           HTL-20, HTL-23   done (with the user's own review)
 //   POST /api/hotel-bookings/:id/cancel    HTL-21           done
 // Notes:
 //   The reservation details (GET /api/hotel-bookings/:id) show the refund the user would get before
@@ -58,6 +59,7 @@ export class HotelBookingsController {
     private readonly refunds: RefundsService,
     private readonly hotels: HotelsService,
     private readonly payments: PaymentsService,
+    private readonly reviews: ReviewsService,
   ) {}
 
   // HTL-16, HTL-18: book one or more rooms and hold them for 10 minutes (pending_payment).
@@ -81,17 +83,21 @@ export class HotelBookingsController {
     return this.hotelBookingsService.listOwned(user.id, query);
   }
 
-  // HTL-20: full details, including refund and cancellation preview.
+  // HTL-20: full details, including refund and cancellation preview; HTL-23: the user's own
+  // review of this reservation (or null), so the details page can offer edit / delete.
   @Get(':id')
   @UseGuards(JwtAuthGuard, RegisteredUserGuard)
   async details(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const booking = await this.hotelBookingsService.findOwned(user.id, id);
-    const [payment, refund, cancellation, policies] = await Promise.all([
-      this.payments.findPaymentForBooking(BookingType.Hotel, id),
-      this.refunds.findRefundForBooking(BookingType.Hotel, id),
-      this.lifecycle.previewCancellation(booking),
-      this.hotels.getBookingPolicies(booking.hotelId.toString()),
-    ]);
+    const [payment, refund, cancellation, policies, review] = await Promise.all(
+      [
+        this.payments.findPaymentForBooking(BookingType.Hotel, id),
+        this.refunds.findRefundForBooking(BookingType.Hotel, id),
+        this.lifecycle.previewCancellation(booking),
+        this.hotels.getBookingPolicies(booking.hotelId.toString()),
+        this.reviews.findForReservation(id, user.id),
+      ],
+    );
     const response = this.hotelBookingsService.toResponse(booking);
     return {
       ...response,
@@ -103,6 +109,7 @@ export class HotelBookingsController {
       payment,
       refund,
       cancellation,
+      review,
     };
   }
 
