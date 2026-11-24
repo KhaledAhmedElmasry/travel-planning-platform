@@ -59,7 +59,7 @@ export function HotelBookingDetails({ booking, now = new Date() }: { booking: Ho
         <p className="text-sm text-muted-foreground">
           {formatDay(booking.checkIn)} – {formatDay(booking.checkOut)} · {plural(booking.nights, "night")}
         </p>
-        {/* TODO(ask team leader): wording "Check-in from 14:00 · Check-out by 12:00" is mine. */}
+        {/* Wording accepted as built (team leader decision 24 Nov - wording). */}
         {hotel.checkInTime && hotel.checkOutTime && (
           <p className="text-sm text-muted-foreground">
             Check-in from {hotel.checkInTime} · Check-out by {hotel.checkOutTime}

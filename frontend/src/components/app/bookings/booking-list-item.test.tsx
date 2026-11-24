@@ -17,6 +17,7 @@ const flight: FlightBookingListItem = {
   departureLocal: "2027-03-01 08:00 (Africa/Cairo)",
   passengers: 2,
   cabinClass: "premium_economy",
+  holdExpiresAt: null,
 };
 
 // source: backend hotel-bookings.service.ts toListItem() (GET /api/hotel-bookings)
@@ -34,6 +35,7 @@ const hotel: HotelBookingListItem = {
   guests: { adults: 2, children: 1 },
   totalAmount: 49500,
   currency: "USD",
+  holdExpiresAt: null,
 };
 
 // source: Excel FLT-25 - "showing reference, flight, date, passengers, cabin and status, and to open full details"
@@ -74,4 +76,37 @@ test("one passenger is written in the singular", () => {
   render(<BookingListItem kind="flight" booking={{ ...flight, passengers: 1 }} />);
   expect(screen.getByRole("link").textContent).toContain("1 passenger");
   expect(screen.getByRole("link").textContent).not.toContain("1 passengers");
+});
+
+// source: team leader decision 24 Nov - pending payment in upcoming ("Continue payment" on the row
+// while the hold lasts); backend list items carry holdExpiresAt (PR #288)
+const NOW = new Date("2027-02-01T10:00:00.000Z");
+const held = { ...flight, reference: null, status: "pending_payment", holdExpiresAt: "2027-02-01T10:08:00.000Z" };
+
+test("a Pending Payment row with a live hold has a Continue payment link to the payment page", () => {
+  render(<BookingListItem kind="flight" booking={held} now={NOW} />);
+  const pay = screen.getByRole("link", { name: "Continue payment" });
+  expect(pay.getAttribute("href")).toBe("/checkout/flight/fb1");
+  expect(screen.getByRole("link", { name: /NA101/ }).getAttribute("href")).toBe("/bookings/flights/fb1");
+});
+
+test("a hotel row with a live hold links to the hotel payment page", () => {
+  render(
+    <BookingListItem
+      kind="hotel"
+      booking={{ ...hotel, status: "pending_payment", holdExpiresAt: "2027-02-01T10:08:00.000Z" }}
+      now={NOW}
+    />,
+  );
+  expect(screen.getByRole("link", { name: "Continue payment" }).getAttribute("href")).toBe("/checkout/hotel/hb1");
+});
+
+test("no Continue payment once the hold has ended", () => {
+  render(<BookingListItem kind="flight" booking={{ ...held, holdExpiresAt: "2027-02-01T10:00:00.000Z" }} now={NOW} />);
+  expect(screen.queryByRole("link", { name: "Continue payment" })).toBeNull();
+});
+
+test("a Continue payment link is never inside the row link", () => {
+  const { container } = render(<BookingListItem kind="flight" booking={held} now={NOW} />);
+  expect(container.querySelector("a a")).toBeNull();
 });

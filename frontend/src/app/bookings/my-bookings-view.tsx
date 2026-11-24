@@ -68,7 +68,7 @@ export function MyBookingsView(props: Props) {
       </nav>
 
       {list.items.length === 0 ? (
-        // TODO(ask team leader): empty-state texts ("No <tab> flight bookings", "Search flights") are mine.
+        // Empty-state texts accepted as built (team leader decision 24 Nov - wording).
         <EmptyState
           title={`No ${tab} ${noun}`}
           line="So empty! Let's plan something."

@@ -6,7 +6,7 @@ import { MyBookingsView, parseBookingsQuery } from "./my-bookings-view";
 
 afterEach(cleanup);
 
-// source: backend flight-bookings.service.ts toListItem(); Mock Data airports CAI, DXB
+// source: backend flight-bookings.service.ts toListItem() (holdExpiresAt: PR #288); Mock Data airports CAI, DXB
 const flight: FlightBookingListItem = {
   id: "fb1",
   reference: "TP7K2Q",
@@ -18,6 +18,7 @@ const flight: FlightBookingListItem = {
   departureLocal: "2027-03-01 08:00 (Africa/Cairo)",
   passengers: 2,
   cabinClass: "economy",
+  holdExpiresAt: null,
 };
 // source: backend hotel-bookings.service.ts toListItem()
 const hotel: HotelBookingListItem = {
@@ -31,6 +32,7 @@ const hotel: HotelBookingListItem = {
   guests: { adults: 2, children: 0 },
   totalAmount: 49500,
   currency: "USD",
+  holdExpiresAt: null,
 };
 
 const page = <T,>(items: T[], extra: Partial<{ page: number; total: number; totalPages: number }> = {}) => ({

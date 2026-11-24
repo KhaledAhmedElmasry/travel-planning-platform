@@ -13,7 +13,7 @@ import {
   type BookingRefund,
 } from "@/components/app/bookings/booking-status";
 import { ChangeFlightPanel } from "@/components/app/bookings/change-flight-panel";
-import { SeatMap } from "@/components/app/bookings/seat-map";
+import { SeatMap, type SeatMapData } from "@/components/app/bookings/seat-map";
 import { CABIN_LABEL_FALLBACK } from "@/components/app/checkout/cabin-labels";
 import { localDateTime } from "@/components/app/checkout/confirmation-panel";
 import type { CancellationPreview } from "@/components/app/checkout/refund-preview";
@@ -51,7 +51,16 @@ export type FlightBookingDetailsData = {
 
 const PASSENGER_TYPE: Record<string, string> = { adult: "Adult", child: "Child", infant: "Infant" };
 
-export function FlightBookingDetails({ booking, now = new Date() }: { booking: FlightBookingDetailsData; now?: Date }) {
+export function FlightBookingDetails({
+  booking,
+  seatMap = null,
+  now = new Date(),
+}: {
+  booking: FlightBookingDetailsData;
+  /** GET /api/flight-bookings/{id}/seats (FLT-28); null when it could not be read. */
+  seatMap?: SeatMapData | null;
+  now?: Date;
+}) {
   return (
     <div className="grid gap-6">
       {booking.reference && (
@@ -116,12 +125,14 @@ export function FlightBookingDetails({ booking, now = new Date() }: { booking: F
 
       {booking.status === "confirmed" && (
         <>
-          <section aria-labelledby="seats-heading" className="grid gap-2">
-            <h2 id="seats-heading" className="text-lg font-semibold">
-              Seats
-            </h2>
-            <SeatMap booking={booking} />
-          </section>
+          {seatMap && (
+            <section aria-labelledby="seats-heading" className="grid gap-2">
+              <h2 id="seats-heading" className="text-lg font-semibold">
+                Seats
+              </h2>
+              <SeatMap booking={booking} map={seatMap} />
+            </section>
+          )}
           <section aria-labelledby="change-heading" className="grid gap-2">
             <h2 id="change-heading" className="text-lg font-semibold">
               Change flight

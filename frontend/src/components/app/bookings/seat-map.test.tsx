@@ -1,5 +1,5 @@
-// SeatMap (Bonus FLT-28; spec P-21): choose a seat per passenger on each flight of a Confirmed booking.
-// Faked: fetch (backend), the router and the toast.
+// SeatMap (Bonus FLT-28; spec P-21): a seat map per flight of a Confirmed booking (available / taken /
+// selected), one seat per passenger. Faked: fetch (backend), the router and the toast.
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
@@ -8,7 +8,7 @@ vi.mock("sonner", () => ({ toast }));
 const router = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
-import { SeatMap, type SeatBooking } from "./seat-map";
+import { SeatMap, type SeatBooking, type SeatMapData } from "./seat-map";
 
 afterEach(() => {
   cleanup();
@@ -18,62 +18,118 @@ afterEach(() => {
   router.refresh.mockReset();
 });
 
-// source: backend flight-bookings.controller.ts details() seatAssignments (flight-seat-selection.service.ts SeatAssignmentResponse)
+// source: backend GET /api/flight-bookings/{id} passengers (infants take no seat, FLT-12)
 const booking: SeatBooking = {
   id: "fb1",
-  segments: [{ flightId: "f1", flightNumber: "NA101" }],
   passengers: [
     { type: "adult", fullName: "Mona Adel" },
     { type: "infant", fullName: "Laila Adel" },
     { type: "child", fullName: "Omar Adel" },
   ],
-  seatAssignments: [{ segment: "outbound", passengerIndex: 0, seatNumber: "12A" }],
+};
+
+// source: openapi SeatMap (GET /api/flight-bookings/{id}/seats, team leader decision 24 Nov - seat map
+// route, backend PR #289): a 6-seat business cabin = rows 1-2, letters A-D, last row partly filled
+const seats = (list: [string, "available" | "taken" | "mine", number | null][]) =>
+  list.map(([seatNumber, status, passengerIndex]) => ({ seatNumber, status, passengerIndex }));
+const map: SeatMapData = {
+  bookingId: "fb1",
+  segments: [
+    {
+      segment: "outbound",
+      flightNumber: "NA101",
+      cabinClass: "business",
+      rows: 2,
+      letters: "ABCD",
+      seats: seats([
+        ["1A", "available", null],
+        ["1B", "mine", 0],
+        ["1C", "available", null],
+        ["1D", "available", null],
+        ["2A", "taken", null],
+        ["2B", "available", null],
+      ]),
+    },
+  ],
 };
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
-// source: Excel FLT-28 - seat selection; backend - infants have no seat (FLT-12: infants take no seat)
-test("each passenger with a seat is listed per flight with the chosen seat; infants are not", () => {
-  render(<SeatMap booking={booking} />);
+// source: team leader decision 24 Nov - seat map (available / taken / selected); spec P-21 FLT-28
+test("each flight shows every seat: free ones can be chosen, taken ones cannot, the passengers' own are marked", () => {
+  render(<SeatMap booking={booking} map={map} />);
   const flight = screen.getByRole("region", { name: "Seats on NA101" });
-  expect(within(flight).getByLabelText("Mona Adel").getAttribute("value")).toBe("12A");
-  expect(within(flight).getByLabelText("Omar Adel").getAttribute("value")).toBe("");
-  expect(within(flight).queryByLabelText("Laila Adel")).toBeNull();
+  const seatButtons = within(flight).getAllByRole("button", { name: /^Seat / });
+  expect(seatButtons.map((b) => b.getAttribute("aria-label"))).toEqual([
+    "Seat 1A, available",
+    "Seat 1B, Mona Adel",
+    "Seat 1C, available",
+    "Seat 1D, available",
+    "Seat 2A, taken",
+    "Seat 2B, available",
+  ]);
+  expect((within(flight).getByRole("button", { name: "Seat 2A, taken" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((within(flight).getByRole("button", { name: "Seat 1A, available" }) as HTMLButtonElement).disabled).toBe(false);
 });
 
-// source: Excel FLT-28 - seat selection; openapi PATCH /api/flight-bookings/{id}/seat body {passengerIndex, segment, seatNumber}
-test("saving a seat sends the passenger's index on the booking, the flight and the seat", async () => {
+// source: team leader decision 24 Nov - one seat per passenger; backend - infants have no seat (FLT-12)
+test("the passengers with a seat are listed with their seat; the first one is chosen; infants are not listed", () => {
+  render(<SeatMap booking={booking} map={map} />);
+  const flight = screen.getByRole("region", { name: "Seats on NA101" });
+  const mona = within(flight).getByRole("button", { name: "Choose a seat for Mona Adel (seat 1B)" });
+  const omar = within(flight).getByRole("button", { name: "Choose a seat for Omar Adel (no seat yet)" });
+  expect(mona.getAttribute("aria-pressed")).toBe("true");
+  expect(omar.getAttribute("aria-pressed")).toBe("false");
+  expect(within(flight).queryByRole("button", { name: /Laila Adel/ })).toBeNull();
+  // The chosen passenger's own seat is the selected one.
+  expect(within(flight).getByRole("button", { name: "Seat 1B, Mona Adel" }).getAttribute("aria-pressed")).toBe("true");
+
+  fireEvent.click(omar);
+  expect(omar.getAttribute("aria-pressed")).toBe("true");
+  expect(within(flight).getByRole("button", { name: "Seat 1B, Mona Adel" }).getAttribute("aria-pressed")).toBe("false");
+});
+
+// source: openapi PATCH /api/flight-bookings/{id}/seat body {passengerIndex, segment, seatNumber}
+test("clicking a free seat saves it for the chosen passenger and reloads the map", async () => {
   const fetchMock = vi.fn().mockResolvedValue(json(200, { id: "fb1", seatAssignments: [] }));
   vi.stubGlobal("fetch", fetchMock);
-  render(<SeatMap booking={booking} />);
+  render(<SeatMap booking={booking} map={map} />);
 
-  fireEvent.change(screen.getByLabelText("Omar Adel"), { target: { value: "14c" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save seat for Omar Adel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Choose a seat for Omar Adel (no seat yet)" }));
+  fireEvent.click(screen.getByRole("button", { name: "Seat 1A, available" }));
 
   await waitFor(() => expect(router.refresh).toHaveBeenCalled());
   expect(fetchMock.mock.calls[0][0]).toBe("/api/flight-bookings/fb1/seat");
   expect(fetchMock.mock.calls[0][1].method).toBe("PATCH");
-  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ passengerIndex: 2, segment: "outbound", seatNumber: "14C" });
-  expect(toast.success).toHaveBeenCalledWith("Seat 14C saved for Omar Adel");
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ passengerIndex: 2, segment: "outbound", seatNumber: "1A" });
+  expect(toast.success).toHaveBeenCalledWith("Seat 1A saved for Omar Adel");
 });
 
-// source: backend flight-seat-selection.service.ts - "The seat is already taken." (409)
-test("a taken seat shows the backend's message", async () => {
+// source: backend flight-seat-selection.service.ts - "The seat is already taken." (409, two users at once)
+test("a seat taken in the meantime shows the backend's message", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(409, { statusCode: 409, error: "CONFLICT", message: "The seat is already taken." })));
-  render(<SeatMap booking={booking} />);
+  render(<SeatMap booking={booking} map={map} />);
 
-  fireEvent.change(screen.getByLabelText("Omar Adel"), { target: { value: "12A" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save seat for Omar Adel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Seat 1C, available" }));
 
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith("The seat is already taken."));
   expect(router.refresh).not.toHaveBeenCalled();
 });
 
-// source: openapi seat - segment outbound | return; round trips choose a seat on each flight
-test("a round trip has a seat list for each flight", () => {
-  render(<SeatMap booking={{ ...booking, segments: [...booking.segments, { flightId: "f2", flightNumber: "NA102" }] }} />);
+// source: openapi SeatMap segments (outbound, then return); seat body segment outbound | return
+test("a round trip has a map for each flight; the return map saves the return seat", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(json(200, { id: "fb1", seatAssignments: [] }));
+  vi.stubGlobal("fetch", fetchMock);
+  const back = { ...map.segments[0], segment: "return" as const, flightNumber: "NA102", seats: seats([["1A", "available", null]]) };
+  render(<SeatMap booking={booking} map={{ ...map, segments: [map.segments[0], back] }} />);
+
   expect(screen.getByRole("region", { name: "Seats on NA101" })).toBeDefined();
-  expect(within(screen.getByRole("region", { name: "Seats on NA102" })).getByLabelText("Mona Adel").getAttribute("value")).toBe("");
+  const ret = screen.getByRole("region", { name: "Seats on NA102" });
+  expect(within(ret).getByRole("button", { name: "Choose a seat for Mona Adel (no seat yet)" })).toBeDefined();
+  fireEvent.click(within(ret).getByRole("button", { name: "Seat 1A, available" }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ passengerIndex: 0, segment: "return", seatNumber: "1A" });
 });

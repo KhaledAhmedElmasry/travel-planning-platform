@@ -14,7 +14,7 @@
 // is what the toast reports. A higher fare is paid with a card: Stripe Elements turns the card
 // into a payment method id (card data never reaches our backend, PAY-01), sent as
 // `paymentMethodId` with PATCH /api/flight-bookings/{id}/change-flight.
-// TODO(ask team leader): all texts here (labels, "Search flights", toasts) are mine.
+// Texts accepted as built (team leader decision 24 Nov - wording).
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";

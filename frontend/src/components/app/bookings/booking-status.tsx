@@ -97,7 +97,7 @@ export function CancelBooking({
     router.refresh();
   }
 
-  // TODO(ask team leader): dialog and toast texts ("Cancel this booking?", "Keep booking", "Booking cancelled") are mine.
+  // Dialog and toast texts accepted as built (team leader decision 24 Nov - wording).
   return (
     <ConfirmDialog
       trigger={<Button variant="destructive">Cancel {noun}</Button>}

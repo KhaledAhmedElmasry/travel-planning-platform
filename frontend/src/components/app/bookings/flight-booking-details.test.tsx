@@ -9,6 +9,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@stripe/stripe-js", () => ({ loadStripe: () => Promise.resolve(null) }));
 
 import { FlightBookingDetails, type FlightBookingDetailsData } from "./flight-booking-details";
+import type { SeatMapData } from "./seat-map";
 
 afterEach(() => {
   cleanup();
@@ -181,12 +182,34 @@ test("a booking waiting for payment links to the payment while the hold lasts, n
 });
 
 // source: Excel FLT-27 (Bonus) change a Confirmed booking's flight; FLT-28 (Bonus) seat selection; spec P-21
-test("a confirmed booking can change its flight and choose seats, a cancelled one cannot", () => {
-  render(<FlightBookingDetails booking={booking} now={NOW} />);
+// source: openapi SeatMap (GET /api/flight-bookings/{id}/seats, backend PR #289, team leader decision 24 Nov - seat map route)
+const seatMap: SeatMapData = {
+  bookingId: "fb1",
+  segments: [
+    {
+      segment: "outbound",
+      flightNumber: "NA101",
+      cabinClass: "economy",
+      rows: 1,
+      letters: "ABCDEF",
+      seats: ["1A", "1B", "1C", "1D", "1E", "1F"].map((seatNumber) => ({ seatNumber, status: "available" as const, passengerIndex: null })),
+    },
+  ],
+};
+
+test("a confirmed booking can change its flight and choose seats on the seat map, a cancelled one cannot", () => {
+  render(<FlightBookingDetails booking={booking} seatMap={seatMap} now={NOW} />);
   expect(screen.getByRole("region", { name: "Change flight" })).toBeDefined();
-  expect(screen.getByRole("region", { name: "Seats on NA101" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Seat 1F, available" })).toBeDefined();
   cleanup();
-  render(<FlightBookingDetails booking={{ ...booking, status: "cancelled" }} now={NOW} />);
+  render(<FlightBookingDetails booking={{ ...booking, status: "cancelled" }} seatMap={seatMap} now={NOW} />);
   expect(screen.queryByRole("region", { name: "Change flight" })).toBeNull();
   expect(screen.queryByRole("region", { name: "Seats on NA101" })).toBeNull();
+});
+
+// source: lib/server/backend.ts backendJson() gives null when the seat map cannot be read (e.g. the route is not deployed yet)
+test("without a seat map the seats section is left out", () => {
+  render(<FlightBookingDetails booking={booking} seatMap={null} now={NOW} />);
+  expect(screen.queryByRole("heading", { name: "Seats" })).toBeNull();
+  expect(screen.getByRole("region", { name: "Change flight" })).toBeDefined();
 });
