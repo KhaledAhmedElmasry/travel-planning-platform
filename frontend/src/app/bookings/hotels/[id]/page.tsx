@@ -1,13 +1,12 @@
 // P-23 Hotel reservation details: /bookings/hotels/[id]
 // Part: Lead (foundation)
 // Requirements: HTL-20, HTL-21, HTL-23, PAY-03
-// Endpoints: GET /api/hotel-bookings/{id}; POST /api/hotel-bookings/{id}/cancel; POST /api/hotel-bookings/{id}/review; PATCH, DELETE /api/reviews/{id}; GET /api/refunds/{id}
-// Rendering: Dynamic SSR. Source: .md section 9 "User Booking Pages"; cancel and review dialogs are Client Components.
+// Endpoints: GET /api/hotel-bookings/{id} (includes the user's review, HTL-23); POST /api/hotel-bookings/{id}/cancel; POST /api/hotel-bookings/{id}/review; PATCH, DELETE /api/reviews/{id}; GET /api/refunds/{id}
+// Rendering: Dynamic SSR. Source: .md section 9 "User Booking Pages"; the cancel dialog and the review section are Client Components.
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-23). Use a shell and kit components (frontend/README.md).
 // The reservation is read with the visitor's session: another user's reservation answers 404 (ACC-11).
 // The details already carry the refund (PAY-03) and the cancellation preview, so GET /api/refunds/{id}
 // is not needed here; after a cancel the page is re-rendered (router.refresh()).
-// TODO(L2): review section (HTL-23) after ReviewCard/StarRating merge
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";

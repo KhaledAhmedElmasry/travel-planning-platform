@@ -44,7 +44,7 @@ test("featured itineraries shows at most 6, each linking to its public page", ()
     numberOfDays: 3,
     visibility: "public" as const,
   }));
-  render(<FeaturedItineraries itineraries={items} />);
+  render(<FeaturedItineraries itineraries={items} countries={countries} />);
 
   const links = within(screen.getByRole("region", { name: "Featured itineraries" })).getAllByRole("link");
   expect(links.map((a) => a.getAttribute("href"))).toEqual([
@@ -57,9 +57,27 @@ test("featured itineraries shows at most 6, each linking to its public page", ()
   ]);
 });
 
+// source: Excel ITN-21 / ITN-03 card fields (title, countries, start date, days) via ItineraryCard;
+// team leader 24 Nov - full country names from GET /api/countries; team leader (Q17) - no visibility
+// badge on the public home (they are all public)
+test("each featured itinerary is an ItineraryCard with its title, full country names, start date and days, without a visibility badge", () => {
+  const items = [
+    { id: "it1", title: "Nile and Gulf", countryCodes: ["EG", "AE", "FR"], startDate: "2027-03-01", numberOfDays: 1, visibility: "public" as const },
+  ];
+  render(<FeaturedItineraries itineraries={items} countries={countries} />);
+
+  const region = screen.getByRole("region", { name: "Featured itineraries" });
+  const card = within(region).getByRole("article");
+  expect(within(card).getByRole("heading", { name: "Nile and Gulf" })).toBeDefined();
+  expect(card.textContent).toContain("Egypt, United Arab Emirates, FR");
+  expect(card.textContent).toContain("Mon, 1 Mar 2027");
+  expect(card.textContent).toContain("1 day");
+  expect(card.textContent).not.toMatch(/public/i);
+});
+
 // source: Excel GEN-04 - empty lists show a helpful empty state
 test("no public itinerary yet shows an empty state with a way to explore", () => {
-  render(<FeaturedItineraries itineraries={[]} />);
+  render(<FeaturedItineraries itineraries={[]} countries={countries} />);
   const region = screen.getByRole("region", { name: "Featured itineraries" });
   expect(within(region).getByRole("link", { name: "Explore itineraries" }).getAttribute("href")).toBe("/itineraries");
 });
