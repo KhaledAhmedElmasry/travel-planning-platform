@@ -8,6 +8,7 @@ import {
   FlightBookingSchema,
 } from '../flight-bookings/schemas/flight-booking.schema';
 import { ReferenceDataModule } from '../reference-data/reference-data.module';
+import { AirlineFlightsController } from './airline-flights.controller';
 import { FlightDetailsController } from './flight-details.controller';
 import { FlightDetailsService } from './flight-details.service';
 import { FlightSearchController } from './flight-search.controller';
@@ -39,6 +40,7 @@ import { Flight, FlightSchema } from './schemas/flight.schema';
     FlightSearchController,
     FlightDetailsController,
     FlightsController,
+    AirlineFlightsController,
   ],
   providers: [
     FlightsService,
