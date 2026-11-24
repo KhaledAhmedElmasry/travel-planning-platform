@@ -53,7 +53,7 @@ type Props =
   | { kind: "hotel"; booking: ConfirmedHotelBooking };
 
 /** "2027-03-01T08:00" -> "<day> 08:00" (already the airport's local time). */
-function localDateTime(value: string): string {
+export function localDateTime(value: string): string {
   return `${formatDay(value.slice(0, 10))} ${value.slice(11, 16)}`;
 }
 

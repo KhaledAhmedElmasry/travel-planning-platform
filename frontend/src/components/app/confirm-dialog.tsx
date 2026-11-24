@@ -73,8 +73,9 @@ export function ConfirmDialog({
             </span>
           )}
           <AlertDialogTitle className="text-lg font-semibold">{title}</AlertDialogTitle>
-          <AlertDialogDescription className="text-muted-foreground">
-            {description}
+          {/* A div, not Radix's default <p>: descriptions may hold blocks (RefundPreview). */}
+          <AlertDialogDescription asChild className="text-muted-foreground">
+            <div>{description}</div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

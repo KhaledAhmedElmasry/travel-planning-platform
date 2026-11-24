@@ -4,12 +4,34 @@
 // Endpoints: GET /api/flight-bookings/{id}; POST /api/flight-bookings/{id}/cancel; PATCH /api/flight-bookings/{id}/change-flight; GET /api/flight-bookings/{id}/e-ticket; PATCH /api/flight-bookings/{id}/seat; GET /api/refunds/{id}
 // Rendering: Dynamic SSR. Source: .md section 9 "User Booking Pages"; cancel / change-flight / seat dialogs are Client Components.
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-21). Use a shell and kit components (frontend/README.md).
-// TODO: not built yet. Replace this stub.
-export default function Page() {
+// The booking is read with the visitor's session: another user's booking answers 404 (ACC-11).
+// The details already carry the refund (PAY-03) and the cancellation preview, so GET /api/refunds/{id}
+// is not needed here; after a cancel the page is re-rendered (router.refresh()).
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { PageHeader } from "@/components/app/page-header";
+import { AppShell } from "@/components/layout/app-shell";
+import { backendJson } from "@/lib/server/backend";
+import { getUnreadCount, requireUser } from "@/lib/server/session";
+import { FlightBookingDetails, type FlightBookingDetailsData } from "@/components/app/bookings/flight-booking-details";
+
+export const metadata: Metadata = { title: "Flight booking", robots: { index: false } };
+
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const user = await requireUser(["user"]);
+  const [booking, unread] = await Promise.all([
+    backendJson<FlightBookingDetailsData>(`/api/flight-bookings/${encodeURIComponent(id)}`),
+    getUnreadCount(),
+  ]);
+  if (!booking) notFound();
+
   return (
-    <main className="p-8">
-      <h1 className="text-2xl font-bold">Flight booking details</h1>
-      <p className="text-muted-foreground">Not built yet.</p>
-    </main>
+    <AppShell user={user} unreadNotifications={unread}>
+      <div className="max-w-3xl">
+        <PageHeader title="Flight booking" back={{ href: "/bookings?type=flights&tab=upcoming", label: "My bookings" }} />
+        <FlightBookingDetails booking={booking} />
+      </div>
+    </AppShell>
   );
 }
