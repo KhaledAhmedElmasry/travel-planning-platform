@@ -6,6 +6,7 @@ const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 const router = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("@stripe/stripe-js", () => ({ loadStripe: () => Promise.resolve(null) }));
 
 import { FlightBookingDetails, type FlightBookingDetailsData } from "./flight-booking-details";
 
@@ -35,6 +36,7 @@ const booking: FlightBookingDetailsData = {
       arrivalAirport: "DXB",
       departureLocal: "2027-03-01 08:00 (Africa/Cairo)",
       arrivalLocal: "2027-03-01 13:30 (Asia/Dubai)",
+      fare: 30000,
       freeBags: 1,
       maxBagWeightKg: 23,
     },
@@ -47,6 +49,7 @@ const booking: FlightBookingDetailsData = {
   currency: "USD",
   payment: { status: "succeeded" },
   refund: null,
+  seatAssignments: [],
   cancellation: {
     cancellable: true,
     reason: null,
@@ -175,4 +178,15 @@ test("a booking waiting for payment links to the payment while the hold lasts, n
   cleanup();
   render(<FlightBookingDetails booking={waiting} now={new Date("2027-02-01T10:05:00.000Z")} />);
   expect(screen.queryByRole("link", { name: "Continue payment" })).toBeNull();
+});
+
+// source: Excel FLT-27 (Bonus) change a Confirmed booking's flight; FLT-28 (Bonus) seat selection; spec P-21
+test("a confirmed booking can change its flight and choose seats, a cancelled one cannot", () => {
+  render(<FlightBookingDetails booking={booking} now={NOW} />);
+  expect(screen.getByRole("region", { name: "Change flight" })).toBeDefined();
+  expect(screen.getByRole("region", { name: "Seats on NA101" })).toBeDefined();
+  cleanup();
+  render(<FlightBookingDetails booking={{ ...booking, status: "cancelled" }} now={NOW} />);
+  expect(screen.queryByRole("region", { name: "Change flight" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Seats on NA101" })).toBeNull();
 });

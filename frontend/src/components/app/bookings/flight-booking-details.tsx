@@ -1,6 +1,7 @@
 // P-21 flight booking details content (FLT-25, FLT-26, PAY-03, FLT-23, GEN-06).
 // All details: segments in each airport's local time, passengers, baggage, total, status, payment
 // status, refund status; the e-ticket for a Confirmed booking; cancel with the refund preview.
+// Bonus for a Confirmed booking: change flight (FLT-27) and seat selection (FLT-28).
 import { DownloadIcon } from "lucide-react";
 import { Price } from "@/components/app/price";
 import { plural } from "@/components/app/bookings/booking-list-item";
@@ -11,6 +12,8 @@ import {
   type BookingPayment,
   type BookingRefund,
 } from "@/components/app/bookings/booking-status";
+import { ChangeFlightPanel } from "@/components/app/bookings/change-flight-panel";
+import { SeatMap } from "@/components/app/bookings/seat-map";
 import { CABIN_LABEL_FALLBACK } from "@/components/app/checkout/cabin-labels";
 import { localDateTime } from "@/components/app/checkout/confirmation-panel";
 import type { CancellationPreview } from "@/components/app/checkout/refund-preview";
@@ -31,6 +34,8 @@ export type FlightBookingDetailsData = {
     arrivalAirport: string;
     departureLocal: string;
     arrivalLocal: string;
+    /** Cabin price per seat at booking time, cents. */
+    fare: number;
     freeBags: number;
     maxBagWeightKg: number;
   }[];
@@ -40,6 +45,8 @@ export type FlightBookingDetailsData = {
   payment: BookingPayment;
   refund: BookingRefund;
   cancellation: CancellationPreview;
+  /** FLT-28 (bonus): the seats the passengers chose. */
+  seatAssignments: { segment: "outbound" | "return"; passengerIndex: number; seatNumber: string }[];
 };
 
 const PASSENGER_TYPE: Record<string, string> = { adult: "Adult", child: "Child", infant: "Infant" };
@@ -106,6 +113,23 @@ export function FlightBookingDetails({ booking, now = new Date() }: { booking: F
         )}
         <CancelBooking kind="flight" id={booking.id} status={booking.status} cancellation={booking.cancellation} />
       </div>
+
+      {booking.status === "confirmed" && (
+        <>
+          <section aria-labelledby="seats-heading" className="grid gap-2">
+            <h2 id="seats-heading" className="text-lg font-semibold">
+              Seats
+            </h2>
+            <SeatMap booking={booking} />
+          </section>
+          <section aria-labelledby="change-heading" className="grid gap-2">
+            <h2 id="change-heading" className="text-lg font-semibold">
+              Change flight
+            </h2>
+            <ChangeFlightPanel booking={booking} />
+          </section>
+        </>
+      )}
     </div>
   );
 }
