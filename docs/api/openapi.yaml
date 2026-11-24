@@ -3106,6 +3106,52 @@ paths:
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel not found.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/hotels/{id}/rooms:
+    get:
+      operationId: getHotelsByIdRooms
+      tags: [Hotels and Rooms]
+      summary: 'List the own hotel''s rooms (HTL-03, HTL-06)'
+      description: |
+        **Access:** the hotel moderator of this hotel (ACC-11, ACC-13).
+
+        The hotel's rooms by room number (A to Z), 10 per page (GEN-05). Each item is the room as
+        the other room endpoints return it, plus `everReserved`: the room has been reserved at
+        least once, so it can be deactivated but not deleted (HTL-06). Extra endpoint, not in PDF
+        section 8 (needed by the hotel dashboard, see docs/api/README.md).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: active
+          in: query
+          description: Only active (`true`) or only deactivated (`false`) rooms.
+          schema:
+            type: string
+            enum: ['true', 'false']
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: The hotel's rooms.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelRoomList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage your own hotel", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '404':
+          description: Hotel not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel not found.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms", "timestamp": "2026-11-01T10:00:00.000Z"}
     post:
       operationId: postHotelsByIdRooms
       tags: [Hotels and Rooms]
@@ -8458,6 +8504,24 @@ components:
           example: 12000
           description: In cents of the platform currency (greater than 0).
 
+    HotelRoomListItem:
+      allOf:
+        - $ref: '#/components/schemas/Room'
+        - type: object
+          required: [everReserved]
+          properties:
+            everReserved:
+              type: boolean
+              description: The room has been reserved at least once, so it cannot be deleted (HTL-06).
+    HotelRoomList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/HotelRoomListItem'
     Room:
       type: object
       description: A room of a hotel (HTL-03). Prices are integer cents of the platform currency (PAY-04).

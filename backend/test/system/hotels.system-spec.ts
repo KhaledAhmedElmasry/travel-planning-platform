@@ -1476,4 +1476,135 @@ describe('Hotels, reservations and reviews', () => {
       ).toContainEqual([first.bookingId, 'completed']);
     });
   });
+
+  // New endpoint (MILESTONE2_FRONTEND_SPEC section 8, decided by the team leader 23 Nov): the hotel
+  // moderator's own rooms (P-43, P-44). HTL-03 room fields, HTL-04 / HTL-06 ranges, HTL-06 delete
+  // only if never reserved (everReserved), ACC-11 / ACC-13 own hotel only, GEN-05 10 per page,
+  // PAY-04 platform currency, room number A to Z.
+  describe('GET /api/hotels/:id/rooms (P-43, HTL-03, HTL-06, ACC-13)', () => {
+    let own: HotelSetup;
+    const list = (query: Record<string, string | number> = {}, setup = own) =>
+      setup.moderator.client.get(`/api/hotels/${setup.hotelId}/rooms`, {
+        query,
+      });
+    beforeAll(async () => {
+      own = await hotelWithModerator(t);
+    });
+
+    it('lists the own rooms by room number, as Room objects with ranges, currency and everReserved', async () => {
+      const r2 = await addRoom(own, {
+        roomNumber: '102',
+        type: 'Twin',
+        beds: 2,
+        maxOccupancy: 2,
+        pricePerNight: 12000,
+      });
+      const r1 = await addRoom(own, {
+        roomNumber: '101',
+        availableFrom: 5,
+        availableTo: 9,
+      });
+      const res = await list();
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        page: 1,
+        pageSize: 10,
+        total: 2,
+        totalPages: 1,
+      });
+      expect((res.body.items as any[]).map((r) => r.id)).toEqual([
+        r1.id,
+        r2.id,
+      ]);
+      expect(res.body.items[0]).toMatchObject({
+        id: r1.id,
+        hotelId: own.hotelId,
+        roomNumber: '101',
+        active: true,
+        currency: 'USD',
+        availableRanges: [{ from: day(5), to: day(9) }],
+        blockedRanges: [],
+        everReserved: false,
+      });
+      expect(res.body.items[1]).toMatchObject({
+        roomNumber: '102',
+        type: 'Twin',
+        beds: 2,
+        maxOccupancy: 2,
+        pricePerNight: 12000,
+      });
+    });
+
+    it('everReserved is true once the room has been reserved (HTL-06)', async () => {
+      const other = await hotelWithModerator(t);
+      const room = await addRoom(other, { roomNumber: '201' });
+      const held = await book(user, other.hotelId, 30, 32, [
+        { roomId: room.id, adults: 1 },
+      ]);
+      expect(held.status).toBe(201);
+      const res = await list({}, other);
+      expect(res.body.items[0]).toMatchObject({
+        id: room.id,
+        everReserved: true,
+      });
+    });
+
+    it('filters by active', async () => {
+      const other = await hotelWithModerator(t);
+      const on = await addRoom(other, { roomNumber: '301' });
+      const off = await addRoom(other, { roomNumber: '302' });
+      expect(
+        (
+          await other.moderator.client.patch(
+            `/api/hotels/${other.hotelId}/rooms/${off.id}`,
+            { active: false },
+          )
+        ).status,
+      ).toBe(200);
+      const ids = async (query: Record<string, string>) =>
+        ((await list(query, other)).body.items as any[]).map((r) => r.id);
+      expect(await ids({ active: 'true' })).toEqual([on.id]);
+      expect(await ids({ active: 'false' })).toEqual([off.id]);
+      expect(await ids({})).toEqual([on.id, off.id]);
+      expect((await list({ active: 'maybe' }, other)).status).toBe(400);
+    });
+
+    it('pages 10 rooms per page (GEN-05)', async () => {
+      const other = await hotelWithModerator(t);
+      for (let i = 0; i < 11; i++) {
+        await addRoom(other, {
+          roomNumber: `4${String(i).padStart(2, '0')}`,
+          noAvailability: true,
+        });
+      }
+      const first = await list({}, other);
+      expect(first.body).toMatchObject({
+        page: 1,
+        pageSize: 10,
+        total: 11,
+        totalPages: 2,
+      });
+      expect(first.body.items).toHaveLength(10);
+      const second = await list({ page: 2 }, other);
+      expect((second.body.items as any[]).map((r) => r.roomNumber)).toEqual([
+        '410',
+      ]);
+    });
+
+    it('only the moderator of this hotel may read it (ACC-11, ACC-13); unknown hotel 404', async () => {
+      const other = await hotelWithModerator(t);
+      const path = `/api/hotels/${own.hotelId}/rooms`;
+      expect((await t.guest().get(path)).status).toBe(401);
+      expect((await (await t.user()).client.get(path)).status).toBe(403);
+      expect((await (await t.admin()).get(path)).status).toBe(403);
+      expect((await other.moderator.client.get(path)).status).toBe(403);
+      expect(
+        (
+          await own.moderator.client.get(
+            '/api/hotels/665f1c2a9b1e8a00123400a1/rooms',
+          )
+        ).status,
+      ).toBe(404);
+    });
+  });
 });
