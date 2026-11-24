@@ -185,6 +185,19 @@ export class ItineraryBookingsService implements OnModuleInit {
     return result.sort((a, b) => a.id.localeCompare(b.id));
   }
 
+  // Removes one link of this itinerary; false when the itinerary has no link with that id. The
+  // booking itself is not touched (it stays booked).
+  async unlink(
+    itineraryId: Types.ObjectId,
+    linkId: Types.ObjectId,
+  ): Promise<boolean> {
+    const { deletedCount } = await this.links().deleteOne({
+      _id: linkId,
+      itineraryId,
+    });
+    return deletedCount === 1;
+  }
+
   async removeForDay(
     itineraryId: Types.ObjectId,
     dayId: Types.ObjectId,

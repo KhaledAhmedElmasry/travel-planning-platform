@@ -632,6 +632,21 @@ export class ItinerariesService {
     return this.bookingLinks.link(itinerary._id, userId, dto);
   }
 
+  // ITN-27 (bonus): remove a link, so the booking no longer feeds this itinerary's budget. The
+  // booking stays booked.
+  async unlinkBooking(
+    itineraryId: string | Types.ObjectId,
+    linkId: Types.ObjectId,
+    userId: string,
+  ): Promise<void> {
+    const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
+    if (!(await this.bookingLinks?.unlink(itinerary._id, linkId))) {
+      throw new NotFoundException(
+        'Itinerary or linked booking not found, or they belong to another user.',
+      );
+    }
+  }
+
   async addBudgetEntry(
     itineraryId: string | Types.ObjectId,
     dayId: string | Types.ObjectId,
