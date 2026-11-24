@@ -1,6 +1,9 @@
+"use client";
+
 // Page frame for airline moderators, hotel moderators and the admin (Dynamic SSR
 // dashboards, .md section 9). Left sidebar on large screens, slide-in menu below 1024px.
 // <DashboardShell user={user} unreadNotifications={2}>...page content...</DashboardShell>
+// Client Component: the menu icons are components (functions), which a Server Component cannot pass to the client menus.
 // The sidebar items come from DASHBOARD_NAV[user.role] in src/lib/nav.ts.
 import type { ReactNode } from "react";
 import { MobileNav } from "@/components/layout/mobile-nav";
