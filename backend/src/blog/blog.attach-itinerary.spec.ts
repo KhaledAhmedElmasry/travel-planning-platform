@@ -154,6 +154,7 @@ describe('BLG-13 attach itinerary to post', () => {
     const controller = new BlogController(
       blogService as unknown as BlogService,
       {} as never,
+      { post: jest.fn() } as never, // B5 revalidation, not under test here
     );
     const user = {
       id: authorId.toString(),

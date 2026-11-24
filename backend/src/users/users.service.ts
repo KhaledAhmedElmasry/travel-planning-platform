@@ -69,11 +69,13 @@ export class UsersService {
     const changes: Partial<Pick<User, 'name' | 'phone' | 'preferredCurrency'>> =
       {};
     if (dto.name !== undefined) changes.name = dto.name;
-    if (dto.phone !== undefined) changes.phone = dto.phone;
+    // An empty phone number removes the phone (team leader, 23 Nov); the profile then shows null.
+    const removePhone = dto.phone === '';
+    if (dto.phone !== undefined && !removePhone) changes.phone = dto.phone;
     if (dto.preferredCurrency !== undefined) {
       changes.preferredCurrency = dto.preferredCurrency;
     }
-    if (Object.keys(changes).length === 0) {
+    if (Object.keys(changes).length === 0 && !removePhone) {
       throw new BadRequestException(
         'Send at least one of name, phone or preferredCurrency',
       );
@@ -94,7 +96,7 @@ export class UsersService {
     const updated = await this.userModel
       .findOneAndUpdate(
         { _id: new Types.ObjectId(userId) },
-        { $set: changes },
+        { $set: changes, ...(removePhone ? { $unset: { phone: 1 } } : {}) },
         { new: true, runValidators: true },
       )
       .exec();

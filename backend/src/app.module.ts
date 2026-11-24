@@ -21,6 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ReferenceDataModule } from './reference-data/reference-data.module';
 import { ReportsModule } from './reports/reports.module';
+import { RevalidationModule } from './revalidation/revalidation.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
@@ -59,6 +60,7 @@ import { UsersModule } from './users/users.module';
     ExchangeRatesModule,
     BlogModule,
     ReportsModule,
+    RevalidationModule, // B5: refresh the frontend's cached pages
     NotificationsModule,
     AuditModule,
     UploadsModule,
