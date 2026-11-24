@@ -1,6 +1,6 @@
 "use client";
 
-// <HoldCountdown expiresAt={booking.holdExpiresAt} onExpire={() => setExpired(true)} />
+// <HoldCountdown bookingType="flight" expiresAt={booking.holdExpiresAt} onExpire={() => setExpired(true)} />
 // The 10-minute seat/room hold timer (FLT-22, HTL-18, PAY-01). Turns amber under
 // 2 minutes with So3ad's warning line. Screen readers hear it only at 5, 2 and 1
 // minutes and when it ends (not every second). The backend is still the judge:
@@ -11,6 +11,8 @@ import { cn } from "cn";
 import { formatCountdown } from "@/lib/format";
 
 type HoldCountdownProps = {
+  /** Flights hold seats (FLT-22), hotels hold rooms (HTL-18). */
+  bookingType: "flight" | "hotel";
   /** ISO timestamp from the booking (holdExpiresAt). */
   expiresAt: string;
   onExpire?: () => void;
@@ -19,7 +21,8 @@ type HoldCountdownProps = {
 
 const ANNOUNCE_AT = new Set([300, 120, 60, 0]);
 
-export function HoldCountdown({ expiresAt, onExpire, className }: HoldCountdownProps) {
+export function HoldCountdown({ bookingType, expiresAt, onExpire, className }: HoldCountdownProps) {
+  const held = bookingType === "hotel" ? "Rooms" : "Seats";
   const end = new Date(expiresAt).getTime();
   const [left, setLeft] = useState(() => Math.max(0, Math.round((end - Date.now()) / 1000)));
   const [announcement, setAnnouncement] = useState("");
@@ -62,7 +65,7 @@ export function HoldCountdown({ expiresAt, onExpire, className }: HoldCountdownP
       <ClockIcon className={cn("size-5", over ? "text-error" : warn ? "text-warning" : "text-muted-foreground")} aria-hidden="true" />
       <div className="grid">
         <span className="text-[13px] text-muted-foreground">
-          {over ? "Hold ended" : "Seats held for you"}
+          {over ? "Hold ended" : `${held} held for you`}
         </span>
         <span
           className={cn("tabular text-2xl font-bold leading-tight", over ? "text-error" : warn && "text-warning")}
@@ -71,7 +74,7 @@ export function HoldCountdown({ expiresAt, onExpire, className }: HoldCountdownP
         >
           {formatCountdown(left)}
         </span>
-        {warn && <span className="text-[13px] font-medium text-warning">So3ad: &ldquo;Hurry, habibi! The seats won&rsquo;t wait.&rdquo;</span>}
+        {warn && <span className="text-[13px] font-medium text-warning">So3ad: &ldquo;Hurry, habibi! The {held.toLowerCase()} won&rsquo;t wait.&rdquo;</span>}
       </div>
       <span className="sr-only" aria-live="polite">
         {announcement}

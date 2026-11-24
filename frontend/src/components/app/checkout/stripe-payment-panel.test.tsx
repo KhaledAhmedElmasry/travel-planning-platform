@@ -48,11 +48,11 @@ const payment = (status: string, extra: object = {}) => ({
   ...extra,
 });
 
-function renderPanel(holdExpiresAt = "2026-11-23T10:08:00.000Z") {
+function renderPanel(holdExpiresAt = "2026-11-23T10:08:00.000Z", bookingType: "flight" | "hotel" = "flight") {
   const onConfirmed = vi.fn();
   render(
     <StripePaymentPanel
-      bookingType="flight"
+      bookingType={bookingType}
       bookingId="b1"
       amount={63000}
       currency="USD"
@@ -74,6 +74,14 @@ test("shows the amount and the card form", () => {
 
   expect(screen.getByRole("region", { name: /payment/i }).textContent).toContain("630.00");
   expect(screen.getByTestId("card-element")).toBeDefined();
+});
+
+// source: HTL-18 (rooms are held during payment); wording chosen by Khaled (popup, 24 Nov 2026)
+test("a hotel payment says rooms are held, not seats", () => {
+  renderPanel(undefined, "hotel");
+
+  expect(screen.getByText("Rooms held for you").textContent).toBe("Rooms held for you");
+  expect(screen.queryByText("Seats held for you")).toBeNull();
 });
 
 // source: Excel PAY-01 - Stripe Elements / PaymentIntents; confirmed only after the backend verifies via the webhook
