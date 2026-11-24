@@ -1,8 +1,8 @@
 // ACC-02 / ACC-07 links reach the user by email; outside production the backend also prints them in
 // its log ("[dev only] ... link for <email>: <url>"). These tests create accounts, so they run ONLY
 // against a throwaway database: start the backend with its output in a file and set
-// E2E_BACKEND_LOG=<that file>. Without it the tests that need a link fail at once, before
-// creating anything (so the shared database is never touched).
+// E2E_BACKEND_LOG=<that file> (frontend/README.md, "Email link tests"). Without it these tests fail
+// at once, before creating anything (so the shared database is never touched).
 import { readFileSync } from "node:fs";
 import { expect } from "@playwright/test";
 
@@ -10,7 +10,7 @@ const BACKEND_LOG = process.env.E2E_BACKEND_LOG;
 
 /** Call first in a test that creates an account. */
 export function requireThrowawayBackend(): void {
-  if (!BACKEND_LOG) throw new Error("Set E2E_BACKEND_LOG to the log file of a backend that uses a throwaway database (see e2e/support/backend-log.ts).");
+  if (!BACKEND_LOG) throw new Error("Set E2E_BACKEND_LOG to the log file of a backend that uses a throwaway database (see frontend/README.md, Email link tests).");
 }
 
 /** Waits for the newest emailed link of this kind for this email and returns its path + query. */

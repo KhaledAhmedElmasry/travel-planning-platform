@@ -5,6 +5,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  // e2e/email/ creates accounts and needs the emailed links: opt-in only (npm run test:e2e:email).
+  testIgnore: "email/**",
   use: { baseURL: "http://localhost:3001" },
   // Desktop and phone (GEN-16: responsive on desktop and mobile).
   projects: [
