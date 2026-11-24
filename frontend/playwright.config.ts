@@ -11,7 +11,9 @@ export default defineConfig({
   // Desktop and phone (GEN-16: responsive on desktop and mobile).
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
+    // responsive.spec.ts sets its own widths (375-1440), so it runs in the desktop project only.
+    // A project's testIgnore replaces the top-level one, so email/** is repeated here.
+    { name: "mobile", use: { ...devices["Pixel 7"] }, testIgnore: ["email/**", "responsive.spec.ts"] },
   ],
   webServer: {
     command: "npm run dev",
