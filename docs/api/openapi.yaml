@@ -2220,6 +2220,61 @@ paths:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Airline not found.", "path": "/api/airlines/665f1c2a9b1e8a00123400a1/cancellation-policy", "timestamp": "2026-11-01T10:00:00.000Z"}
 
+  /api/airlines/{id}/flights:
+    get:
+      operationId: getAirlinesByIdFlights
+      tags: ['Airlines, Flights, and Flight Inventory']
+      summary: 'List the own airline''s flights (FLT-03, FLT-05)'
+      description: |
+        **Access:** the airline moderator of this airline (ACC-11, ACC-13).
+
+        The airline's flights, soonest departure first, 10 per page (GEN-05). Each item is the
+        flight as the other flight endpoints return it, plus `hasBookings` (the flight has a
+        booking in any status, so its airports can no longer change, FLT-05) and `currency` (the
+        platform currency of every price, PAY-04). Extra endpoint, not in PDF section 8 (needed by
+        the airline dashboard, see docs/api/README.md).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [scheduled, cancelled, departed]
+        - name: from
+          in: query
+          description: First local departure date (at the departure airport), included.
+          schema:
+            type: string
+            format: date
+            example: '2027-03-01'
+        - name: to
+          in: query
+          description: Last local departure date (at the departure airport), included.
+          schema:
+            type: string
+            format: date
+            example: '2027-03-31'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: The airline's flights.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AirlineFlightList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this airline.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage your own airline", "path": "/api/airlines/665f1c2a9b1e8a00123400a1/flights", "timestamp": "2026-11-01T10:00:00.000Z"}
+
   /api/flights/{id}/bookings:
     get:
       operationId: getFlightsByIdBookings
@@ -3106,6 +3161,52 @@ paths:
               example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel not found.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   /api/hotels/{id}/rooms:
+    get:
+      operationId: getHotelsByIdRooms
+      tags: [Hotels and Rooms]
+      summary: 'List the own hotel''s rooms (HTL-03, HTL-06)'
+      description: |
+        **Access:** the hotel moderator of this hotel (ACC-11, ACC-13).
+
+        The hotel's rooms by room number (A to Z), 10 per page (GEN-05). Each item is the room as
+        the other room endpoints return it, plus `everReserved`: the room has been reserved at
+        least once, so it can be deactivated but not deleted (HTL-06). Extra endpoint, not in PDF
+        section 8 (needed by the hotel dashboard, see docs/api/README.md).
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: active
+          in: query
+          description: Only active (`true`) or only deactivated (`false`) rooms.
+          schema:
+            type: string
+            enum: ['true', 'false']
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: The hotel's rooms.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelRoomList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not the moderator of this hotel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "You can only manage your own hotel", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '404':
+          description: Hotel not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Hotel not found.", "path": "/api/hotels/665f1c2a9b1e8a00123400a1/rooms", "timestamp": "2026-11-01T10:00:00.000Z"}
     post:
       operationId: postHotelsByIdRooms
       tags: [Hotels and Rooms]
@@ -7793,7 +7894,8 @@ components:
           example: Mona Adel
         phone:
           type: string
-          pattern: '^\+?[0-9][0-9 ()-]{6,19}$'
+          description: 7 to 20 characters (digits, spaces, ( ) and -, optionally starting with +). An empty string removes the phone number; the profile then shows `phone` null.
+          pattern: '^$|^\+?[0-9][0-9 ()-]{6,19}$'
           example: '+201001234567'
         preferredCurrency:
           type: string
@@ -8457,6 +8559,24 @@ components:
           example: 12000
           description: In cents of the platform currency (greater than 0).
 
+    HotelRoomListItem:
+      allOf:
+        - $ref: '#/components/schemas/Room'
+        - type: object
+          required: [everReserved]
+          properties:
+            everReserved:
+              type: boolean
+              description: The room has been reserved at least once, so it cannot be deleted (HTL-06).
+    HotelRoomList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/HotelRoomListItem'
     Room:
       type: object
       description: A room of a hotel (HTL-03). Prices are integer cents of the platform currency (PAY-04).
@@ -10754,6 +10874,27 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/AuditLogItem'
+    AirlineFlightListItem:
+      allOf:
+        - $ref: '#/components/schemas/Flight'
+        - type: object
+          required: [hasBookings, currency]
+          properties:
+            hasBookings:
+              type: boolean
+              description: The flight has a booking in any status, so its airports can no longer change (FLT-05).
+            currency:
+              type: string
+              example: USD
+    AirlineFlightList:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedList'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AirlineFlightListItem'
     FlightManifest:
       allOf:
         - $ref: '#/components/schemas/PaginatedList'

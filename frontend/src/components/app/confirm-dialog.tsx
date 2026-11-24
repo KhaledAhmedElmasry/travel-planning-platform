@@ -55,6 +55,8 @@ export function ConfirmDialog({
     try {
       await onConfirm();
       setOpen(false);
+    } catch {
+      // Stay open; the page has already shown the error (see the comment at the top).
     } finally {
       setBusy(false);
     }

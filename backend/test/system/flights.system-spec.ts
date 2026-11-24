@@ -6,6 +6,7 @@ import { JPG, PNG, TestApp, day } from '../support/harness';
 import {
   AirlineSetup,
   addCabin,
+  adult,
   airlineWithModerator,
   bookableFlight,
   createFlight,
@@ -995,6 +996,151 @@ describe('Airlines, airports and flights', () => {
       const { extraBagPrice, maxExtraBagsPerPassenger } =
         shown.body.baggagePolicy;
       expect(extraBagPrice).toBe(1000 * maxExtraBagsPerPassenger);
+    });
+  });
+
+  // New endpoint (MILESTONE2_FRONTEND_SPEC section 8, decided by the team leader 23 Nov): the airline
+  // moderator's own flights list (P-36). Rules: FLT-03 flights belong to one airline, FLT-05 airports
+  // lock once a flight has any booking (hasBookings), ACC-11 / ACC-13 own provider only (403),
+  // GEN-05 10 per page, PAY-04 platform currency, soonest departure first, from/to = local
+  // departure date at the departure airport, both ends included.
+  describe('GET /api/airlines/:id/flights (P-36, FLT-03, FLT-05, ACC-13)', () => {
+    let own: AirlineSetup;
+    const list = (query: Record<string, string | number> = {}, setup = own) =>
+      setup.moderator.client.get(`/api/airlines/${setup.airlineId}/flights`, {
+        query,
+      });
+    beforeAll(async () => {
+      own = await airlineWithModerator(t);
+    });
+
+    it('lists the own flights soonest departure first, as Flight objects with hasBookings and currency', async () => {
+      const later = await bookableFlight(own, { inDays: 50 });
+      const sooner = await bookableFlight(own, { inDays: 30 });
+      const res = await list();
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        page: 1,
+        pageSize: 10,
+        total: 2,
+        totalPages: 1,
+      });
+      expect((res.body.items as any[]).map((f) => f.id)).toEqual([
+        sooner.id,
+        later.id,
+      ]);
+      expect(res.body.items[0]).toMatchObject({
+        id: sooner.id,
+        airlineId: own.airlineId,
+        flightNumber: sooner.flightNumber,
+        departureAirport: 'DXB',
+        arrivalAirport: 'RUH',
+        departureTimeZone: 'Asia/Dubai',
+        arrivalTimeZone: 'Asia/Riyadh',
+        departureLocal: `${day(30)}T10:00`,
+        arrivalLocal: `${day(30)}T11:00`,
+        status: 'scheduled',
+        hasBookings: false,
+        currency: 'USD',
+      });
+      expect(res.body.items[0].cabins).toEqual([
+        expect.objectContaining({
+          cabinClass: 'economy',
+          seats: 10,
+          bookedSeats: 0,
+          heldSeats: 0,
+          availableSeats: 10,
+          price: 20000,
+        }),
+      ]);
+    });
+
+    it('hasBookings is true once the flight has a booking (FLT-05)', async () => {
+      await own.moderator.client.put(
+        `/api/airlines/${own.airlineId}/cancellation-policy`,
+        {
+          tiers: [{ daysBefore: 30, refundPercentage: 100 }],
+        },
+      );
+      await own.moderator.client.put(
+        `/api/airlines/${own.airlineId}/baggage-policy`,
+        {
+          extraBagPrice: 3000,
+          maxExtraBagsPerPassenger: 2,
+        },
+      );
+      const flight = await bookableFlight(own, { inDays: 70 });
+      const user = await t.user('Flights List Booker');
+      const held = await user.client.post('/api/flight-bookings/hold', {
+        segments: [{ flightId: flight.id, cabinClass: 'economy' }],
+        passengers: [adult()],
+      });
+      expect(held.status).toBe(201);
+      const res = await list({ from: day(70), to: day(70) });
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0]).toMatchObject({
+        id: flight.id,
+        hasBookings: true,
+      });
+    });
+
+    it('filters by status', async () => {
+      const flight = await bookableFlight(own, { inDays: 80 });
+      expect(
+        (await own.moderator.client.post(`/api/flights/${flight.id}/cancel`))
+          .status,
+      ).toBe(200);
+      const cancelled = await list({ status: 'cancelled' });
+      expect((cancelled.body.items as any[]).map((f) => f.id)).toEqual([
+        flight.id,
+      ]);
+      const scheduled = await list({ status: 'scheduled' });
+      expect(
+        (scheduled.body.items as any[]).every((f) => f.status === 'scheduled'),
+      ).toBe(true);
+      expect((scheduled.body.items as any[]).map((f) => f.id)).not.toContain(
+        flight.id,
+      );
+      expect((await list({ status: 'delayed' })).status).toBe(400);
+    });
+
+    it('filters by local departure date, both ends included', async () => {
+      const other = await airlineWithModerator(t);
+      const d1 = await bookableFlight(other, { inDays: 31 });
+      const d2 = await bookableFlight(other, { inDays: 32 });
+      const d3 = await bookableFlight(other, { inDays: 33 });
+      const ids = async (query: Record<string, string>) =>
+        ((await list(query, other)).body.items as any[]).map((f) => f.id);
+      expect(await ids({ from: day(31), to: day(32) })).toEqual([d1.id, d2.id]);
+      expect(await ids({ from: day(32) })).toEqual([d2.id, d3.id]);
+      expect(await ids({ to: day(31) })).toEqual([d1.id]);
+      expect((await list({ from: 'tomorrow' }, other)).status).toBe(400);
+    });
+
+    it('pages 10 flights per page (GEN-05)', async () => {
+      const other = await airlineWithModerator(t);
+      for (let i = 0; i < 11; i++)
+        await createFlight(other, { inDays: 40 + i });
+      const first = await list({}, other);
+      expect(first.body).toMatchObject({
+        page: 1,
+        pageSize: 10,
+        total: 11,
+        totalPages: 2,
+      });
+      expect(first.body.items).toHaveLength(10);
+      const second = await list({ page: 2 }, other);
+      expect(second.body.items).toHaveLength(1);
+      expect(second.body.items[0].departureLocal.slice(0, 10)).toBe(day(50));
+    });
+
+    it('only the moderator of this airline may read it (ACC-11, ACC-13)', async () => {
+      const other = await airlineWithModerator(t);
+      const path = `/api/airlines/${own.airlineId}/flights`;
+      expect((await t.guest().get(path)).status).toBe(401);
+      expect((await (await t.user()).client.get(path)).status).toBe(403);
+      expect((await (await t.admin()).get(path)).status).toBe(403);
+      expect((await other.moderator.client.get(path)).status).toBe(403);
     });
   });
 });
