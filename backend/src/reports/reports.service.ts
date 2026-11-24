@@ -18,6 +18,7 @@ import { AuditAction, ContentType, ReportStatus } from '../common/enums';
 import type { AuthUser } from '../common/interfaces';
 import { NotificationsService } from '../notifications/notifications.service';
 import { removeRatingPipeline } from '../reviews/reviews.service';
+import { RevalidationService } from '../revalidation/revalidation.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { CreateReportDto } from './dto/create-report.dto';
@@ -69,7 +70,22 @@ export class ReportsService {
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
     private readonly uploadsService: UploadsService,
+    private readonly revalidation: RevalidationService,
   ) {}
+
+  // B5: a post or itinerary was hidden, unhidden or deleted: refresh its cached page and the
+  // author page (ISR). Comments and reviews are not on cached pages.
+  private refreshCachedPage(
+    type: ContentType,
+    contentId: Types.ObjectId,
+    authorId: string | undefined,
+  ): void {
+    if (!authorId) return;
+    if (type === ContentType.Post) this.revalidation.post(contentId, authorId);
+    if (type === ContentType.Itinerary) {
+      this.revalidation.itinerary(contentId, authorId);
+    }
+  }
 
   // The collection of each kind of content (the Mongoose models of the blog, reviews and
   // itineraries modules).
@@ -450,6 +466,8 @@ export class ReportsService {
         },
       });
 
+      this.refreshCachedPage(updatedReport.contentType, contentId, authorId);
+
       // Send in-app notification to the content author (GEN-01)
       if (authorId) {
         await this.notificationsService.notify(
@@ -509,6 +527,8 @@ export class ReportsService {
           note: resolutionNote,
         },
       });
+
+      this.refreshCachedPage(updatedReport.contentType, contentId, authorId);
 
       // Send in-app notification to the content author (GEN-01)
       if (authorId) {
@@ -578,8 +598,10 @@ export class ReportsService {
       targetId: contentObjectId.toString(),
     });
 
-    // Send in-app notification to author (GEN-01)
     const authorId = this.extractAuthorId(type, doc);
+    this.refreshCachedPage(type, contentObjectId, authorId);
+
+    // Send in-app notification to author (GEN-01)
     if (authorId) {
       await this.notificationsService.notify(
         authorId,
@@ -659,6 +681,11 @@ export class ReportsService {
     const adminObjectId = new Types.ObjectId(admin.id);
 
     await this.setHidden(type, contentObjectId, hidden, adminObjectId);
+    this.refreshCachedPage(
+      type,
+      contentObjectId,
+      this.extractAuthorId(type, doc),
+    );
 
     if (hidden) {
       // Resolve open reports as content_hidden

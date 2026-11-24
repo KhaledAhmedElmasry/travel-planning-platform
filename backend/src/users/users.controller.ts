@@ -1,3 +1,4 @@
+import { RevalidationService } from '../revalidation/revalidation.service';
 import {
   Body,
   Controller,
@@ -42,6 +43,8 @@ export class UsersController {
     private readonly usersService: UsersService,
     // From the global AuthModule: deactivation also revokes every session (ACC-12).
     private readonly authService: AuthService,
+    // B5: the author's name and posts / itineraries are on cached pages (ISR).
+    private readonly revalidation: RevalidationService,
   ) {}
 
   // ACC-11: only the own profile can be read.
@@ -53,11 +56,13 @@ export class UsersController {
   // ACC-09: edit name, phone number and preferred currency. Nothing is saved unless every sent
   // field is valid.
   @Patch('me')
-  updateMe(
+  async updateMe(
     @CurrentUser() user: AuthUser,
     @Body() dto: UpdateProfileDto,
   ): Promise<ProfileResponse> {
-    return this.usersService.updateProfile(user.id, dto);
+    const profile = await this.usersService.updateProfile(user.id, dto);
+    this.revalidation.author(user.id);
+    return profile;
   }
 
   // ACC-12: registered users only (403 for admins and moderators). 409 while there is an upcoming
@@ -73,5 +78,7 @@ export class UsersController {
   ): Promise<void> {
     await this.authService.deactivateOwnAccount(user);
     clearAuthCookies(res);
+    // ACC-12: the author's posts and public itineraries disappear from the cached pages.
+    this.revalidation.author(user.id);
   }
 }
