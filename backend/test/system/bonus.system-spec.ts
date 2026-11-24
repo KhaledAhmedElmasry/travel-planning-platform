@@ -377,6 +377,24 @@ describe('Bonus requirements', () => {
         (await bookingDetails(two.client, 'flight', second)).body
           .seatAssignments[0].seatNumber,
       ).toBe('2F');
+
+      // The seat map (GET .../seats): own seat, the other booking's seat, the rest available.
+      const map = await two.client.get(`/api/flight-bookings/${second}/seats`);
+      expect(map.status).toBe(200);
+      expect(map.body.segments).toHaveLength(1);
+      const seats = map.body.segments[0].seats as {
+        seatNumber: string;
+        status: string;
+      }[];
+      expect(seats).toHaveLength(12);
+      expect(seats.find((s) => s.seatNumber === '2F')?.status).toBe('mine');
+      expect(seats.find((s) => s.seatNumber === '1A')?.status).toBe('taken');
+      expect(seats.find((s) => s.seatNumber === '1B')?.status).toBe(
+        'available',
+      );
+      expect(
+        (await two.client.get(`/api/flight-bookings/${first}/seats`)).status,
+      ).toBe(404);
     });
   });
 
@@ -628,6 +646,29 @@ describe('Bonus requirements', () => {
           })
         ).body.total,
       ).toBe(1);
+      // Lookup of one item (team leader decision 24 Nov): 1 item with the favourite's id, or 0.
+      const lookup = await account.client.get('/api/favourites', {
+        query: { type: 'hotel', targetId: hotel.hotelId },
+      });
+      expect(lookup.status).toBe(200);
+      expect(lookup.body).toMatchObject({
+        total: 1,
+        items: [{ id: savedHotel.body.id, targetId: hotel.hotelId }],
+      });
+      expect(
+        (
+          await account.client.get('/api/favourites', {
+            query: { type: 'itinerary', targetId: secret.body.id },
+          })
+        ).body.total,
+      ).toBe(0);
+      expect(
+        (
+          await account.client.get('/api/favourites', {
+            query: { targetId: 'not-an-id' },
+          })
+        ).status,
+      ).toBe(400);
       // Private to the user.
       expect((await owner.client.get('/api/favourites')).body.total).toBe(0);
       expect(

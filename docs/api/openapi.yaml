@@ -2516,7 +2516,7 @@ paths:
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: Each item - id, booking reference, flight(s), departure date, number of passengers, cabin, status.
+          description: Each item - id, booking reference, flight(s), departure date, number of passengers, cabin, status, and holdExpiresAt (Pending Payment only).
           content:
             application/json:
               schema:
@@ -2794,6 +2794,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example: {"statusCode": 409, "error": "CONFLICT", "message": "The seat is already taken.", "path": "/api/flight-bookings/665f1c2a9b1e8a00123400a1/seat", "timestamp": "2026-11-01T10:00:00.000Z"}
+
+  /api/flight-bookings/{id}/seats:
+    get:
+      operationId: getFlightBookingsByIdSeats
+      tags: [Flight Booking]
+      summary: '[Bonus] Seat map of a booking (FLT-28)'
+      description: |
+        **Access:** the user who made the booking.
+
+        Lists, for each flight of the booking (outbound, then return), every seat of the booked cabin in row
+        order (1A, 1B, ...), using the same layout as `PATCH /api/flight-bookings/{id}/seat`. Each seat is
+        `mine` (chosen by a passenger of this booking; `passengerIndex` says which one), `taken` (held by
+        another Confirmed booking still on that flight and cabin) or `available`. Seats of a cancelled booking,
+        or of a booking moved to another flight, are available again. Not in the PDF table; added so the
+        frontend can draw the seat map.
+      security: *auth
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: The seat map of each flight of the booking.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeatMap'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not a registered user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 403, "error": "FORBIDDEN", "message": "Only registered users can book, pay and cancel", "path": "/api/flight-bookings/665f1c2a9b1e8a00123400a1/seats", "timestamp": "2026-11-01T10:00:00.000Z"}
+        '404':
+          description: Booking not found, or it belongs to another user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {"statusCode": 404, "error": "NOT_FOUND", "message": "Booking not found.", "path": "/api/flight-bookings/665f1c2a9b1e8a00123400a1/seats", "timestamp": "2026-11-01T10:00:00.000Z"}
 
   # ---------------------------------------------------------------------------
   # 8.5 Hotels and Rooms
@@ -3863,7 +3904,7 @@ paths:
         - $ref: '#/components/parameters/Page'
       responses:
         '200':
-          description: Each item - id, booking reference, hotel, rooms, check-in and check-out dates, guests, total, status.
+          description: Each item - id, booking reference, hotel, rooms, check-in and check-out dates, guests, total, status, and holdExpiresAt (Pending Payment only).
           content:
             application/json:
               schema:
@@ -6559,7 +6600,14 @@ paths:
           schema: {type: integer, minimum: 1, default: 1}
         - name: type
           in: query
+          description: Only favourites of this kind.
           schema: {type: string, enum: [hotel, itinerary]}
+        - name: targetId
+          in: query
+          description: |
+            Only the favourite of this hotel or itinerary (BON-02). With `type`, the list has 0 items
+            (not saved) or 1 item whose `id` is the favourite to delete. Example: `?type=hotel&targetId=507f1f77bcf86cd799439011`.
+          schema: {type: string, pattern: '^[0-9a-fA-F]{24}$'}
       responses:
         '200':
           description: Paginated favourites. Inactive or no-longer-public targets are omitted.
@@ -6567,6 +6615,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedFavourites'
+        '400':
+          description: Invalid type or target ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -7594,7 +7648,9 @@ components:
       type: string
       description: |
         How a user's bookings are grouped (FLT-25, HTL-20). `upcoming` (GEN-11): Confirmed with a flight
-        not yet departed (a round trip until its return flight departs), or a stay not yet started.
+        not yet departed (a round trip until its return flight departs), or a stay not yet started; the list
+        also shows Pending Payment bookings whose 10-minute hold has not expired yet, with `holdExpiresAt`,
+        so the user can continue the payment. (Account deactivation, ACC-12, counts only the Confirmed ones.)
       enum: [upcoming, past, cancelled]
     CabinClass:
       type: string
@@ -8412,6 +8468,31 @@ components:
           example: pm_card_visa
           description: Required only when the new flight costs more; pays the fare difference (Stripe test payment method in Swagger).
 
+    SeatMap:
+      type: object
+      required: [bookingId, segments]
+      properties:
+        bookingId: {type: string, example: 665f1c2a9b1e8a00123400a1}
+        segments:
+          type: array
+          items:
+            type: object
+            required: [segment, flightNumber, cabinClass, rows, letters, seats]
+            properties:
+              segment: {type: string, enum: [outbound, return]}
+              flightNumber: {type: string, example: NA101}
+              cabinClass: {type: string, enum: [economy, premium_economy, business, first]}
+              rows: {type: integer, example: 2}
+              letters: {type: string, description: 'Seat letters of a row.', example: ABCD}
+              seats:
+                type: array
+                items:
+                  type: object
+                  required: [seatNumber, status, passengerIndex]
+                  properties:
+                    seatNumber: {type: string, example: 1B}
+                    status: {type: string, enum: [available, taken, mine]}
+                    passengerIndex: {type: integer, nullable: true, description: 'The passenger of this booking in a `mine` seat, else null.', example: 0}
     SelectSeatRequest:
       type: object
       required: [passengerIndex, seatNumber]
@@ -10409,7 +10490,7 @@ components:
     FlightBookingListItem:
       type: object
       description: One booking in the user's list (FLT-25).
-      required: [id, reference, status, flightNumber, departureAirport, arrivalAirport, departureAt, departureLocal, passengers, cabinClass]
+      required: [id, reference, status, flightNumber, departureAirport, arrivalAirport, departureAt, departureLocal, passengers, cabinClass, holdExpiresAt]
       properties:
         id:
           type: string
@@ -10436,6 +10517,11 @@ components:
           type: integer
         cabinClass:
           $ref: '#/components/schemas/CabinClass'
+        holdExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: End of the 10-minute hold while the booking is Pending Payment, otherwise null.
     HotelReservationListItem:
       type: object
       description: One reservation of the hotel, for its moderator (HTL-22).
@@ -10477,7 +10563,7 @@ components:
     HotelBookingListItem:
       type: object
       description: One reservation in the user's list (HTL-20).
-      required: [id, reference, hotel, rooms, checkIn, checkOut, guests, totalAmount, currency, status]
+      required: [id, reference, hotel, rooms, checkIn, checkOut, guests, totalAmount, currency, status, holdExpiresAt]
       properties:
         id:
           type: string
@@ -10514,6 +10600,11 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/BookingStatus'
+        holdExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: End of the 10-minute hold while the booking is Pending Payment, otherwise null.
     MyPostSummary:
       type: object
       description: One of the author's own posts, drafts included (BLG-03).
