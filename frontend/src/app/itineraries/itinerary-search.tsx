@@ -39,7 +39,7 @@ export function ItineraryResults({
   countryNames: Record<string, string>;
 }) {
   if (data.items.length === 0) {
-    // TODO(ask team leader): empty-state wording for P-27 (spec only says "empty state"; same style as "no flights found").
+    // source: team leader answer 24 Nov - empty-state wording
     return <EmptyState title="No itineraries found" />;
   }
   return (

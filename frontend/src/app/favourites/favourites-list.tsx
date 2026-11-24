@@ -35,8 +35,8 @@ export type Favourite =
   | { id: string; type: "itinerary"; targetId: string; item: ItinerarySummary };
 export type FavouritePage = { items: Favourite[]; page: number; pageSize: number; total: number; totalPages: number };
 
-/** countryNames: code -> name from GET /api/countries (full names, team leader decision 24 Nov). */
-type Props = { tab: FavouriteTab; data: FavouritePage; countryNames: Record<string, string> };
+/** code -> name from GET /api/countries and cityId -> name from GET /api/cities (full names, team leader 24 Nov). */
+type Props = { tab: FavouriteTab; data: FavouritePage; countryNames: Record<string, string>; cityNames: Record<string, string> };
 
 export function FavouritesSection(props: Props) {
   const router = useRouter();
@@ -47,6 +47,7 @@ export function FavouritesView({
   tab,
   data,
   countryNames,
+  cityNames,
   navigate,
   refresh,
 }: Props & { navigate: (path: string) => void; refresh: () => void }) {
@@ -74,7 +75,7 @@ export function FavouritesView({
     />
   );
 
-  // TODO(ask team leader): empty-state wording for the favourites tabs (not in the spec).
+  // source: team leader answer 24 Nov - empty-state wording
   const empty = tab === "hotels" ? "No saved hotels yet" : "No saved itineraries yet";
 
   return (
@@ -98,8 +99,7 @@ export function FavouritesView({
                   </h3>
                   <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                     <MapPinIcon className="size-4" aria-hidden="true" />
-                    {/* TODO(ask team leader): full city name here? Needs GET /api/cities, not in this page's endpoint list. */}
-                    {favourite.item.cityId}, {countryNames[favourite.item.countryCode] ?? favourite.item.countryCode}
+                    {cityNames[favourite.item.cityId] ?? favourite.item.cityId}, {countryNames[favourite.item.countryCode] ?? favourite.item.countryCode}
                   </p>
                   <StarRating value={favourite.item.starRating} />
                   <div>{removeButton(favourite)}</div>

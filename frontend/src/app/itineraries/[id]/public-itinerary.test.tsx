@@ -25,7 +25,20 @@ const itinerary: PublicItinerary = {
       date: "2027-03-01",
       cityId: "cairo",
       notes: "Arrive and rest",
-      activities: [{ id: "x1", name: "Pyramids", description: "Giza plateau", time: "09:00", cost: 20, currency: "USD" }],
+      activities: [
+        {
+          id: "x1",
+          name: "Pyramids",
+          description: "Giza plateau",
+          time: "09:00",
+          cost: 20,
+          currency: "USD",
+          images: [
+            { id: "i1", url: "/uploads/images/a1.png" },
+            { id: "i2", url: "/uploads/images/b2.png" },
+          ],
+        },
+      ],
       budgets: [
         { id: "b1", dayId: "d1", category: "food", amount: 250, currency: "EGP", description: "Dinner" },
         { id: "b2", dayId: "d1", category: "food", amount: 10.5, currency: "USD", description: "Lunch" },
@@ -42,6 +55,7 @@ const itinerary: PublicItinerary = {
       activities: { USD: 20 },
     },
     intercityTransport: { EGP: 900 },
+    grandTotal: { EGP: 1150, USD: 30.5 },
   },
 };
 
@@ -80,8 +94,9 @@ test("shows each budget entry and transport cost in its own currency on its day"
   expect(text(within(day2).getByRole("listitem"))).toBe("Train · cairo → luxorEGP 900.00");
 });
 
-// source: team leader decision 24 Nov - P-28 budget "per-category totals per currency", no conversion
-test("budget totals per category, per currency, empty categories left out", () => {
+// source: team leader decision 24 Nov - P-28 budget "per-category totals per currency", no conversion;
+// team leader answer 24 Nov - grand total per currency below the category totals (openapi BudgetSummary grandTotal)
+test("budget totals per category, per currency, empty categories left out, then the grand total per currency", () => {
   render(<PublicItineraryView itinerary={itinerary} />);
 
   const totals = within(screen.getByRole("region", { name: "Budget" }));
@@ -90,6 +105,7 @@ test("budget totals per category, per currency, empty categories left out", () =
     "FoodEGP 250.00USD 10.50",
     "ActivitiesUSD 20.00",
     "Intercity transportEGP 900.00",
+    "Grand totalEGP 1,150.00USD 30.50",
   ]);
 });
 
@@ -98,4 +114,23 @@ test("a clone credits the original author", () => {
   render(<PublicItineraryView itinerary={{ ...itinerary, originalAuthor: { id: "o9", name: "Sara Ali" } }} />);
 
   expect(screen.getByRole("link", { name: "Sara Ali" }).getAttribute("href")).toBe("/authors/o9");
+});
+
+// source: team leader answer 24 Nov - full country and city names on P-28 (GET /api/countries, GET /api/cities)
+test("shows full country and city names when the lists know them", () => {
+  render(<PublicItineraryView itinerary={itinerary} countryNames={{ EG: "Egypt" }} cityNames={{ cairo: "Cairo", luxor: "Luxor" }} />);
+
+  expect(screen.getByText(/Egypt · Mon, 1 Mar 2027/)).toBeTruthy();
+  const [day1, day2] = screen.getAllByRole("region", { name: /^Day / });
+  expect(within(day1).getByText("Cairo")).toBeTruthy();
+  expect(within(day2).getByText("Luxor")).toBeTruthy();
+  expect(text(within(day2).getByRole("listitem"))).toBe("Train · Cairo → LuxorEGP 900.00");
+});
+
+// source: team leader answer 24 Nov - activity images on P-28; openapi Activity.images[] (ImageResponse id, url "/uploads/images/...")
+test("shows the images of each activity", () => {
+  render(<PublicItineraryView itinerary={itinerary} />);
+
+  const images = within(screen.getAllByRole("region", { name: /^Day / })[0]).getAllByRole("img", { name: "Pyramids" });
+  expect(images.map((img) => img.getAttribute("src"))).toEqual(["/uploads/images/a1.png", "/uploads/images/b2.png"]);
 });

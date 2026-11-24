@@ -1,7 +1,7 @@
 // P-28 (ITN-21): the read-only public itinerary: author, days, activities and budget.
-// Budget: every entry AS ENTERED in its own currency, plus per-category totals per currency; no
-// currency conversion on the public page.
-// source: team leader decision 24 Nov - P-28 budget
+// Budget: every entry AS ENTERED in its own currency, plus per-category totals per currency and a grand
+// total per currency; no currency conversion on the public page. Full country and city names, activity images.
+// source: team leader decision 24 Nov - P-28 budget; team leader answers 24 Nov - names, images, grand total
 // Server-rendered (no "use client"): the page is cached for everyone (ISR); `actions` holds the
 // interactive buttons (Clone, Save, Report).
 import Link from "next/link";
@@ -28,11 +28,19 @@ export type PublicItinerary = {
     date: string;
     cityId: string;
     notes: string;
-    activities?: { id: string; name: string; description: string; time?: string; cost?: number; currency?: string }[];
+    activities?: {
+      id: string;
+      name: string;
+      description: string;
+      time?: string;
+      cost?: number;
+      currency?: string;
+      images?: { id: string; url: string }[];
+    }[];
     budgets?: { id: string; dayId: string; category: Category; amount: number; currency: string; description: string }[];
   }[];
   transportCosts: { id: string; dayId: string; mode: string; fromCityId: string; toCityId: string; amount: number; currency: string }[];
-  budget: { totalsByCategory: Record<Category, Totals>; intercityTransport: Totals };
+  budget: { totalsByCategory: Record<Category, Totals>; intercityTransport: Totals; grandTotal: Totals };
 };
 
 // source: spec 3.7 P-26 budget categories "food, accommodation, in-city transport, activities"
@@ -64,7 +72,17 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export function PublicItineraryView({ itinerary: it, actions }: { itinerary: PublicItinerary; actions?: ReactNode }) {
+type ViewProps = {
+  itinerary: PublicItinerary;
+  actions?: ReactNode;
+  /** code -> name (GET /api/countries); a code missing from the map is shown as the code. */
+  countryNames?: Record<string, string>;
+  /** cityId -> name (GET /api/cities); an id missing from the map is shown as the id. */
+  cityNames?: Record<string, string>;
+};
+
+export function PublicItineraryView({ itinerary: it, actions, countryNames = {}, cityNames = {} }: ViewProps) {
+  const city = (id: string) => cityNames[id] ?? id;
   const totals: [string, Totals][] = [
     ...(Object.keys(CATEGORY) as Category[]).map((c): [string, Totals] => [CATEGORY[c], it.budget.totalsByCategory[c] ?? {}]),
     ["Intercity transport", it.budget.intercityTransport] as [string, Totals],
@@ -79,11 +97,10 @@ export function PublicItineraryView({ itinerary: it, actions }: { itinerary: Pub
             <span>
               By <Link href={`/authors/${it.author.id}`} className="text-link hover:underline">{it.author.name}</Link>
               {" · "}
-              {/* TODO(ask team leader): show full country / city names on P-28? Needs GET /api/countries and /api/cities, not in this page's endpoint list. */}
-              {it.countryCodes.join(", ")} · {formatDay(it.startDate)}
+              {it.countryCodes.map((code) => countryNames[code] ?? code).join(", ")} · {formatDay(it.startDate)}
             </span>
             {it.originalAuthor && (
-              // TODO(ask team leader): exact attribution wording on P-28 (spec P-26 uses "Cloned from <title> by <author>"; the public response has no original title).
+              // source: team leader answer 24 Nov - attribution wording
               <span>
                 Cloned from an itinerary by{" "}
                 <Link href={`/authors/${it.originalAuthor.id}`} className="text-link hover:underline">{it.originalAuthor.name}</Link>
@@ -105,7 +122,7 @@ export function PublicItineraryView({ itinerary: it, actions }: { itinerary: Pub
                   <h2 className="text-base font-semibold">Day {day.number}</h2>
                   <span className="flex gap-3 text-sm text-muted-foreground">
                     <span>{formatDay(day.date)}</span>
-                    <span>{day.cityId}</span>
+                    <span>{city(day.cityId)}</span>
                   </span>
                 </header>
                 {day.notes && <p className="text-sm">{day.notes}</p>}
@@ -119,6 +136,14 @@ export function PublicItineraryView({ itinerary: it, actions }: { itinerary: Pub
                       </span>
                     </div>
                     {a.description && <p className="text-sm text-muted-foreground">{a.description}</p>}
+                    {(a.images ?? []).length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {(a.images ?? []).map((img) => (
+                          // eslint-disable-next-line @next/next/no-img-element -- uploads are served by the backend (same as the kit's ImageUploader)
+                          <img key={img.id} src={img.url} alt={a.name} className="aspect-video w-full rounded-lg object-cover" loading="lazy" />
+                        ))}
+                      </div>
+                    )}
                   </article>
                 ))}
                 {(costs.length > 0 || transport.length > 0) && (
@@ -129,7 +154,7 @@ export function PublicItineraryView({ itinerary: it, actions }: { itinerary: Pub
                       </Row>
                     ))}
                     {transport.map((t) => (
-                      <Row key={t.id} label={`${mode(t.mode)} · ${t.fromCityId} → ${t.toCityId}`}>
+                      <Row key={t.id} label={`${mode(t.mode)} · ${city(t.fromCityId)} → ${city(t.toCityId)}`}>
                         <BudgetAmount amount={t.amount} currency={t.currency} />
                       </Row>
                     ))}
@@ -160,6 +185,12 @@ export function PublicItineraryView({ itinerary: it, actions }: { itinerary: Pub
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr className="border-t border-border font-semibold">
+                  <th scope="row" className="py-2 text-left">Grand total</th>
+                  <td className="py-2 text-right"><Amounts totals={it.budget.grandTotal} /></td>
+                </tr>
+              </tfoot>
             </table>
           )}
         </section>
