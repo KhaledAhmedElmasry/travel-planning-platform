@@ -18,6 +18,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
+import { CARD_OPTIONS } from "@/components/app/checkout/stripe-payment-panel";
 import { loadStripe } from "@stripe/stripe-js";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/app/empty-state";
@@ -220,7 +221,7 @@ function PayAndChange({ onPaymentMethod }: { onPaymentMethod: (id: string) => Pr
   return (
     <>
       <div className="rounded-lg border border-input p-3">
-        <CardElement />
+        <CardElement options={CARD_OPTIONS} />
       </div>
       <ChangeButton label="Pay and change flight" onClick={pay} />
     </>

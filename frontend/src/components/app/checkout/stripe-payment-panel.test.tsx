@@ -8,9 +8,13 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const confirmCardPayment = vi.hoisted(() => vi.fn());
+const cardProps = vi.hoisted(() => ({ options: undefined as unknown }));
 vi.mock("@stripe/react-stripe-js", () => ({
   Elements: ({ children }: { children: ReactNode }) => children,
-  CardElement: () => <div data-testid="card-element" />,
+  CardElement: (props: { options?: unknown }) => {
+    cardProps.options = props.options;
+    return <div data-testid="card-element" />;
+  },
   useStripe: () => ({ confirmCardPayment }),
   useElements: () => ({ getElement: () => ({ kind: "card" }) }),
 }));
@@ -219,4 +223,15 @@ test("when a hotel hold expires, the rooms ran away", async () => {
   await settle(31_000);
 
   expect(screen.getByText("“Time’s up! The rooms ran away.”")).toBeDefined();
+});
+
+// source: design-system/yallaway/MASTER.md section 2 (dark theme: --foreground #E8E7EF body text,
+// --subtle-foreground #8D8BA0 hints); Khaled chose to fix the unreadable card field (popup, 25 Nov 2026).
+// Stripe draws the card field inside its own frame, so our CSS cannot reach it: the colors go in its options.
+test("the card field draws typed text and its placeholder in the dark theme's colors", () => {
+  vi.stubGlobal("fetch", vi.fn());
+  renderPanel();
+  expect(cardProps.options).toEqual({
+    style: { base: { color: "#E8E7EF", "::placeholder": { color: "#8D8BA0" } } },
+  });
 });
