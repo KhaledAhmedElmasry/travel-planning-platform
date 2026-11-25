@@ -1,7 +1,7 @@
 // P-28 Public itinerary: /itineraries/[id]
 // Part: Lead (foundation)
 // Requirements: ITN-21, GEN-09, BON-02 (Bonus)
-// Endpoints: GET /api/itineraries/public/{id}; POST /api/itineraries/{id}/clone; GET /api/countries; GET /api/cities
+// Endpoints: GET /api/itineraries/public/{id}; POST /api/itineraries/{id}/clone; GET /api/countries; GET /api/cities; GET /api/auth/me; GET, POST /api/favourites; DELETE /api/favourites/{id}; POST /api/reports
 // Rendering: ISR / Static. Source: .md section 9 "Public Itinerary Detail"; add SEO metadata (public page).
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-28). Use a shell and kit components (frontend/README.md).
 // Built (24 Nov): author, days, activities, budget as entered (PublicItineraryView); Clone, Save, Report are a
