@@ -141,6 +141,129 @@ describe('Demo data (npm run seed:demo)', () => {
     }
   });
 
+  // source: the team leader's choices of 25 Nov 2026 (popup): 3 more demo travellers, public and
+  // private itineraries, blog posts with comments and likes, paid bookings, reports and favourites,
+  // demo text written by the assistant from the official Mock Data cities and attractions.
+  const TRAVELLERS = ['demo.traveler1', 'demo.traveler2', 'demo.traveler3'];
+  const PUBLIC_ITINERARIES = [
+    'Cairo and Dubai in 5 days',
+    'Paris and Frankfurt by train',
+    'Tokyo for the first time',
+    'New York city break',
+    'Riyadh long weekend',
+  ];
+  const PRIVATE_ITINERARY = 'Weekend in London';
+  const PUBLISHED_POSTS = [
+    'Seeing the Pyramids at sunrise',
+    'Three days of museums in Paris',
+    'First time in Tokyo: what I learned',
+    'A walk through Central Park',
+  ];
+  const DRAFT_POST = 'My London packing list';
+
+  test('three more demo travellers log in as registered users (ACC-01, ACC-04)', async () => {
+    for (const name of TRAVELLERS) {
+      const { me } = await logIn(`${name}${DOMAIN}`);
+      expect(me.role).toBe('user');
+    }
+  });
+
+  test('a guest finds each public demo itinerary with its days, activities, budget and transport (ITN-21, ITN-05, ITN-10, ITN-14, ITN-16)', async () => {
+    for (const title of PUBLIC_ITINERARIES) {
+      const search = await t.guest().get('/api/itineraries/public/search', {
+        query: { keyword: title },
+      });
+      expect(search.status).toBe(200);
+      const found = (search.body.items as { id: string; title: string }[]).find(
+        (i) => i.title === title,
+      );
+      expect(found).toBeDefined();
+      const view = await t.guest().get(`/api/itineraries/public/${found!.id}`);
+      expect(view.status).toBe(200);
+      const days = view.body.days as {
+        activities: unknown[];
+        budgets: unknown[];
+      }[];
+      expect(days.length).toBeGreaterThanOrEqual(2);
+      expect(days.every((d) => d.activities.length > 0)).toBe(true);
+      expect(days.some((d) => d.budgets.length > 0)).toBe(true);
+      expect(view.body.transportCosts.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('the private demo itinerary is only in its owner list (ITN-20, ITN-03)', async () => {
+    const search = await t.guest().get('/api/itineraries/public/search', {
+      query: { keyword: PRIVATE_ITINERARY },
+    });
+    const titles = (search.body.items as { title: string }[]).map(
+      (i) => i.title,
+    );
+    expect(titles).not.toContain(PRIVATE_ITINERARY);
+    const { client } = await logIn(`demo.user${DOMAIN}`);
+    const mine = await client.get('/api/itineraries');
+    const own = (mine.body.items as { title: string }[]).map((i) => i.title);
+    expect(own).toContain(PRIVATE_ITINERARY);
+  });
+
+  test('published demo posts are in the blog with likes and comments; the draft is not (BLG-01, BLG-02, BLG-05, BLG-06)', async () => {
+    for (const title of PUBLISHED_POSTS) {
+      const res = await t
+        .guest()
+        .get('/api/posts', { query: { keyword: title } });
+      expect(res.status).toBe(200);
+      const post = (
+        res.body.items as {
+          title: string;
+          likeCount: number;
+          commentCount: number;
+        }[]
+      ).find((p) => p.title === title);
+      expect(post).toBeDefined();
+      expect(post!.likeCount).toBeGreaterThan(0);
+      expect(post!.commentCount).toBeGreaterThan(0);
+    }
+    const draft = await t
+      .guest()
+      .get('/api/posts', { query: { keyword: DRAFT_POST } });
+    const titles = (draft.body.items as { title: string }[]).map(
+      (p) => p.title,
+    );
+    expect(titles).not.toContain(DRAFT_POST);
+  });
+
+  test('the demo user has a paid flight booking and a paid hotel reservation (PAY-01, FLT-23, HTL-17)', async () => {
+    const { client } = await logIn(`demo.user${DOMAIN}`);
+    for (const path of ['/api/flight-bookings', '/api/hotel-bookings']) {
+      const res = await client.get(path, { query: { group: 'upcoming' } });
+      expect(res.status).toBe(200);
+      const statuses = (res.body.items as { status: string }[]).map(
+        (b) => b.status,
+      );
+      expect(statuses).toContain('confirmed');
+    }
+  });
+
+  test('the admin sees open demo reports (GEN-09)', async () => {
+    const admin = await t.admin();
+    const res = await admin.get('/api/admin/reports', {
+      query: { status: 'open' },
+    });
+    expect(res.status).toBe(200);
+    const reporters = (
+      res.body.items as { reporter?: { email: string } }[]
+    ).filter((r) => r.reporter?.email.endsWith(DOMAIN));
+    expect(reporters.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('the demo user has a favourite hotel and a favourite itinerary (BON-02)', async () => {
+    const { client } = await logIn(`demo.user${DOMAIN}`);
+    for (const type of ['hotel', 'itinerary']) {
+      const res = await client.get('/api/favourites', { query: { type } });
+      expect(res.status).toBe(200);
+      expect(res.body.total).toBeGreaterThanOrEqual(1);
+    }
+  });
+
   test('running it again creates nothing new', async () => {
     const count = async () => ({
       users: await t.collection('users').countDocuments({
@@ -160,16 +283,46 @@ describe('Demo data (npm run seed:demo)', () => {
         },
       }),
     });
+    const demoUsers = await t.collection('users').distinct('_id', {
+      email: { $regex: `${DOMAIN.replace('.', '\\.')}$` },
+    });
+    const content = async () => ({
+      itineraries: await t
+        .collection('itineraries')
+        .countDocuments({ userId: { $in: demoUsers } }),
+      posts: await t
+        .collection('posts')
+        .countDocuments({ author: { $in: demoUsers } }),
+      flightBookings: await t
+        .collection('flightbookings')
+        .countDocuments({ userId: { $in: demoUsers } }),
+      hotelBookings: await t
+        .collection('hotelbookings')
+        .countDocuments({ userId: { $in: demoUsers } }),
+      favourites: await t
+        .collection('favourites')
+        .countDocuments({ userId: { $in: demoUsers } }),
+    });
     const before = await count();
-    // 1 user + 1 airline moderator + 8 hotel moderators; 8 hotels x 3 rooms.
+    // 4 travellers + 1 airline moderator + 8 hotel moderators; 8 hotels x 3 rooms.
     expect(before).toEqual({
-      users: 10,
+      users: 13,
       airlines: 1,
       flights: 6,
       hotels: 8,
       rooms: 24,
     });
+    // 6 itineraries, 4 published posts + 1 draft, 1 paid flight, 1 paid stay, 2 favourites.
+    const contentBefore = await content();
+    expect(contentBefore).toEqual({
+      itineraries: 6,
+      posts: 5,
+      flightBookings: 1,
+      hotelBookings: 1,
+      favourites: 2,
+    });
     await run();
     expect(await count()).toEqual(before);
+    expect(await content()).toEqual(contentBefore);
   }, 600_000);
 });
