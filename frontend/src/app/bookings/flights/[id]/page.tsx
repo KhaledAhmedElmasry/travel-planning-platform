@@ -5,13 +5,14 @@
 // Rendering: Dynamic SSR. Source: .md section 9 "User Booking Pages"; cancel / change-flight / seat dialogs are Client Components.
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-21). Use a shell and kit components (frontend/README.md).
 // The booking is read with the visitor's session: another user's booking answers 404 (ACC-11).
-// The details already carry the refund (PAY-03) and the cancellation preview, so GET /api/refunds/{id}
-// is not needed here; after a cancel the page is re-rendered (router.refresh()).
+// The refund status (PAY-03) is read with GET /api/refunds/{id} (latestRefund(), team leader 25 Nov);
+// after a cancel the page is re-rendered (router.refresh()).
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
 import { AppShell } from "@/components/layout/app-shell";
 import { backendJson } from "@/lib/server/backend";
+import { latestRefund } from "@/lib/server/refund";
 import { getUnreadCount, requireUser } from "@/lib/server/session";
 import { FlightBookingDetails, type FlightBookingDetailsData } from "@/components/app/bookings/flight-booking-details";
 import type { SeatMapData } from "@/components/app/bookings/seat-map";
@@ -26,6 +27,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     getUnreadCount(),
   ]);
   if (!booking) notFound();
+  booking.refund = await latestRefund(booking.refund);
   // FLT-28 seat map (backend PR #289): only a Confirmed booking can choose seats.
   const seatMap =
     booking.status === "confirmed"

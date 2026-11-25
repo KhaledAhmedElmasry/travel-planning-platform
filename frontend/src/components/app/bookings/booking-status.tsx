@@ -21,7 +21,7 @@ type Kind = "flight" | "hotel";
 
 /** Backend PaymentResponse / RefundResponse: the fields the details show. */
 export type BookingPayment = { status: string } | null;
-export type BookingRefund = { amount: number; currency: string; refundPercentage: number; status: string } | null;
+export type BookingRefund = { id: string; amount: number; currency: string; refundPercentage: number; status: string } | null;
 
 export function BookingStatusSection({
   status,

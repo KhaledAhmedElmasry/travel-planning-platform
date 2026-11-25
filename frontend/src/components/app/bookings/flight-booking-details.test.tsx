@@ -91,7 +91,7 @@ test("shows the refund status and amount", () => {
       booking={{
         ...booking,
         status: "cancelled",
-        refund: { amount: 19000, currency: "USD", refundPercentage: 50, status: "refunded" },
+        refund: { id: "r1", amount: 19000, currency: "USD", refundPercentage: 50, status: "refunded" },
       }}
       now={NOW}
     />,
