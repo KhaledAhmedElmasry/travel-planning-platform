@@ -1,7 +1,7 @@
 // P-34 Edit post: /my/posts/[id]/edit
 // Part: T4 Blog
 // Requirements: BLG-04, BLG-08, BLG-10, BLG-13 (Bonus)
-// Endpoints: POST, GET /api/posts; GET, PATCH, DELETE /api/posts/{id}; POST /api/posts/{id}/images; DELETE /api/posts/{id}/images/{imageId}; PATCH /api/posts/{id}/itinerary
+// Endpoints: GET, PATCH, DELETE /api/posts/{id}; POST /api/posts/{id}/images; DELETE /api/posts/{id}/images/{imageId}; PATCH /api/posts/{id}/itinerary
 // Rendering: Dynamic SSR + Client Components. Source: .md section 9 "Blog Editor / Drafts".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-34). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
