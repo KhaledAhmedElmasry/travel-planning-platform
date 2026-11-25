@@ -26,6 +26,9 @@ import { Button } from "@/components/ui/button";
 import { ApiError, apiFetch } from "@/lib/api";
 
 const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+// Stripe draws the card field in its own frame, out of reach of our CSS: it needs the dark theme's
+// text colors here (MASTER.md section 2: --foreground, --subtle-foreground), or typed text is unreadable.
+export const CARD_OPTIONS = { style: { base: { color: "#E8E7EF", "::placeholder": { color: "#8D8BA0" } } } };
 const stripePromise = loadStripe(publishableKey);
 
 const POLL_EVERY_MS = 2000;
@@ -118,7 +121,7 @@ function PaymentForm({ bookingType, bookingId, holdExpiresAt, onConfirmed }: Pro
     <div className="grid gap-4">
       <HoldCountdown bookingType={bookingType} expiresAt={holdExpiresAt} onExpire={() => setPhase("expired")} />
       <div className="rounded-lg border border-input bg-background p-3">
-        <CardElement />
+        <CardElement options={CARD_OPTIONS} />
       </div>
       {error && (
         <p role="alert" className="text-sm text-error">

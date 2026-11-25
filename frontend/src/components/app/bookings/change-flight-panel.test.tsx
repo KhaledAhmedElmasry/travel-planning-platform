@@ -6,9 +6,13 @@ import type { ReactNode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 
 const createPaymentMethod = vi.hoisted(() => vi.fn());
+const cardProps = vi.hoisted(() => ({ options: undefined as unknown }));
 vi.mock("@stripe/react-stripe-js", () => ({
   Elements: ({ children }: { children: ReactNode }) => children,
-  CardElement: () => <div data-testid="card-element" />,
+  CardElement: (props: { options?: unknown }) => {
+    cardProps.options = props.options;
+    return <div data-testid="card-element" />;
+  },
   useStripe: () => ({ createPaymentMethod }),
   useElements: () => ({ getElement: () => ({ kind: "card" }) }),
 }));
@@ -199,4 +203,17 @@ test("changing the return flight sends segment return", async () => {
   await waitFor(() => expect(router.refresh).toHaveBeenCalled());
   expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ segment: "return", newFlightId: "f8" });
   expect(toast.success).toHaveBeenCalledWith("Flight changed.");
+});
+
+// source: design-system/yallaway/MASTER.md section 2 (--foreground #E8E7EF, --subtle-foreground #8D8BA0);
+// Khaled chose to fix the unreadable card field (popup, 25 Nov 2026).
+test("the change-flight card field uses the dark theme's text colors", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(searchPage([result("f9", "NA109", 40000)])));
+  render(<ChangeFlightPanel booking={booking} />);
+  await searchOn("2027-03-05");
+  fireEvent.click(await screen.findByRole("button", { name: /Select/ }));
+  await screen.findByTestId("card-element");
+  expect(cardProps.options).toEqual({
+    style: { base: { color: "#E8E7EF", "::placeholder": { color: "#8D8BA0" } } },
+  });
 });
