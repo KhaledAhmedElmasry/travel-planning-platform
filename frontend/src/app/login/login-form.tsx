@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 import { FormErrorSummary } from "@/components/app/form-error-summary";
 import { FormField } from "@/components/app/form-field";
 import { PasswordInput } from "@/components/app/password-input";
+import { So3ad } from "@/components/app/so3ad";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -57,6 +58,15 @@ export function LoginForm({ returnTo, navigate = (path) => window.location.assig
 
   return (
     <form onSubmit={onSubmit} noValidate className="grid gap-4">
+      {/* Sent here from a restricted action (ACC-10): So3ad holds the key (MASTER.md section 9). */}
+      {safe && (
+        <div className="flex items-center gap-3">
+          <So3ad pose="key" size={56} />
+          <p className="rounded-2xl rounded-bl-sm border border-border bg-muted px-3 py-1.5 text-sm font-semibold">
+            &ldquo;Log in first, habibi.&rdquo;
+          </p>
+        </div>
+      )}
       {error && (
         <FormErrorSummary
           message={error.message}

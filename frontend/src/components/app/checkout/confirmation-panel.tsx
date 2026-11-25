@@ -12,6 +12,7 @@
 import Link from "next/link";
 import { CircleCheckIcon, DownloadIcon } from "lucide-react";
 import { Price } from "@/components/app/price";
+import { So3ad } from "@/components/app/so3ad";
 import { Button } from "@/components/ui/button";
 import { formatDay } from "@/lib/dates";
 import { CABIN_LABEL_FALLBACK } from "./cabin-labels";
@@ -62,6 +63,12 @@ export function ConfirmationPanel(props: Props) {
   const detailsHref = props.kind === "flight" ? `/bookings/flights/${booking.id}` : `/bookings/hotels/${booking.id}`;
   return (
     <section aria-labelledby="confirmed-title" className="grid gap-6 rounded-xl border border-border bg-card p-4 sm:p-6">
+      <div className="flex items-center gap-3">
+        <So3ad pose="jump" size={96} />
+        <p className="rounded-2xl rounded-bl-sm border border-border bg-muted px-4 py-2 font-semibold">
+          &ldquo;Mabrouk! Your trip is booked.&rdquo;
+        </p>
+      </div>
       <div className="grid gap-1">
         <h2 id="confirmed-title" className="flex items-center gap-2 text-xl font-semibold">
           <CircleCheckIcon className="size-6 text-success" aria-hidden="true" />

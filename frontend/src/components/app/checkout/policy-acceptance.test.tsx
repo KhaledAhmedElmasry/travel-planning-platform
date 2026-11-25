@@ -115,3 +115,11 @@ test("a refused acceptance shows the backend's message and leaves the box untick
   expect(box.getAttribute("aria-checked")).toBe("false");
   expect(onAccepted).not.toHaveBeenCalled();
 });
+
+// source: Excel PAY-02 (policies shown before payment); tip text chosen by Khaled (popup, 25 Nov 2026)
+test("So3ad's tip asks to read the refund tiers first", () => {
+  const { container } = render(<PolicyAcceptance data={flightPolicies} onAccepted={vi.fn()} />);
+
+  expect(screen.getByText("“Read the refund tiers first, habibi.”")).toBeDefined();
+  expect(container.querySelector('svg[data-pose="avatar"]')).not.toBeNull();
+});

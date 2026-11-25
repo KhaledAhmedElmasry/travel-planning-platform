@@ -158,3 +158,18 @@ test("the Sign up link keeps the pending action", () => {
 
   expect(screen.getByRole("link", { name: "Sign up" }).getAttribute("href")).toBe("/signup?returnTo=%2Fbookings");
 });
+
+// source: MASTER.md section 9 - "Holding a key | Login needed / session expired (ACC-10) | Log in first, habibi."
+test("a guest sent here from a restricted action sees So3ad with the key", () => {
+  const { container } = render(<LoginForm returnTo="/bookings" navigate={vi.fn()} />);
+
+  expect(screen.getByText("“Log in first, habibi.”")).toBeDefined();
+  expect(container.querySelector('svg[data-pose="key"]')).not.toBeNull();
+});
+
+// source: ACC-10 - the key line is for a guest sent to login, not for someone who opened /login directly
+test("opening the login page directly shows no key line", () => {
+  render(<LoginForm returnTo={null} navigate={vi.fn()} />);
+
+  expect(screen.queryByText("“Log in first, habibi.”")).toBeNull();
+});

@@ -81,3 +81,18 @@ test("the My itineraries shortcut opens /my/itineraries", () => {
   render(<ItinerariesShortcut />);
   expect(screen.getByRole("link", { name: /My itineraries/ }).getAttribute("href")).toBe("/my/itineraries");
 });
+
+// source: tip for a user with no bookings yet, chosen by Khaled (popup, 25 Nov 2026)
+test("with no upcoming trip, So3ad's tip invites a first search", () => {
+  const { container } = render(<UpcomingTrips flights={[]} hotels={[]} />);
+
+  expect(screen.getByText("“Start with a search, I’ll find the deals.”")).toBeDefined();
+  expect(container.querySelector('svg[data-pose="avatar"]')).not.toBeNull();
+});
+
+// source: same tip is for a user with no bookings only
+test("with an upcoming trip there is no search tip", () => {
+  render(<UpcomingTrips flights={[flight(1)]} hotels={[]} />);
+
+  expect(screen.queryByText("“Start with a search, I’ll find the deals.”")).toBeNull();
+});

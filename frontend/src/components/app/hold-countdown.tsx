@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { ClockIcon } from "lucide-react";
 import { cn } from "cn";
 import { formatCountdown } from "@/lib/format";
+import { So3ad } from "@/components/app/so3ad";
 
 type HoldCountdownProps = {
   /** Flights hold seats (FLT-22), hotels hold rooms (HTL-18). */
@@ -62,7 +63,11 @@ export function HoldCountdown({ bookingType, expiresAt, onExpire, className }: H
         className,
       )}
     >
-      <ClockIcon className={cn("size-5", over ? "text-error" : warn ? "text-warning" : "text-muted-foreground")} aria-hidden="true" />
+      {warn || over ? (
+        <So3ad pose="watch" size={44} />
+      ) : (
+        <ClockIcon className="size-5 text-muted-foreground" aria-hidden="true" />
+      )}
       <div className="grid">
         <span className="text-[13px] text-muted-foreground">
           {over ? "Hold ended" : `${held} held for you`}

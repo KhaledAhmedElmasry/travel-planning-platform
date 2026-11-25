@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { BedDoubleIcon, MapIcon, PlaneIcon } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
+import { So3adTip } from "@/components/app/so3ad";
 import { HOME_LIST_SIZE, HomeList, HomeListRow, HomeSection } from "@/components/app/home-section";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
@@ -44,15 +45,18 @@ export function UpcomingTrips({ flights, hotels }: { flights: UpcomingFlight[]; 
   return (
     <HomeSection title="Upcoming trips" seeAll={empty ? undefined : "/bookings"}>
       {empty ? (
-        <EmptyState
-          compact
-          title="No upcoming trips"
-          action={
-            <Button asChild>
-              <Link href="/flights">Search flights</Link>
-            </Button>
-          }
-        />
+        <div className="grid justify-items-center gap-2">
+          <EmptyState
+            compact
+            title="No upcoming trips"
+            action={
+              <Button asChild>
+                <Link href="/flights">Search flights</Link>
+              </Button>
+            }
+          />
+          <So3adTip>Start with a search, I&rsquo;ll find the deals.</So3adTip>
+        </div>
       ) : (
         <HomeList>
           {flights.slice(0, HOME_LIST_SIZE).map((booking) => (

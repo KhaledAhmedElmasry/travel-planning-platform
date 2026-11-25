@@ -193,6 +193,115 @@
     transform-origin: 80px 112px;
     animation: so3ad-wave 2.4s ease-in-out infinite;
   }
+  /* The other poses (MASTER.md section 9 timings). Every keyframe list ends on the still
+     frame, so the reduced-motion rule (one 0.01ms run) shows the still pose. */
+  .so3ad-thumb,
+  .so3ad-scroll-list {
+    animation: so3ad-scroll 1.6s ease-in-out infinite;
+  }
+  .so3ad-tap {
+    animation: so3ad-tap 1.2s ease-in-out infinite;
+  }
+  .so3ad-jump {
+    animation: so3ad-jump 1.2s ease-out both;
+  }
+  .so3ad-confetti {
+    animation: so3ad-confetti 1.2s ease-out both;
+  }
+  .so3ad-flip {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: so3ad-flip 0.8s ease-in-out both;
+  }
+  .so3ad-raise {
+    transform-box: view-box;
+    transform-origin: 80px 114px;
+    animation: so3ad-raise 0.8s ease-out both;
+  }
+  .so3ad-blink {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: so3ad-blink 4s ease-in-out infinite;
+  }
+}
+
+@keyframes so3ad-scroll {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes so3ad-tap {
+  0%,
+  40%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-2px, 3px);
+  }
+}
+
+@keyframes so3ad-jump {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-20px);
+  }
+  65% {
+    transform: translateY(0);
+  }
+  82% {
+    transform: translateY(-6px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes so3ad-confetti {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes so3ad-flip {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(180deg);
+  }
+}
+
+@keyframes so3ad-raise {
+  0% {
+    transform: rotate(40deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes so3ad-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
 }
 
 @keyframes so3ad-wave {

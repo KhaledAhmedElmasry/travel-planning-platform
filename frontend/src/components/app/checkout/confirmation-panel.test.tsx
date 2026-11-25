@@ -83,3 +83,11 @@ test("links to My bookings and to the booking details", () => {
   render(<ConfirmationPanel kind="hotel" booking={hotel} />);
   expect(screen.getByRole("link", { name: /booking details/i }).getAttribute("href")).toBe("/bookings/hotels/hb1");
 });
+
+// source: MASTER.md section 9 - "Jumping + confetti | Booking confirmed | Mabrouk! Your trip is booked."
+test("So3ad celebrates the confirmed booking", () => {
+  const { container } = render(<ConfirmationPanel kind="hotel" booking={hotel} />);
+
+  expect(screen.getByText("“Mabrouk! Your trip is booked.”")).toBeDefined();
+  expect(container.querySelector('svg[data-pose="jump"]')).not.toBeNull();
+});
