@@ -153,3 +153,11 @@ test("initial values fill the form", () => {
   expect(within(screen.getByRole("group", { name: "Adults" })).getByText("2")).toBeDefined();
   expect(search().hasAttribute("disabled")).toBe(false);
 });
+
+// source: Excel FLT-12 (b) "infants pay 10% of the fare and occupy no seat"; tip spot chosen by Khaled (popup, 25 Nov 2026)
+test("So3ad's tip explains the infant fare next to the passenger counts", () => {
+  const { container } = render(<FlightSearchForm airports={airports} onSearch={vi.fn()} />);
+
+  expect(screen.getByText("“Infants pay 10% of the fare and don’t take a seat.”")).toBeDefined();
+  expect(container.querySelector('svg[data-pose="avatar"]')).not.toBeNull();
+});

@@ -39,7 +39,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { PaginationBar } from "@/components/app/pagination-bar";
 import { PasswordInput } from "@/components/app/password-input";
 import { Price } from "@/components/app/price";
-import { So3ad } from "@/components/app/so3ad";
+import { So3ad, type So3adPose } from "@/components/app/so3ad";
 import { StatCard } from "@/components/app/stat-card";
 import { StatusBadge } from "@/components/app/status-badge";
 import { PublicShell } from "@/components/layout/public-shell";
@@ -446,16 +446,38 @@ export function KitDemo() {
         </div>
       </Section>
 
-      <Section title="So3ad" req="Mascot · MASTER.md section 9 · concept art (final poses later)">
-        <Panel className="flex flex-wrap items-end gap-10">
-          <So3ad pose="wave" size={200} />
-          <So3ad pose="sit" size={160} />
-          <div className="max-w-sm">
-            <Code>{`<So3ad pose="wave" />   // hero, success
-<So3ad pose="sit" />    // empty states`}</Code>
+      <Section title="So3ad" req="Mascot · MASTER.md section 9 · one pose per situation">
+        <Panel className="grid gap-6">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
+            {SO3AD_POSES.map(([pose, where]) => (
+              <figure key={pose} className="grid justify-items-center gap-2 text-center">
+                <So3ad pose={pose} size={120} />
+                <figcaption className="text-sm">
+                  <code className="font-mono">{pose}</code>
+                  <span className="block text-muted-foreground">{where}</span>
+                </figcaption>
+              </figure>
+            ))}
           </div>
+          <Code>{`<So3ad pose="shrug" />                       // any pose; decorative, put her line as text next to her
+<EmptyState pose="shrug" title="No flights found" line="Nothing here… try other dates?" />
+<SearchLoading />                            // search results loading`}</Code>
         </Panel>
       </Section>
     </PublicShell>
   );
 }
+
+const SO3AD_POSES: [So3adPose, string][] = [
+  ["wave", "Home hero"],
+  ["scroll", "Search loading (SearchLoading)"],
+  ["tap", "Payment processing"],
+  ["jump", "Booking confirmed"],
+  ["shrug", "Empty search (EmptyState)"],
+  ["sit", "Empty lists (EmptyState)"],
+  ["lost", "404 / error (ErrorState)"],
+  ["watch", "Hold expiring / expired"],
+  ["key", "Login needed"],
+  ["worried", "Confirm dialogs"],
+  ["avatar", "Tips"],
+];

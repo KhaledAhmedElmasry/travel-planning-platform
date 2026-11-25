@@ -190,3 +190,33 @@ test("a refused payment shows the backend's message", async () => {
   expect(screen.getByRole("alert").textContent).toContain("Accept the provider policies before paying (PAY-02).");
   expect(confirmCardPayment).not.toHaveBeenCalled();
 });
+
+// source: MASTER.md section 9 - "Tapping phone, waiting | Payment processing | Don't blink, the bank is thinking."
+test("while the backend confirms the payment, So3ad taps her phone", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(201, payment(WAITING))));
+  confirmCardPayment.mockResolvedValue({ paymentIntent: { status: "succeeded" } });
+  renderPanel();
+
+  fireEvent.click(screen.getByRole("button", { name: "Pay" }));
+  await settle();
+
+  expect(screen.getByText("“Don’t blink, the bank is thinking.”")).toBeDefined();
+  expect(document.querySelector('svg[data-pose="tap"]')).not.toBeNull();
+});
+
+// source: MASTER.md section 9 - "Looking at watch | Hold expiring / expired | Time's up! The seats ran away."
+test("when the hold expires, So3ad looks at her watch: the seats ran away", async () => {
+  renderPanel("2026-11-23T10:00:30.000Z");
+  await settle(31_000);
+
+  expect(screen.getByText("“Time’s up! The seats ran away.”")).toBeDefined();
+  expect(document.querySelector('svg[data-pose="watch"]')).not.toBeNull();
+});
+
+// source: MASTER.md section 9 line; HTL-18 holds rooms, not seats (wording rule chosen by Khaled, popup 24 Nov 2026)
+test("when a hotel hold expires, the rooms ran away", async () => {
+  renderPanel("2026-11-23T10:00:30.000Z", "hotel");
+  await settle(31_000);
+
+  expect(screen.getByText("“Time’s up! The rooms ran away.”")).toBeDefined();
+});

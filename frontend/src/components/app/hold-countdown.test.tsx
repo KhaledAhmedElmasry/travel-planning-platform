@@ -33,4 +33,15 @@ describe("HoldCountdown", () => {
     expect(screen.getByText(/The rooms won.t wait\./).textContent).toBe("So3ad: “Hurry, habibi! The rooms won’t wait.”");
     expect(screen.queryByText(/seats/i)).toBeNull();
   });
+  // source: MASTER.md section 9 - "Looking at watch | Hold expiring / expired"
+  it("shows So3ad looking at her watch when under 2 minutes", () => {
+    const { container } = render(<HoldCountdown bookingType="flight" expiresAt={inSeconds(60)} />);
+    expect(container.querySelector('svg[data-pose="watch"]')).not.toBeNull();
+  });
+
+  // source: MASTER.md section 9 - the watch pose is for expiring/expired holds only
+  it("shows no So3ad while plenty of time is left", () => {
+    const { container } = render(<HoldCountdown bookingType="flight" expiresAt={inSeconds(600)} />);
+    expect(container.querySelector("svg[data-pose]")).toBeNull();
+  });
 });

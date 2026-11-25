@@ -21,6 +21,7 @@ import { CardElement, Elements, useElements, useStripe } from "@stripe/react-str
 import { loadStripe } from "@stripe/stripe-js";
 import { HoldCountdown } from "@/components/app/hold-countdown";
 import { Price } from "@/components/app/price";
+import { So3ad } from "@/components/app/so3ad";
 import { Button } from "@/components/ui/button";
 import { ApiError, apiFetch } from "@/lib/api";
 
@@ -101,6 +102,10 @@ function PaymentForm({ bookingType, bookingId, holdExpiresAt, onConfirmed }: Pro
   if (phase === "expired") {
     return (
       <div role="alert" className="grid gap-3">
+        <div className="flex items-center gap-3">
+          <So3ad pose="watch" size={72} />
+          <p className="font-semibold">&ldquo;Time&rsquo;s up! The {bookingType === "hotel" ? "rooms" : "seats"} ran away.&rdquo;</p>
+        </div>
         <p>Your hold has expired, so this booking can no longer be paid.</p>
         <Button asChild variant="secondary" className="justify-self-start">
           <Link href={bookingType === "flight" ? "/flights" : "/hotels"}>Search again</Link>
@@ -121,9 +126,15 @@ function PaymentForm({ bookingType, bookingId, holdExpiresAt, onConfirmed }: Pro
         </p>
       )}
       {phase === "waiting" && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Waiting for confirmation…
-        </p>
+        <div className="flex items-center gap-3">
+          <So3ad pose="tap" size={72} />
+          <div className="grid gap-1">
+            <p className="font-semibold">&ldquo;Don&rsquo;t blink, the bank is thinking.&rdquo;</p>
+            <p role="status" className="text-sm text-muted-foreground">
+              Waiting for confirmation…
+            </p>
+          </div>
+        </div>
       )}
       {phase === "slow" && (
         <p role="status" className="text-sm">

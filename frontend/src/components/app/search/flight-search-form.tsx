@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { todayString } from "@/lib/dates";
+import { So3adTip } from "@/components/app/so3ad";
 
 export type Airport = { iataCode: string; name: string; cityId: string; countryCode: string; timeZone: string };
 export type TripType = "one_way" | "round_trip";
@@ -169,6 +170,7 @@ export function FlightSearchForm({ airports, onSearch, initial = {}, submitLabel
         <NumberStepper label="Children" hint="2 to 11 years" value={children} min={0} onChange={setChildren} />
         <NumberStepper label="Infants" hint="Under 2 years" value={infants} min={0} max={adults} onChange={setInfants} />
       </div>
+      <So3adTip>Infants pay 10% of the fare and don&rsquo;t take a seat.</So3adTip>
 
       <Select value={cabin} onValueChange={setCabin}>
         <FormField label="Cabin class" name="cabinClass">

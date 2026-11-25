@@ -22,3 +22,26 @@ test("a block description (a section) is not put inside a paragraph", async () =
   expect(section.closest("p")).toBeNull();
   expect(section.parentElement!.tagName).toBe("DIV");
 });
+
+// source: MASTER.md section 9 - "Worried, hands up | Confirm dialogs | Are you sure? No take-backs!"
+test("a destructive confirmation shows So3ad worried with her line", async () => {
+  render(
+    <ConfirmDialog trigger={<Button>Open</Button>} title="Delete this post?" description="It is gone for good." confirmLabel="Delete" onConfirm={() => {}} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Open" }));
+  const dialog = await screen.findByRole("alertdialog");
+
+  expect(dialog.querySelector('svg[data-pose="worried"]')).not.toBeNull();
+  expect(dialog.textContent).toContain("“Are you sure? No take-backs!”");
+});
+
+// source: MASTER.md section 9 lists confirm dialogs for delete/cancel only (GEN-03 destructive actions)
+test("a non-destructive confirmation has no worried So3ad", async () => {
+  render(
+    <ConfirmDialog trigger={<Button>Open</Button>} title="Publish?" description="Everyone can see it." confirmLabel="Publish" tone="default" onConfirm={() => {}} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Open" }));
+  const dialog = await screen.findByRole("alertdialog");
+
+  expect(dialog.querySelector("svg[data-pose]")).toBeNull();
+});

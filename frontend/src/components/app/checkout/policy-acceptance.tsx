@@ -17,6 +17,7 @@ import { useState } from "react";
 import { Price } from "@/components/app/price";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError, apiFetch } from "@/lib/api";
+import { So3adTip } from "@/components/app/so3ad";
 
 type Tier = { daysBefore: number; refundPercentage: number };
 type FlightPolicies = {
@@ -90,6 +91,7 @@ export function PolicyAcceptance({ data, onAccepted }: Props) {
       <h2 id="policies-title" className="text-lg font-semibold">
         {policies.bookingType === "flight" ? policies.airline?.name : policies.hotel?.name} policies
       </h2>
+      <So3adTip>Read the refund tiers first, habibi.</So3adTip>
       <div className="grid gap-2">
         <h3 className="font-medium">Cancellation</h3>
         <Tiers tiers={policies.cancellationTiers ?? []} until={policies.bookingType === "flight" ? "departure" : "check-in"} />

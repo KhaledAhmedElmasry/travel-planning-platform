@@ -13,7 +13,6 @@
 // it closes when onConfirm finishes. If onConfirm throws, it stays open so the
 // page can show the error (toast.error) and the user can retry or back out.
 import { useState, type ReactNode } from "react";
-import { TriangleAlertIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -25,6 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { So3ad } from "@/components/app/so3ad";
 
 type ConfirmDialogProps = {
   trigger: ReactNode;
@@ -68,9 +68,12 @@ export function ConfirmDialog({
       <AlertDialogContent className="gap-5 p-6 data-[size=default]:sm:max-w-md">
         <AlertDialogHeader className="sm:place-items-start sm:text-left">
           {tone === "destructive" && (
-            <span className="mb-1 grid size-10 place-items-center rounded-full bg-error/15 text-error">
-              <TriangleAlertIcon className="size-5" aria-hidden="true" />
-            </span>
+            <div className="mb-1 flex items-center gap-3">
+              <So3ad pose="worried" size={64} />
+              <p className="rounded-2xl rounded-bl-sm border border-border bg-muted px-3 py-1.5 text-sm font-semibold">
+                &ldquo;Are you sure? No take-backs!&rdquo;
+              </p>
+            </div>
           )}
           <AlertDialogTitle className="text-lg font-semibold">{title}</AlertDialogTitle>
           {/* A div, not Radix's default <p>: descriptions may hold blocks (RefundPreview). */}

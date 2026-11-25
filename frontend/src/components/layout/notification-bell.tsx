@@ -79,7 +79,7 @@ export function NotificationBellView({ unread = 0, className, navigate }: BellPr
               <Skeleton className="h-14" />
             </div>
           )}
-          {list.state === "error" && <ErrorState className="py-4" message={list.message} onRetry={() => void load()} />}
+          {list.state === "error" && <ErrorState compact className="py-4" message={list.message} onRetry={() => void load()} />}
           {list.state === "ready" && list.items.length === 0 && (
             <EmptyState compact title="No notifications yet" line="So empty! Let's plan something." />
           )}
