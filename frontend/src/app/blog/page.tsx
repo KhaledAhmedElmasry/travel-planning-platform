@@ -1,7 +1,7 @@
 // P-29 Blog: /blog
 // Part: T4 Blog
 // Requirements: BLG-02, BLG-09
-// Endpoints: POST, GET /api/posts
+// Endpoints: GET /api/posts
 // Rendering: Dynamic SSR. Source: .md section 9 "Blog Listing / Search".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-29). Use a shell and kit components (frontend/README.md).
 // TODO: not built yet. Replace this stub.
