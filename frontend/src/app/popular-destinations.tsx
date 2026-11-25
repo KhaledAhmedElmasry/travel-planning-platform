@@ -35,8 +35,9 @@ export function PopularDestinations({
             <Card className="h-full">
               <CardHeader>
                 <CardTitle>{city.name}</CardTitle>
-                <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <MapPinIcon className="size-4" aria-hidden="true" />
+                {/* items-start + mt-0.5: the icon stays on the first line when a long name wraps */}
+                <p className="flex items-start gap-1 text-sm text-muted-foreground">
+                  <MapPinIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                   {countryName.get(city.countryCode) ?? city.countryCode}
                 </p>
               </CardHeader>
@@ -44,8 +45,8 @@ export function PopularDestinations({
                 {attractions
                   .filter((attraction) => attraction.cityId === city.cityId)
                   .map((attraction) => (
-                    <p key={attraction.attractionId} className="flex items-center gap-1">
-                      <LandmarkIcon className="size-4 text-cyan" aria-hidden="true" />
+                    <p key={attraction.attractionId} className="flex items-start gap-1">
+                      <LandmarkIcon className="mt-0.5 size-4 shrink-0 text-cyan" aria-hidden="true" />
                       {attraction.name}
                     </p>
                   ))}
