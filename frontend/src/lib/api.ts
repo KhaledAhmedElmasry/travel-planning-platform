@@ -50,8 +50,14 @@ function send(path: string, init: ApiInit): Promise<Response> {
   return fetch(path, { ...rest, headers, body, credentials: "include", cache: "no-store" });
 }
 
+/** Reads and drops the body of a reply we don't use: Chromium keeps an unread reply's request open. */
+function discard(res: Response): void {
+  void res.text().catch(() => {});
+}
+
 async function refreshSession(): Promise<boolean> {
   const res = await fetch("/api/auth/refresh", { method: "POST", credentials: "include", cache: "no-store" });
+  discard(res);
   return res.ok;
 }
 
@@ -71,8 +77,9 @@ async function recover(path: string, init: ApiInit): Promise<Response> {
     inTabRefresh ??= refreshSession().finally(() => {
       inTabRefresh = null;
     });
-    const refreshed = await inTabRefresh;
-    return refreshed ? send(path, init) : again;
+    if (!(await inTabRefresh)) return again;
+    discard(again);
+    return send(path, init);
   });
 }
 
@@ -80,7 +87,10 @@ async function recover(path: string, init: ApiInit): Promise<Response> {
 async function request(path: string, init: ApiInit): Promise<Response | null> {
   let res = await send(path, init);
   const isAuthCall = path.startsWith("/api/auth/login") || path.startsWith("/api/auth/refresh");
-  if (res.status === 401 && !isAuthCall) res = await recover(path, init);
+  if (res.status === 401 && !isAuthCall) {
+    discard(res);
+    res = await recover(path, init);
+  }
 
   if (res.status === 401 && !isAuthCall && init.redirectOnAuthFail !== false) {
     window.location.assign(loginPath(window.location.pathname + window.location.search));

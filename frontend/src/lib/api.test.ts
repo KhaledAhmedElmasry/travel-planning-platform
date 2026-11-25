@@ -64,8 +64,39 @@ test("apiBlob refreshes the session once on a 401 and retries", async () => {
   expect(file.filename).toBe("itinerary-Cairo-trip.pdf");
 });
 
+// source: spec §1 (ACC-19) - a guest: request 401, retry 401, refresh 401 -> ApiError 401.
+// A reply whose body is never read stays open in Chromium (Playwright "networkidle" never comes),
+// so every reply the client drops must have its body read.
+test("apiFetch reads the body of every reply it drops when a guest's refresh fails", async () => {
+  const unauthorized = () => json(401, { statusCode: 401, error: "UNAUTHORIZED", message: "You must be logged in" });
+  const replies = [unauthorized(), unauthorized(), unauthorized()];
+  const fetchMock = vi.fn();
+  replies.forEach((reply) => fetchMock.mockResolvedValueOnce(reply));
+  vi.stubGlobal("fetch", fetchMock);
+
+  await expect(apiFetch("/api/auth/me", { redirectOnAuthFail: false })).rejects.toMatchObject({ status: 401 });
+
+  expect(fetchMock.mock.calls.map((c) => c[0])).toEqual(["/api/auth/me", "/api/auth/me", "/api/auth/refresh"]);
+  expect(replies.map((reply) => reply.bodyUsed)).toEqual([true, true, true]);
+});
+
+// source: spec §1 (ACC-19) - 401, retry 401, refresh OK, retry succeeds: both dropped 401s are read
+// (a successful refresh is 204: no body to read).
+test("apiBlob reads the body of every reply it drops when the refresh succeeds", async () => {
+  const unauthorized = () => json(401, { statusCode: 401, error: "UNAUTHORIZED", message: "x" });
+  const replies = [unauthorized(), unauthorized(), new Response(null, { status: 204 }), pdf()];
+  const fetchMock = vi.fn();
+  replies.forEach((reply) => fetchMock.mockResolvedValueOnce(reply));
+  vi.stubGlobal("fetch", fetchMock);
+
+  await apiBlob("/api/itineraries/i1/pdf");
+
+  expect(replies.slice(0, 2).map((reply) => reply.bodyUsed)).toEqual([true, true]);
+});
+
 test("apiBlob throws ApiError 401 when the refresh fails and redirectOnAuthFail is false", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(401, { statusCode: 401, error: "UNAUTHORIZED", message: "Session expired" })));
+  // A fresh reply per call, like a real fetch (a reply's body can be read only once).
+  vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => json(401, { statusCode: 401, error: "UNAUTHORIZED", message: "Session expired" })));
 
   await expect(apiBlob("/api/itineraries/i1/pdf", { redirectOnAuthFail: false })).rejects.toMatchObject({ status: 401 });
 });
