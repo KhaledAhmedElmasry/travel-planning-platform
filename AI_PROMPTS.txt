@@ -22,6 +22,21 @@ How the output was used:
 
 ================================================
 Date: 2026-11-26
+Student: <Full name>
+Tool: Codex
+Related Requirement: ITN-01 / ITN-20 / GEN-12
+
+Prompt:
+Implement the assigned T3 itinerary pages in separate branches and keep
+components required by a page on the same branch.
+
+How the output was used:
+Codex implemented the P-25 create form using the existing app shell, form kit,
+country reference endpoint and create-itinerary endpoint.
+================================================
+
+================================================
+Date: 2026-11-26
 Student: Omar Ahmed Alaga
 Tool: Codex
 Related Requirement: HTL-16 / HTL-18 / HTL-09 / PAY-02
