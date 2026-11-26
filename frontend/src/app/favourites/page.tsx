@@ -1,7 +1,7 @@
 // - (Bonus) Favourites: /favourites
 // Part: Lead (foundation)
 // Requirements: BON-02
-// Endpoints: POST, GET /api/favourites; DELETE /api/favourites/{id}; GET /api/countries; GET /api/cities
+// Endpoints: GET /api/favourites; DELETE /api/favourites/{id}; GET /api/countries; GET /api/cities
 // Rendering: Dynamic SSR. Not in .md section 9, decided by the team leader (23 Nov): per-user data read with the session cookie on every request, so it can't be cached for everyone.
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page - (Bonus)). Use a shell and kit components (frontend/README.md).
 // Built (24 Nov): Hotels | Itineraries tabs (?tab=), 10 per page (?page=), Remove with confirmation

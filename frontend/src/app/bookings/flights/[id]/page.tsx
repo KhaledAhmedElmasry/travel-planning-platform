@@ -1,7 +1,7 @@
 // P-21 Flight booking details: /bookings/flights/[id]
 // Part: Lead (foundation)
 // Requirements: FLT-25, FLT-26, PAY-03, FLT-27 (Bonus), FLT-28 (Bonus)
-// Endpoints: GET /api/flight-bookings/{id}; POST /api/flight-bookings/{id}/cancel; PATCH /api/flight-bookings/{id}/change-flight; GET /api/flight-bookings/{id}/e-ticket; PATCH /api/flight-bookings/{id}/seat; GET /api/flight-bookings/{id}/seats; GET /api/refunds/{id}
+// Endpoints: GET /api/flight-bookings/{id}; POST /api/flight-bookings/{id}/cancel; PATCH /api/flight-bookings/{id}/change-flight; GET /api/flight-bookings/{id}/e-ticket; PATCH /api/flight-bookings/{id}/seat; GET /api/flight-bookings/{id}/seats; GET /api/flights/search (change flight); GET /api/refunds/{id}
 // Rendering: Dynamic SSR. Source: .md section 9 "User Booking Pages"; cancel / change-flight / seat dialogs are Client Components.
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-21). Use a shell and kit components (frontend/README.md).
 // The booking is read with the visitor's session: another user's booking answers 404 (ACC-11).
