@@ -21,6 +21,19 @@ How the output was used:
 ================================================
 
 ================================================
+Date: 2026-11-26
+Student: Omar Ahmed Alaga
+Tool: Codex
+Related Requirement: HTL-16 / HTL-18 / HTL-09 / PAY-02
+
+Prompt:
+Implement P-19 Book a hotel on its dedicated feature branch. Use the existing hotel booking endpoints and kit components, following the page header, OpenAPI contract and AGENTS.md. Support room selection, guests per room, a 10-minute room hold, hotel policies, policy acceptance and the existing payment route. Do not create routes, custom CSS, tests or backend changes.
+
+How the output was used:
+Used AI assistance to assemble the existing SSR shell, wizard layout, room and guest controls, hotel-booking hold request, countdown, policy acceptance and payment redirect. Verified the implementation with frontend lint and typecheck. The production build was attempted but blocked by the existing next/font Google Fonts network fetch.
+================================================
+
+================================================
 Date: 2026-11-06
 Student: Salaheldin Mahmoud
 Tool: Copilot
@@ -1890,6 +1903,29 @@ search criteria, a round trip continues only when an outbound and a return cabin
 the P-14 link carries the flights, cabins and passengers. Open points went to the team leader.
 Verified with npm run lint, npm run typecheck and npm run build, and in the browser as a guest
 and as demo.user, on desktop and at 375 px.
+
+================================================
+Date: 2026-11-26
+Student: Omar Ahmed Alaga
+Tool: Codex
+Related Requirement: BLG-03 (P-33 My posts)
+
+Prompt:
+Build page P-33 My posts (/my/posts) from my T2 handout and AGENTS.md. Keep the header comment and
+Dynamic SSR + Client Components rendering. Work only on the assigned P-33 files and this
+AI_PROMPTS.txt entry. Call only GET /api/posts/mine and DELETE /api/posts/{id} according to
+docs/api/openapi.yaml. Use requireUser(["user"]), AppShell, PageHeader, StatusBadge(kind="post"),
+PaginationBar, EmptyState, Skeleton, Button, Link and ConfirmDialog. Show the user's drafts and
+published posts with title, status, date, like count and comment count; use 10 per page, an empty
+state, loading state and an error state. Add edit/view links and confirm before delete. Do not add
+custom CSS, routes, tests, libraries, backend changes or edits to shared files. Run lint, typecheck
+and build, then test the endpoints and report the results.
+
+How the output was used:
+Implemented the P-33 server page, client list/delete interactions and loading state with the exact
+MyPostSummary fields and authenticated API contract. Verified lint and typecheck, and documented
+the build's external Google Fonts fetch blocker.
+================================================
 ================================================
 
 ================================================
