@@ -2062,3 +2062,27 @@ How the output was used:
 Codex added city-group selection, the derived stay dates, guest and room
 controls, and paginated hotel results linked to the hotel detail page.
 ================================================
+
+================================================
+Date: 2026-11-26
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ITN-03 (P-24 My itineraries)
+
+Prompt:
+Build page P-24 My itineraries (/my/itineraries) from my T1 handout and AGENTS.md. Keep the stub's
+header comment and its rendering (Dynamic SSR, registered users only, a guest logs in and comes
+back). Call GET /api/itineraries with the page number and GET /api/countries for the full country
+names, and show each itinerary with the shared ItineraryCard (title, countries, start date, number
+of days, Private / Public) linking to /my/itineraries/{id}, 10 per page with PaginationBar, a "New
+itinerary" button to /my/itineraries/new, and the handout's empty state (So3ad, "So empty! Let's plan
+something."). Use AppShell and kit components only and don't touch shared files.
+
+How the output was used:
+Used as app/my/itineraries/page.tsx. I checked it against the handout, AGENTS.md and openapi.yaml:
+the list keeps the backend's order (most recently updated first), countries show their full names,
+each card shows Private or Public and opens the itinerary, page 2 shows the next 10, a page past the
+end offers page 1, a new user sees the empty state with the New itinerary button, and a guest is sent
+to log in. Verified with npm run lint, npm run typecheck and npm run build, and in the browser as
+demo.user and as a guest, on desktop and at 375 px.
+================================================
