@@ -1890,6 +1890,7 @@ search criteria, a round trip continues only when an outbound and a return cabin
 the P-14 link carries the flights, cabins and passengers. Open points went to the team leader.
 Verified with npm run lint, npm run typecheck and npm run build, and in the browser as a guest
 and as demo.user, on desktop and at 375 px.
+================================================
 
 ================================================
 Date: 2026-11-26
@@ -1913,5 +1914,4 @@ Implemented the P-15 hotel search page and client interactions using the exact O
 existing search kit components and paginated result contract. Verified lint and typecheck, manually
 tested the reference-data and hotel-search endpoints, and documented the external font-fetch build
 blocker.
-================================================
 ================================================
