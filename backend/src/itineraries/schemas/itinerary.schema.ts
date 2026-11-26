@@ -164,6 +164,13 @@ export class Itinerary {
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', default: null })
   originalAuthorId: Types.ObjectId | null;
 
+  // Attribution is captured when the source is public and the clone is created.
+  @Prop({ type: String })
+  originalTitle?: string;
+
+  @Prop({ type: String })
+  originalAuthorName?: string;
+
   // ITN-05: the days in order (day 1 first).
   @Prop({ type: [ItineraryDaySchema], default: [] })
   days: Types.DocumentArray<ItineraryDay>;

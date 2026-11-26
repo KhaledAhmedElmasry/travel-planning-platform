@@ -498,6 +498,7 @@ export class ItinerariesService {
     if (!source || (await this.isDeactivatedUser(source.userId))) {
       throw publicItineraryNotFound(); // ACC-12
     }
+    const originalAuthor = await this.publicAuthor(source.userId);
     // ITN-21: the clone is independent of the original, so every activity image is copied to a
     // new file. Deleting an image (or the whole itinerary) on one side never breaks the other.
     const copiedKeys: string[] = [];
@@ -551,6 +552,8 @@ export class ItinerariesService {
         visibility: 'private',
         originalItineraryId: source._id,
         originalAuthorId: source.userId,
+        originalTitle: source.title,
+        originalAuthorName: originalAuthor?.name,
         days,
         transportCosts: source.transportCosts.map((cost) => ({
           ...cost.toObject(),
@@ -570,7 +573,16 @@ export class ItinerariesService {
     userId: string,
   ): Promise<ItineraryResponse> {
     const itinerary = await this.findOwnedOrThrow(itineraryId, userId);
-    const response = this.toResponse(itinerary);
+    const response: ItineraryResponse = {
+      ...this.toResponse(itinerary),
+      hidden: itinerary.get('hidden') === true,
+    };
+    if (itinerary.originalTitle && itinerary.originalAuthorName) {
+      response.cloneAttribution = {
+        title: itinerary.originalTitle,
+        authorName: itinerary.originalAuthorName,
+      };
+    }
     if (!this.bookingLinks) return response;
     // ITN-27: the bookings linked to its days.
     return {
@@ -1538,6 +1550,8 @@ export interface ItineraryResponse {
   updatedAt?: Date;
   originalItineraryId?: string | null;
   originalAuthorId?: string | null;
+  hidden?: boolean;
+  cloneAttribution?: { title: string; authorName: string };
 }
 
 export interface PublicItineraryResponse extends ItineraryResponse {

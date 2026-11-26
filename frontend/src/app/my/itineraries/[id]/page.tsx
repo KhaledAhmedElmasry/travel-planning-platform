@@ -19,6 +19,7 @@ import type { LinkedBooking } from "@/components/app/itineraries/link-booking-di
 import type { Transport } from "@/components/app/itineraries/transport-row";
 import { PageHeader } from "@/components/app/page-header";
 import type { Airport } from "@/components/app/search/flight-search-form";
+import { StatusBadge } from "@/components/app/status-badge";
 import { AppShell } from "@/components/layout/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { allPages } from "@/lib/all-pages";
@@ -36,6 +37,8 @@ type Details = Itinerary & {
   transportCosts: Transport[];
   linkedBookings?: LinkedBooking[];
   originalItineraryId?: string | null;
+  hidden?: boolean;
+  cloneAttribution?: { title: string; authorName: string };
 };
 type Original = { title: string; author: { name: string } };
 type Reference = { code: string; name: string };
@@ -61,7 +64,7 @@ async function ItineraryDetails({ id, dayPage, budgetCurrency }: { id: string; d
     referenceList<City>("/api/cities"),
     referenceList<Reference>("/api/currencies"),
     backendJson<Summary>(`${path}/budget-summary${budgetCurrency ? `?currency=${budgetCurrency}` : ""}`),
-    itinerary.originalItineraryId
+    itinerary.originalItineraryId && !itinerary.cloneAttribution
       ? backendJson<Original>(`/api/itineraries/public/${encodeURIComponent(itinerary.originalItineraryId)}`)
       : null,
     referenceList<Airport>("/api/airports"),
@@ -80,6 +83,11 @@ async function ItineraryDetails({ id, dayPage, budgetCurrency }: { id: string; d
     id: firstDay.cityId,
     name: cities?.find((city) => city.value === firstDay.cityId)?.label ?? firstDay.cityId,
   };
+  const publicOriginal = original.status === "fulfilled" ? original.value : null;
+  const attribution = itinerary.cloneAttribution ?? (publicOriginal && {
+    title: publicOriginal.title,
+    authorName: publicOriginal.author.name,
+  });
 
   return (
     <div className="grid gap-6">
@@ -87,10 +95,13 @@ async function ItineraryDetails({ id, dayPage, budgetCurrency }: { id: string; d
         title={itinerary.title}
         description={
           <span className="grid gap-1">
-            <span>{formatDay(itinerary.startDate)}</span>
+            <span className="flex flex-wrap items-center gap-2">
+              {formatDay(itinerary.startDate)}
+              {itinerary.hidden && <StatusBadge kind="content" status="hidden" />}
+            </span>
             {itinerary.originalItineraryId && (
-              <span>{original.status === "fulfilled" && original.value
-                ? `Cloned from ${original.value.title} by ${original.value.author.name}`
+              <span>{attribution
+                ? `Cloned from ${attribution.title} by ${attribution.authorName}`
                 : "Cloned from an itinerary that is currently unavailable."}</span>
             )}
           </span>
