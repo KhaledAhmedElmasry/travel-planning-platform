@@ -9,6 +9,7 @@ import { FormField } from "@/components/app/form-field";
 import { NumberStepper } from "@/components/app/number-stepper";
 import { Input } from "@/components/ui/input";
 
+/** A child with no age entered yet has NaN (P-19 asks for every age, HTL-16 ages 0-17). */
 export type RoomGuests = { adults: number; childrenAges: number[] };
 
 type Props = {
@@ -27,13 +28,13 @@ export function GuestsPerRoom({ roomNumber, maxOccupancy, value, onChange, error
       <legend className="px-1 font-semibold">Room {roomNumber}</legend>
       <div className="grid gap-4 sm:grid-cols-2">
         <NumberStepper label="Adults" value={value.adults} min={0} max={maxOccupancy} onChange={(adults) => onChange({ ...value, adults })} />
-        <NumberStepper label="Children" value={children} min={0} max={Math.max(0, maxOccupancy - value.adults)} onChange={(count) => onChange({ ...value, childrenAges: value.childrenAges.slice(0, count).concat(Array.from({ length: Math.max(0, count - value.childrenAges.length) }, () => 0)) })} />
+        <NumberStepper label="Children" value={children} min={0} max={Math.max(0, maxOccupancy - value.adults)} onChange={(count) => onChange({ ...value, childrenAges: value.childrenAges.slice(0, count).concat(Array.from({ length: Math.max(0, count - value.childrenAges.length) }, () => Number.NaN)) })} />
       </div>
       {children > 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
           {value.childrenAges.map((age, index) => (
             <FormField key={index} label={`Child ${index + 1} age`} name={`child-${roomNumber}-${index}`} required>
-              <Input type="number" min={0} max={17} value={age} onChange={(event) => onChange({ ...value, childrenAges: value.childrenAges.map((current, childIndex) => childIndex === index ? Number(event.target.value) : current) })} />
+              <Input type="number" min={0} max={17} value={Number.isNaN(age) ? "" : age} onChange={(event) => onChange({ ...value, childrenAges: value.childrenAges.map((current, childIndex) => childIndex === index ? (event.target.value === "" ? Number.NaN : Number(event.target.value)) : current) })} />
             </FormField>
           ))}
         </div>
