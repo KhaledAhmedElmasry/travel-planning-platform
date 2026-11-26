@@ -1913,5 +1913,5 @@ How the output was used:
 Implemented the assigned P-18 page and its two assigned presentational components using the exact
 OpenAPI response fields and the existing kit. Verified frontend lint and typecheck before manually
 testing the hotel details, available rooms and reviews endpoints.
-================================================
+
 ================================================
