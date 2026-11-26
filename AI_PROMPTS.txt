@@ -1951,3 +1951,27 @@ existing search kit components and paginated result contract. Verified lint and 
 tested the reference-data and hotel-search endpoints, and documented the external font-fetch build
 blocker.
 ================================================
+
+================================================
+Date: 2026-11-26
+Student: Omar Ahmed Alaga
+Tool: Codex
+Related Requirement: HTL-02, HTL-15, HTL-24, GEN-09 (P-18 Hotel details)
+
+Prompt:
+Build page P-18 Hotel details (/hotels/[id]) from my T2 handout and AGENTS.md. Work only on
+frontend/src/app/hotels/[id]/page.tsx, frontend/src/components/app/hotels/hotel-gallery.tsx,
+frontend/src/components/app/hotels/room-selection-list.tsx and this AI_PROMPTS.txt entry. Keep the
+header comment and dynamic SSR rendering. Call only GET /api/hotels/{id}, GET
+/api/hotels/{id}/rooms/available and GET /api/hotels/{id}/reviews according to docs/api/openapi.yaml.
+Use PublicShell, existing kit components, HotelGallery, RoomSelectionList, ReviewCard, StarRating,
+ReportButton and PaginationBar. Show the hotel profile, photos, policies, amenities, date-dependent
+available rooms, empty states and paginated reviews. Do not add custom CSS, routes, tests, libraries,
+backend changes or edits to shared files. Run lint and typecheck, then manually test the public
+endpoints and report the results.
+
+How the output was used:
+Implemented the assigned P-18 page and its two assigned presentational components using the exact
+OpenAPI response fields and the existing kit. Verified frontend lint and typecheck before manually
+testing the hotel details, available rooms and reviews endpoints.
+================================================

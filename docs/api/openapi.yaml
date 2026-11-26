@@ -9004,7 +9004,15 @@ components:
             items:
               type: array
               items:
-                $ref: '#/components/schemas/ReviewResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ReviewResponse'
+                  - type: object
+                    required: [hidden]
+                    properties:
+                      hidden:
+                        type: boolean
+                        example: false
+                        description: True when an admin hid the review (GEN-10). Hidden reviews are listed only to their author and admins.
 
     ReviewReplyRequest:
       type: object

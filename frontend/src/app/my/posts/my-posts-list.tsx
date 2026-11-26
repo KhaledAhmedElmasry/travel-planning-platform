@@ -44,6 +44,16 @@ export function MyPostsList({ posts, page, pageSize, total, totalPages }: MyPost
     }
   }
 
+  // Past the last page (e.g. ?page=99 or after deleting a page's only post) while posts exist.
+  if (posts.length === 0 && total > 0) {
+    return (
+      <EmptyState
+        title="This page is empty"
+        action={<Button asChild><Link href="/my/posts">Go to page 1</Link></Button>}
+      />
+    );
+  }
+
   if (posts.length === 0) {
     return (
       <EmptyState
@@ -69,8 +79,8 @@ export function MyPostsList({ posts, page, pageSize, total, totalPages }: MyPost
                 </div>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground" aria-label="Post engagement">
-                <span className="inline-flex items-center gap-1.5"><ThumbsUpIcon className="size-4" aria-hidden="true" />{post.likeCount}</span>
-                <span className="inline-flex items-center gap-1.5"><MessageCircleIcon className="size-4" aria-hidden="true" />{post.commentCount}</span>
+                <span className="inline-flex items-center gap-1.5"><ThumbsUpIcon className="size-4" aria-hidden="true" /><span aria-hidden="true">{post.likeCount}</span><span className="sr-only">{post.likeCount} {post.likeCount === 1 ? "like" : "likes"}</span></span>
+                <span className="inline-flex items-center gap-1.5"><MessageCircleIcon className="size-4" aria-hidden="true" /><span aria-hidden="true">{post.commentCount}</span><span className="sr-only">{post.commentCount} {post.commentCount === 1 ? "comment" : "comments"}</span></span>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
