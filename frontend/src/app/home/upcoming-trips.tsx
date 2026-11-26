@@ -9,6 +9,7 @@ import { So3adTip } from "@/components/app/so3ad";
 import { HOME_LIST_SIZE, HomeList, HomeListRow, HomeSection } from "@/components/app/home-section";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
+import { localDateTime } from "@/components/app/checkout/confirmation-panel";
 import { formatDay } from "@/lib/dates";
 
 type BookingStatus = "pending_payment" | "confirmed" | "completed" | "expired" | "cancelled";
@@ -69,7 +70,7 @@ export function UpcomingTrips({ flights, hotels }: { flights: UpcomingFlight[]; 
                 </span>
               </span>
               <span className="flex items-center gap-3 text-sm">
-                <span className="tabular">{booking.departureLocal.replace("T", " ")}</span>
+                <span className="tabular">{localDateTime(booking.departureLocal)}</span>
                 <StatusBadge kind="booking" status={booking.status} />
               </span>
             </HomeListRow>
