@@ -54,9 +54,13 @@ export function ItineraryDays({ id, days, groups, cities, currencies, transport,
           return day ? [day] : [];
         });
         if (!groupDays.length) return null;
+        const cityName = cities.find((city) => city.value === group.cityId)?.label ?? group.cityId;
         return (
           <section key={group.dayIds[0]} className="grid gap-3">
-            <CityGroupHeader name={cities.find((city) => city.value === group.cityId)?.label ?? group.cityId} group={group} />
+            <div className="grid gap-2">
+              <CityGroupHeader name={cityName} group={group} />
+              <div><FindHotelsPanel key={`${group.startDate}-${group.endDate}`} itineraryId={id} group={group} cityName={cityName} /></div>
+            </div>
             {groupDays.map((day) => (
               <DayCard key={day.id} day={day} itineraryId={id} cities={cities} currencies={currencies}
                 days={positions} transport={transport} bookings={bookings} moving={moving} onMove={move} />
@@ -65,7 +69,6 @@ export function ItineraryDays({ id, days, groups, cities, currencies, transport,
         );
       })}
       <PaginationBar page={page} totalPages={totalPages} total={days.length} hrefFor={(page) => `?dayPage=${page}`} />
-      <FindHotelsPanel itineraryId={id} groups={groups} cities={cities} />
     </section>
   );
 }

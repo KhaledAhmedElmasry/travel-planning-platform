@@ -8,17 +8,16 @@
 import { useState, type FormEvent } from "react";
 import { EmptyState } from "@/components/app/empty-state";
 import { ErrorState } from "@/components/app/error-state";
-import { FormErrorSummary } from "@/components/app/form-error-summary";
 import { NumberStepper } from "@/components/app/number-stepper";
 import { PaginationBar } from "@/components/app/pagination-bar";
 import { HotelResultCard, type HotelSearchResult } from "@/components/app/search/hotel-result-card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, apiFetch } from "@/lib/api";
 import { fieldErrorMap } from "@/lib/api-error";
 import { formatDay, fromDateString, toDateString } from "@/lib/dates";
 import type { CityGroup } from "./city-group-header";
-import { EditorSelect, type Option } from "./editor-form";
 
 type Search = { dayId: string; guests: number; rooms: number };
 type Results = {
@@ -33,21 +32,19 @@ function checkOutDate(day: string) {
   return toDateString(date);
 }
 
-export function FindHotelsPanel({ itineraryId, groups, cities }: {
-  itineraryId: string; groups: CityGroup[]; cities: Option[];
+export function FindHotelsPanel({ itineraryId, group, cityName }: {
+  itineraryId: string; group: CityGroup; cityName: string;
 }) {
-  const [dayId, setDayId] = useState("");
   const [guests, setGuests] = useState(1);
   const [rooms, setRooms] = useState(1);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<{ message: string; fields: Record<string, string> }>();
   const [results, setResults] = useState<{ search: Search; data: Results }>();
-  const chosen = groups.find((group) => group.dayIds[0] === dayId);
-  const selected = chosen ?? groups[0];
-  const cityName = (id: string) => cities.find((city) => city.value === id)?.label ?? id;
+  const [lastSearch, setLastSearch] = useState<{ criteria: Search; page: number }>();
 
   async function search(criteria: Search, page: number) {
     if (busy) return;
+    setLastSearch({ criteria, page });
     setBusy(true);
     setFailure(undefined);
     setResults(undefined);
@@ -69,37 +66,42 @@ export function FindHotelsPanel({ itineraryId, groups, cities }: {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (selected) void search({ dayId: selected.dayIds[0], guests, rooms }, 1);
+    void search({ dayId: group.dayIds[0], guests, rooms }, 1);
   }
 
   return (
-    <section className="grid gap-4">
-      <h2 className="text-lg font-semibold">Find hotels</h2>
-      {!selected ? <EmptyState title="Add a day to find hotels" compact /> : (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" aria-label={`Find hotels in ${cityName}, starting ${formatDay(group.startDate)}`}>Find hotels</Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Find hotels in {cityName}</DialogTitle>
+          <DialogDescription>
+            Check-in {formatDay(group.startDate)} · Check-out {formatDay(checkOutDate(group.endDate))}
+          </DialogDescription>
+        </DialogHeader>
         <form onSubmit={submit} className="grid max-w-xl gap-3">
-          <EditorSelect name="dayId" label="City group" value={selected.dayIds[0]} onChange={setDayId}
-            error={failure?.fields.dayId} required options={groups.map((group) => ({
-              value: group.dayIds[0],
-              label: `${cityName(group.cityId)} · ${formatDay(group.startDate)} to ${formatDay(group.endDate)}`,
-            }))} />
-          <p className="text-sm text-muted-foreground">
-            Check-in {formatDay(selected.startDate)} · Check-out {formatDay(checkOutDate(selected.endDate))}
-          </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <NumberStepper label="Guests" value={guests} min={1} onChange={setGuests} />
-            <NumberStepper label="Rooms" value={rooms} min={1} onChange={setRooms} />
+            <div>
+              <NumberStepper label="Guests" value={guests} min={1} onChange={setGuests} />
+              {failure?.fields.guests && <p className="text-sm text-error">{failure.fields.guests}</p>}
+            </div>
+            <div>
+              <NumberStepper label="Rooms" value={rooms} min={1} onChange={setRooms} />
+              {failure?.fields.rooms && <p className="text-sm text-error">{failure.fields.rooms}</p>}
+            </div>
           </div>
-          {failure && Object.keys(failure.fields).length > 0 && <FormErrorSummary errors={failure.fields} />}
           <Button type="submit" loading={busy} className="justify-self-start">Search hotels</Button>
         </form>
-      )}
       {busy && <Skeleton className="h-32 w-full" aria-label="Searching for hotels" />}
-      {failure && <ErrorState message={failure.message} compact />}
+      {failure && <ErrorState message={failure.message} compact onRetry={lastSearch
+        ? () => void search(lastSearch.criteria, lastSearch.page) : undefined} />}
       {results && (
         <div className="grid gap-3">
           {results.data.items.length === 0 && <EmptyState title="No available hotels for these dates" compact />}
           {results.data.items.map((hotel) => (
-            <HotelResultCard key={hotel.id} hotel={hotel} cityName={cityName(hotel.cityId)}
+            <HotelResultCard key={hotel.id} hotel={hotel} cityName={cityName}
               countryName={new Intl.DisplayNames(["en"], { type: "region" }).of(hotel.countryCode) ?? hotel.countryCode}
               search={{ checkIn: results.data.checkIn, checkOut: results.data.checkOut, guests: results.search.guests, rooms: results.search.rooms }} />
           ))}
@@ -115,6 +117,7 @@ export function FindHotelsPanel({ itineraryId, groups, cities }: {
           </div>
         </div>
       )}
-    </section>
+      </DialogContent>
+    </Dialog>
   );
 }
