@@ -50,12 +50,14 @@ export function FindFlightsPanel({ itineraryId, airports, city, departure, lastD
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string>();
   const [response, setResponse] = useState<{ criteria: Criteria; result: FlightSearchResult; page: number }>();
+  const [lastSearch, setLastSearch] = useState<{ criteria: Criteria; page: number }>();
   const roundTrip = tripType === "round_trip";
   const hasDestination = city && airports.some((airport) => airport.cityId === city.id);
   const today = todayString();
 
   async function search(criteria: Criteria, page: number, newSearch = false) {
     if (busy) return;
+    setLastSearch({ criteria, page });
     setBusy(true);
     setFields({});
     setMessage(undefined);
@@ -135,15 +137,19 @@ export function FindFlightsPanel({ itineraryId, airports, city, departure, lastD
               setAdults(value);
               setInfants((current) => Math.min(current, value));
             }} />
+            {fields.adults && <p className="text-sm text-error">{fields.adults}</p>}
             <NumberStepper label="Children" value={children} onChange={setChildren} />
+            {fields.children && <p className="text-sm text-error">{fields.children}</p>}
             <NumberStepper label="Infants" value={infants} max={adults} onChange={setInfants} />
+            {fields.infants && <p className="text-sm text-error">{fields.infants}</p>}
           </fieldset>
           <EditorSelect name="cabinClass" label="Cabin" value={cabin} onChange={setCabin} error={fields.cabinClass} options={cabinOptions} />
           <Button type="submit" loading={busy} className="justify-self-start">Search flights</Button>
         </form>
       )}
       {busy && <Skeleton className="h-32 w-full" aria-label="Searching for flights" />}
-      {message && <ErrorState message={message} compact />}
+      {message && <ErrorState message={message} compact onRetry={lastSearch
+        ? () => void search(lastSearch.criteria, lastSearch.page) : undefined} />}
       {response && result && (
         <div className="grid gap-4" aria-busy={busy}>
           {"outbound" in result ? (
