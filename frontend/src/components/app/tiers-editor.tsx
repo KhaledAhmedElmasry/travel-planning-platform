@@ -2,7 +2,7 @@
 
 // Cancellation tiers for airlines (FLT-09) and hotels (HTL-10).
 // Each tier: days before departure / check-in (integer >= 0, unique) and the refund
-// percentage (0-100). Matches the backend's CancellationTier { daysBefore, refundPercentage }.
+// percentage (whole number 0-100, team leader 26 Nov). Matches the backend's CancellationTier { daysBefore, refundPercentage }.
 // <TiersEditor value={tiers} onChange={setTiers} unit="departure" />
 // validateTiers(tiers) gives per-row messages to show before saving; the backend
 // checks the same rules (PUT /api/airlines/:id/cancellation-policy, PUT /api/hotels/:id/policies).
@@ -20,7 +20,7 @@ export function validateTiers(tiers: Tier[]): Record<number, string> {
     const days = tier.daysBefore;
     const pct = tier.refundPercentage;
     if (days === "" || !Number.isInteger(days) || days < 0) errors[i] = "Days must be a whole number, 0 or more.";
-    else if (pct === "" || pct < 0 || pct > 100) errors[i] = "Refund must be between 0 and 100%.";
+    else if (pct === "" || !Number.isInteger(pct) || pct < 0 || pct > 100) errors[i] = "Refund must be a whole number from 0 to 100%.";
     else if (seen.has(days)) errors[i] = `Another tier already uses ${days} days.`;
     if (typeof days === "number") seen.set(days, i);
   });
