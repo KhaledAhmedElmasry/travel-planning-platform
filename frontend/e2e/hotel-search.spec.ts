@@ -22,6 +22,14 @@ async function cairoStay(request: APIRequestContext, withHotel: boolean): Promis
 
 const query = (page: Page) => Object.fromEntries(new URL(page.url()).searchParams);
 const results = (page: Page) => page.getByRole("region", { name: "Hotel search results" });
+/** The visible filter panel: beside the results on desktop, behind the Filters button on phones (GEN-16). */
+async function openFilters(page: Page) {
+  await expect(results(page)).toBeVisible();
+  const button = page.getByRole("button", { name: "Filters" });
+  if (!(await button.isVisible())) return page.getByRole("form", { name: "Filters" }).first();
+  await button.click();
+  return page.getByRole("dialog", { name: "Filters" });
+}
 
 // source: Excel HTL-11 list hotels for a city; spec P-15 card "city and country"; GEN-12 official reference data;
 // HotelResultCard header (team leader 23 Nov): the card links to /hotels/{id} with the searched dates, guests and rooms
@@ -59,11 +67,9 @@ test("changing the sort keeps the search and the price filter", async ({ page })
 // source: Excel HTL-12 inclusive max price per night; FilterPanel header: whole amounts sent in cents
 test("a max price filter is sent in cents and keeps the search", async ({ page }) => {
   const { checkIn, checkOut } = await cairoStay(page.request, true);
-  // Desktop width: the filter panel beside the results (the phone panel is checked in the last test).
-  await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`/hotels?city=cairo&checkIn=${checkIn}&checkOut=${checkOut}&guests=1&rooms=1`);
 
-  const filters = page.getByRole("form", { name: "Filters" }).first();
+  const filters = await openFilters(page);
   await filters.getByLabel(/^Max price/).fill("1");
   await filters.getByRole("button", { name: "Apply" }).click();
 

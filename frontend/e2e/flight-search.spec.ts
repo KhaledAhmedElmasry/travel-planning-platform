@@ -62,6 +62,24 @@ test("changing the sort keeps the search and the price filter", async ({ page })
   expect(query(page)).toMatchObject({ origin: "CAI", destination: "DXB", departureDate: date, maxPrice: "99999900", sortBy: "price", sortOrder: "desc" });
 });
 
+// source: Excel FLT-15 "filter flight results by an inclusive minimum and maximum price while preserving the other
+// search criteria"; FilterPanel header: whole amounts sent in cents. Desktop panel or phone panel (GEN-16).
+test("a max price filter is sent in cents and keeps the search", async ({ page }) => {
+  const date = await dateWithFlight(page.request, "CAI", "DXB");
+  await page.goto(`/flights?origin=CAI&destination=DXB&departureDate=${date}`);
+  await expect(page.getByRole("region", { name: "Search results" })).toBeVisible();
+
+  const button = page.getByRole("button", { name: "Filters" });
+  const phone = await button.isVisible();
+  if (phone) await button.click();
+  const filters = phone ? page.getByRole("dialog", { name: "Filters" }) : page.getByRole("form", { name: "Filters" }).first();
+  await filters.getByLabel(/^Max price/).fill("1");
+  await filters.getByRole("button", { name: "Apply" }).click();
+
+  await page.waitForURL(/maxPrice=100/);
+  expect(query(page)).toMatchObject({ origin: "CAI", destination: "DXB", departureDate: date, maxPrice: "100" });
+});
+
 // source: Excel FLT-11 show "no flights found" when no match exists; GEN-04; team leader (26 Nov): both texts
 test("a search with no match shows the empty state", async ({ page }) => {
   const date = await dateWithoutFlight(page.request, "CAI", "DXB");
