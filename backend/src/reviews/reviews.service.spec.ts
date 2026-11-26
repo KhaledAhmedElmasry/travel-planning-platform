@@ -512,6 +512,32 @@ describe('ReviewsService', () => {
       expect(models.review.find).toHaveBeenLastCalledWith({ hotel: hotelId });
     });
 
+    // source: Excel GEN-10 - admins hide content; hidden content stays visible to its author and admins.
+    // Team leader (26 Nov): each listed review says whether it is hidden, so P-18 can mark it and offer Unhide.
+    it('marks each listed review as hidden or not', async () => {
+      const hiddenId = new Types.ObjectId();
+      const { service } = setup([
+        makeReview(),
+        // older than makeReview()'s 1 Nov, so it comes second (newest first)
+        makeReview({
+          _id: hiddenId,
+          hidden: true,
+          createdAt: new Date('2026-10-01T10:00:00Z'),
+        }),
+      ]);
+      const admin = {
+        id: new Types.ObjectId().toString(),
+        role: Role.Admin,
+      } as AuthUser;
+
+      const result = await service.listHotelReviews(hotelId, 1, admin);
+
+      expect(result.items.map((item) => [item.id, item.hidden])).toEqual([
+        [reviewId.toString(), false],
+        [hiddenId.toString(), true],
+      ]);
+    });
+
     it('does not include another regular user’s hidden reviews in the viewer filter', async () => {
       const { service, models } = setup();
       const otherViewer = new Types.ObjectId();

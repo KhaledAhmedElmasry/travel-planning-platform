@@ -1908,6 +1908,54 @@ and as demo.user, on desktop and at 375 px.
 Date: 2026-11-26
 Student: Omar Ahmed Alaga
 Tool: Codex
+Related Requirement: BLG-03 (P-33 My posts)
+
+Prompt:
+Build page P-33 My posts (/my/posts) from my T2 handout and AGENTS.md. Keep the header comment and
+Dynamic SSR + Client Components rendering. Work only on the assigned P-33 files and this
+AI_PROMPTS.txt entry. Call only GET /api/posts/mine and DELETE /api/posts/{id} according to
+docs/api/openapi.yaml. Use requireUser(["user"]), AppShell, PageHeader, StatusBadge(kind="post"),
+PaginationBar, EmptyState, Skeleton, Button, Link and ConfirmDialog. Show the user's drafts and
+published posts with title, status, date, like count and comment count; use 10 per page, an empty
+state, loading state and an error state. Add edit/view links and confirm before delete. Do not add
+custom CSS, routes, tests, libraries, backend changes or edits to shared files. Run lint, typecheck
+and build, then test the endpoints and report the results.
+
+How the output was used:
+Implemented the P-33 server page, client list/delete interactions and loading state with the exact
+MyPostSummary fields and authenticated API contract. Verified lint and typecheck, and documented
+the build's external Google Fonts fetch blocker.
+================================================
+================================================
+
+================================================
+Date: 2026-11-26
+Student: Omar Ahmed Alaga
+Tool: Codex
+Related Requirement: HTL-11, HTL-12, GEN-12 (P-15 Hotel search)
+
+Prompt:
+Build page P-15 Hotel search (/hotels) from my T2 handout and AGENTS.md. Keep the header comment and
+Dynamic SSR rendering. Work only on the assigned hotel-search page files and this AI_PROMPTS.txt entry.
+Call only GET /api/hotels/search, GET /api/countries and GET /api/cities according to
+docs/api/openapi.yaml. Use PublicShell, HotelSearchForm, FilterPanel(kind="hotels"), SortSelect,
+HotelResultCard, PaginationBar, EmptyState, ErrorState and the existing kit. Keep all search criteria,
+filters, sort and page in the URL; show destination data from countries and cities, hotel cards with
+city/country names, responsive filters, loading, empty and backend-error states. Do not add custom CSS,
+routes, tests, libraries, backend changes or unrelated edits. Run lint, typecheck and build, then test
+the endpoints and report the results.
+
+How the output was used:
+Implemented the P-15 hotel search page and client interactions using the exact OpenAPI query fields,
+existing search kit components and paginated result contract. Verified lint and typecheck, manually
+tested the reference-data and hotel-search endpoints, and documented the external font-fetch build
+blocker.
+================================================
+
+================================================
+Date: 2026-11-26
+Student: Omar Ahmed Alaga
+Tool: Codex
 Related Requirement: HTL-02, HTL-15, HTL-24, GEN-09 (P-18 Hotel details)
 
 Prompt:
@@ -1926,5 +1974,4 @@ How the output was used:
 Implemented the assigned P-18 page and its two assigned presentational components using the exact
 OpenAPI response fields and the existing kit. Verified frontend lint and typecheck before manually
 testing the hotel details, available rooms and reviews endpoints.
-
 ================================================
