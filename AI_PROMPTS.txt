@@ -2000,3 +2000,33 @@ backend's reason and no Book buttons, and the page title and description come fr
 Verified with npm run lint, npm run typecheck and npm run build, and in the browser as a guest and
 as demo.user, on desktop and at 375 px.
 ================================================
+
+================================================
+Date: 2026-11-26
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: FLT-19, FLT-21, FLT-22, FLT-08, FLT-12, PAY-02 (P-14 Book a flight)
+
+Prompt:
+Build page P-14 Book a flight (/flights/[id]/book) with the PassengerCard and FlightBookingSummary
+components from my T1 handout and AGENTS.md, following the same flow as the team leader's P-19
+hotel booking page. Keep the stub's header comment and its rendering (Dynamic SSR + Client
+Components, travellers only, a guest logs in and comes back). Read the flights and cabins from the
+P-12 / P-13 link (cabinClass, passenger counts, returnFlightId and returnCabinClass for a round
+trip). Step 1: passenger counts and one card per passenger with full name, date of birth, passport
+or ID number and extra bags with weights, checked like the backend (type by age on the departure
+date, no more infants than adults, bag weight limit). Step 2: the summary from POST
+/api/flight-bookings. Then POST /api/flight-bookings/hold with the hold countdown, the policies with
+PolicyAcceptance, and P-16 payment. Show the backend's field errors under each field, its other
+messages, and a page that explains why a departed, cancelled or sold-out flight can't be booked.
+
+How the output was used:
+Used as the base for passenger-card.tsx, flight-booking-summary.tsx and app/flights/[id]/book/
+page.tsx. I checked it against the handout, AGENTS.md, the P-19 pattern and the FlightBookingRequest,
+FlightBookingQuote and FlightBooking schemas in openapi.yaml: an empty form is stopped before any
+request, an 11-year-old cannot be an adult, a 24 kg bag is refused when the limit is 23 kg, the
+summary shows each passenger's fare and baggage fee, a refused hold shows the backend's message, and
+after the hold a refresh goes to payment instead of holding again. Verified with npm run lint, npm
+run typecheck and npm run build, and in the browser as demo.user (one-way and round trip) and as a
+guest, on desktop and at 375 px.
+================================================
