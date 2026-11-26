@@ -14,7 +14,9 @@ import { ArrowRightIcon, BriefcaseIcon, InfoIcon } from "lucide-react";
 import { LocalTime } from "@/components/app/local-time";
 import { Price } from "@/components/app/price";
 import { StatusBadge } from "@/components/app/status-badge";
-import { CABIN_LABEL, type CabinClass } from "@/components/app/search/flight-search-form";
+// Labels from a server-safe file: a "use client" module's constants are undefined in a server component.
+import { CABIN_LABEL_FALLBACK as CABIN_LABEL } from "@/components/app/checkout/cabin-labels";
+import type { CabinClass } from "@/components/app/search/flight-search-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,7 +75,11 @@ export function FlightDetailsPanel({ flight, bookHref }: FlightDetailsPanelProps
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <div className="grid gap-1">
-            <CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              {flight.airline.logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- airline logos are backend-hosted uploads.
+                <img src={flight.airline.logoUrl} alt={`${flight.airline.name} logo`} className="size-8 rounded object-contain" />
+              )}
               {flight.airline.name} · {flight.flightNumber}
             </CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -127,9 +133,8 @@ export function FlightDetailsPanel({ flight, bookHref }: FlightDetailsPanelProps
                 </div>
                 {bookHref && flight.bookable && !cabin.soldOut && (
                   <Button asChild>
-                    <Link href={bookHref(cabin.cabinClass)}>
+                    <Link href={bookHref(cabin.cabinClass)} aria-label={`Book ${CABIN_LABEL[cabin.cabinClass]}`}>
                       Book
-                      <span className="sr-only"> {CABIN_LABEL[cabin.cabinClass]}</span>
                     </Link>
                   </Button>
                 )}
