@@ -22,7 +22,7 @@ How the output was used:
 
 ================================================
 Date: 2026-11-26
-Student: <Full name>
+Student: Omar Ahmed Alaga
 Tool: Codex
 Related Requirement: HTL-16 / HTL-18 / HTL-09 / PAY-02
 
