@@ -70,3 +70,12 @@ test("the selected cabin is marked as pressed", () => {
   expect(within(economy).getByRole("button").getAttribute("aria-pressed")).toBe("true");
   expect(within(business).getByRole("button").getAttribute("aria-pressed")).toBe("false");
 });
+
+// source: Excel FLT-17 "flight details page"; team leader (26 Nov): each result links to it as
+// "View details", /flights/{id} only (no passenger parameters)
+test("links to the flight details page", () => {
+  render(<FlightResultCard flight={flight} onSelect={vi.fn()} />);
+
+  const card = screen.getByRole("article", { name: /NA101/ });
+  expect(within(card).getByRole("link", { name: "View details" }).getAttribute("href")).toBe("/flights/665f1c2a9b1e8a00123400a1");
+});
