@@ -1863,3 +1863,31 @@ and missing system tests added (PR #253); hidden comments no longer counted, mod
 and upload message fixed (PR #254). Verified on develop: lint, build, 171 unit tests, the full
 system suite and a full Swagger UI run in Chrome.
 ================================================
+
+================================================
+Date: 2026-11-26
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: FLT-11, FLT-12, FLT-15, GEN-06, FLT-02, GEN-12 (P-12 Flight search)
+
+Prompt:
+Build page P-12 Flight search (/flights) from my T1 handout and AGENTS.md. Replace the stub in
+frontend/src/app/flights/page.tsx, keep its header comment and its rendering (Dynamic SSR). Use
+PublicShell with the session, FlightSearchForm with the airports from GET /api/airports,
+FlightResultCard for one-way results, RoundTripSelector for round trips, FilterPanel
+(kind="flights") and SortSelect, and call only GET /api/flights/search with the parameters in
+docs/api/openapi.yaml. Keep the criteria in the URL, show 10 per page with PaginationBar, the
+handout's empty state (So3ad shrugging, "Nothing here… try other dates?") and SearchLoading while
+results load, show the backend's 400 message, put the filters in a Sheet on phones, and send the
+chosen flight, cabin and passengers to P-14. Don't style anything, don't touch shared files, and
+list anything the handout, spec or API do not answer as a question.
+
+How the output was used:
+Used as the base for page.tsx, flight-search.tsx, search-params.ts and loading.tsx in
+src/app/flights. I checked it against the handout, AGENTS.md and openapi.yaml: only kit
+components and layout classes, a new search keeps the price filter and sort, a filter keeps the
+search criteria, a round trip continues only when an outbound and a return cabin are picked, and
+the P-14 link carries the flights, cabins and passengers. Open points went to the team leader.
+Verified with npm run lint, npm run typecheck and npm run build, and in the browser as a guest
+and as demo.user, on desktop and at 375 px.
+================================================
