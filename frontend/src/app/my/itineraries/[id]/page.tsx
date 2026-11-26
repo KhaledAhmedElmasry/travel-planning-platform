@@ -5,10 +5,11 @@
 // Rendering: Dynamic SSR + Client Components. Source: .md section 9 "Private Itinerary Detail" and Source: .md section 9 "Itinerary Editor".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-25, P-26). Use a shell and kit components (frontend/README.md).
 // GET /api/countries supplies the predefined list for editing trip countries (ITN-01, GEN-12).
+// GET /api/itineraries/public/{id} supplies public clone attribution (ITN-21).
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { BudgetSummary, type Summary } from "@/components/app/itineraries/budget-summary";
+import { BudgetCurrency, BudgetSummary, type Summary } from "@/components/app/itineraries/budget-summary";
 import type { CityGroup } from "@/components/app/itineraries/city-group-header";
 import type { Day } from "@/components/app/itineraries/day-card";
 import { ExportPdfButton } from "@/components/app/itineraries/export-pdf-button";
@@ -31,7 +32,9 @@ type Details = Itinerary & {
   cityGroups: CityGroup[];
   transportCosts: Transport[];
   linkedBookings?: LinkedBooking[];
+  originalItineraryId?: string | null;
 };
+type Original = { title: string; author: { name: string } };
 type Reference = { code: string; name: string };
 type City = { cityId: string; name: string };
 
@@ -43,18 +46,21 @@ function referenceList<T>(path: string) {
   });
 }
 
-async function ItineraryDetails({ id, dayPage }: { id: string; dayPage: number }) {
+async function ItineraryDetails({ id, dayPage, budgetCurrency }: { id: string; dayPage: number; budgetCurrency?: string }) {
   const path = `/api/itineraries/${encodeURIComponent(id)}`;
   const response = await backendFetch(path).catch(() => null);
   if (response?.status === 400 || response?.status === 404) notFound();
   if (!response?.ok) return <ItineraryLoadError />;
 
   const itinerary = (await response.json()) as Details;
-  const [countryList, cityList, currencyList, budget] = await Promise.allSettled([
+  const [countryList, cityList, currencyList, budget, original] = await Promise.allSettled([
     referenceList<Reference>("/api/countries"),
     referenceList<City>("/api/cities"),
     referenceList<Reference>("/api/currencies"),
-    backendJson<Summary>(`${path}/budget-summary`),
+    backendJson<Summary>(`${path}/budget-summary${budgetCurrency ? `?currency=${budgetCurrency}` : ""}`),
+    itinerary.originalItineraryId
+      ? backendJson<Original>(`/api/itineraries/public/${encodeURIComponent(itinerary.originalItineraryId)}`)
+      : null,
   ]);
   const countries = countryList.status === "fulfilled"
     ? countryList.value.map(({ code, name }) => ({ value: code, label: name }))
@@ -70,37 +76,54 @@ async function ItineraryDetails({ id, dayPage }: { id: string; dayPage: number }
     <div className="grid gap-6">
       <PageHeader
         title={itinerary.title}
-        description={formatDay(itinerary.startDate)}
+        description={
+          <span className="grid gap-1">
+            <span>{formatDay(itinerary.startDate)}</span>
+            {itinerary.originalItineraryId && (
+              <span>{original.status === "fulfilled" && original.value
+                ? `Cloned from ${original.value.title} by ${original.value.author.name}`
+                : "Cloned from an itinerary that is currently unavailable."}</span>
+            )}
+          </span>
+        }
         back={{ href: "/my/itineraries", label: "My itineraries" }}
         actions={<ExportPdfButton itineraryId={itinerary.id} />}
       />
       {countries?.length
         ? <ItineraryActions itinerary={itinerary} countries={countries} />
         : <ItineraryLoadError title="Could not load countries" />}
-      {cities?.length && currencies?.length ? (
-        <ItineraryDays id={itinerary.id} days={itinerary.days} groups={itinerary.cityGroups}
-          cities={cities} currencies={currencies} transport={itinerary.transportCosts}
-          bookings={itinerary.linkedBookings ?? []} requestedPage={dayPage} />
-      ) : <ItineraryLoadError title="Could not load cities and currencies" />}
-      {budget.status === "fulfilled" && budget.value
-        ? <BudgetSummary summary={budget.value} />
-        : <ItineraryLoadError title="Could not load the budget summary" />}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="min-w-0">
+          {cities?.length && currencies?.length ? (
+            <ItineraryDays id={itinerary.id} days={itinerary.days} groups={itinerary.cityGroups}
+              cities={cities} currencies={currencies} transport={itinerary.transportCosts}
+              bookings={itinerary.linkedBookings ?? []} requestedPage={dayPage} />
+          ) : <ItineraryLoadError title="Could not load cities and currencies" />}
+        </div>
+        <aside aria-label="Itinerary budget" className="grid min-w-0 gap-4">
+          {currencies?.length ? <BudgetCurrency currencies={currencies} value={budgetCurrency} /> : null}
+          {budget.status === "fulfilled" && budget.value
+            ? <BudgetSummary summary={budget.value} />
+            : <ItineraryLoadError title="Could not load the budget summary" />}
+        </aside>
+      </div>
     </div>
   );
 }
 
 export default async function Page({ params, searchParams }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ dayPage?: string | string[] }>;
+  searchParams: Promise<{ dayPage?: string | string[]; currency?: string | string[] }>;
 }) {
   const user = await requireUser(["user"]);
-  const [{ id }, { dayPage }, unreadNotifications] = await Promise.all([params, searchParams, getUnreadCount()]);
+  const [{ id }, { dayPage, currency }, unreadNotifications] = await Promise.all([params, searchParams, getUnreadCount()]);
   const requestedPage = typeof dayPage === "string" && /^[1-9]\d*$/.test(dayPage) ? Number(dayPage) : 1;
+  const budgetCurrency = typeof currency === "string" && /^[A-Z]{3}$/.test(currency) ? currency : undefined;
 
   return (
     <AppShell user={user} unreadNotifications={unreadNotifications}>
       <Suspense fallback={<Skeleton className="h-64 w-full" aria-label="Loading itinerary" />}>
-        <ItineraryDetails id={id} dayPage={requestedPage} />
+        <ItineraryDetails id={id} dayPage={requestedPage} budgetCurrency={budgetCurrency} />
       </Suspense>
     </AppShell>
   );

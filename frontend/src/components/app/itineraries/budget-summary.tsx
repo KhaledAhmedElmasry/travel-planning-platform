@@ -6,12 +6,30 @@
 // Used by: P-26
 // Spec: MILESTONE2_FRONTEND_SPEC.md sections 3 and 6. Build it from kit parts (design-system/yallaway/MASTER.md 6.2).
 import { BarChart } from "@/components/app/bar-chart";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BudgetAmount } from "@/components/app/budget-amount";
 import { EmptyState } from "@/components/app/empty-state";
 import { Price } from "@/components/app/price";
 import { formatDay } from "@/lib/dates";
 import { formatAmount } from "@/lib/format";
 import { budgetCategories } from "./budget-row";
+import { EditorSelect, InlinePages, type Option } from "./editor-form";
+
+export function BudgetCurrency({ currencies, value }: { currencies: Option[]; value?: string }) {
+  const router = useRouter();
+  const path = usePathname();
+  const params = useSearchParams();
+  return (
+    <EditorSelect name="budgetCurrency" label="Budget currency" value={value ?? "preferred"}
+      options={[{ value: "preferred", label: "Preferred currency" }, ...currencies]}
+      onChange={(currency) => {
+        const query = new URLSearchParams(params.toString());
+        if (currency === "preferred") query.delete("currency");
+        else query.set("currency", currency);
+        router.replace(query.size ? `${path}?${query}` : path, { scroll: false });
+      }} />
+  );
+}
 
 type Totals = Record<string, number>;
 type Breakdown = {
@@ -54,11 +72,11 @@ function BudgetBreakdown({ data }: { data: Breakdown }) {
         <TotalsRow name="Total" totals={data.grandTotal} />
       </dl>
       <h4 className="font-semibold">By day</h4>
-      <dl className="grid gap-2">
-        {data.totalsByDay.map((day) => (
-          <TotalsRow key={day.dayId} name={`Day ${day.dayNumber} · ${formatDay(day.date)}`} totals={day.totals} />
-        ))}
-      </dl>
+      <div className="grid gap-2">
+        <InlinePages items={data.totalsByDay.filter((day) => Object.keys(day.totals).length > 0).map((day) => (
+          <dl key={day.dayId}><TotalsRow name={`Day ${day.dayNumber} · ${formatDay(day.date)}`} totals={day.totals} /></dl>
+        ))} />
+      </div>
     </div>
   );
 }
