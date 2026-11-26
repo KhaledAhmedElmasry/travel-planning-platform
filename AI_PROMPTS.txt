@@ -1904,3 +1904,28 @@ the P-14 link carries the flights, cabins and passengers. Open points went to th
 Verified with npm run lint, npm run typecheck and npm run build, and in the browser as a guest
 and as demo.user, on desktop and at 375 px.
 ================================================
+
+================================================
+Date: 2026-11-26
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: FLT-17, GEN-06 (P-13 Flight details)
+
+Prompt:
+Build page P-13 Flight details (/flights/[id]) and the FlightDetailsPanel component from my T1
+handout and AGENTS.md. Keep the stub's header comment and its rendering (Dynamic SSR, never cached,
+with SEO metadata). Call only GET /api/flights/{id} and show everything it returns: airline, flight
+number, status, both airports with the local times in each airport's own zone (LocalTime), the
+duration, each cabin with its fare (Price), seats remaining and free baggage, the extra-baggage
+policy and the cancellation tiers. Add a Book button per cabin that opens P-14, hidden for sold-out
+cabins and for flights that cannot be booked, show the backend's reason instead, and show the 404
+page for an unknown or invalid id. Use kit components only and don't touch shared files.
+
+How the output was used:
+Used as the base for flight-details-panel.tsx and app/flights/[id]/page.tsx. I checked it against
+the handout, AGENTS.md and the FlightDetails schema in openapi.yaml: the times show in Cairo and
+Dubai time with the zone, a sold-out cabin has no Book button, a cancelled flight shows the
+backend's reason and no Book buttons, and the page title and description come from the flight.
+Verified with npm run lint, npm run typecheck and npm run build, and in the browser as a guest and
+as demo.user, on desktop and at 375 px.
+================================================
