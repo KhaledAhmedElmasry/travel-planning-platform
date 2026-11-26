@@ -297,3 +297,29 @@ test("a delete error shows the backend message as an error toast and does not re
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Not the author of this review."));
   expect(router.refresh).not.toHaveBeenCalled();
 });
+
+// source: Excel GEN-02 - "field-level error messages"; openapi Error.fieldErrors [{ field, messages[] }]
+test("backend field errors show under their own field", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      json(400, {
+        ...apiError(400, "Validation failed"),
+        fieldErrors: [
+          { field: "text", messages: ["text must be shorter than or equal to 1000 characters"] },
+          { field: "rating", messages: ["rating must not be greater than 5"] },
+        ],
+      }),
+    ),
+  );
+  render(<ReviewSection bookingId="hb1" status="completed" review={null} />);
+
+  star(3);
+  fireEvent.click(screen.getByRole("button", { name: "Post review" }));
+
+  await waitFor(() => expect(textBox().getAttribute("aria-invalid")).toBe("true"));
+  const describedBy = textBox().getAttribute("aria-describedby")!.split(" ");
+  const textError = describedBy.map((id) => document.getElementById(id)?.textContent).join(" ");
+  expect(textError).toContain("text must be shorter than or equal to 1000 characters");
+  expect(screen.getByText("rating must not be greater than 5")).toBeTruthy();
+});

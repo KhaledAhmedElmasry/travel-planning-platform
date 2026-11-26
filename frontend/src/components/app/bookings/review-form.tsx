@@ -25,6 +25,7 @@ import { StarRating } from "@/components/app/shared/star-rating";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, apiFetch } from "@/lib/api";
+import { fieldErrorMap } from "@/lib/api-error";
 
 /** openapi HotelBookingDetails.review: the user's own review + `hidden` (an admin hid it, GEN-10). */
 export type OwnReview = HotelReview & { hidden: boolean };
@@ -114,11 +115,14 @@ export function ReviewForm({ bookingId, review, onDone, onCancel }: ReviewFormPr
   const [text, setText] = useState(review?.text ?? "");
   const [ratingError, setRatingError] = useState<string>();
   const [error, setError] = useState<string>();
+  // GEN-02: the backend's fieldErrors, shown under each field (rating, text).
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(undefined);
+    setFieldErrors({});
     if (rating < 1) {
       setRatingError("Choose a rating from 1 to 5.");
       return;
@@ -153,6 +157,7 @@ export function ReviewForm({ bookingId, review, onDone, onCancel }: ReviewFormPr
       updated = await request();
     } catch (err) {
       setError(errorText(err));
+      if (err instanceof ApiError && err.status < 500) setFieldErrors(fieldErrorMap(err.body));
       return;
     } finally {
       setSubmitting(false);
@@ -169,9 +174,9 @@ export function ReviewForm({ bookingId, review, onDone, onCancel }: ReviewFormPr
           Rating
         </span>
         <StarRating value={rating} onChange={setRating} label="Rating" name="review-rating" />
-        {ratingError && <p className="text-[13px] text-error">{ratingError}</p>}
+        {(ratingError ?? fieldErrors.rating) && <p className="text-[13px] text-error">{ratingError ?? fieldErrors.rating}</p>}
       </div>
-      <FormField label="Review (optional)" name="review-text" hint={`${text.length}/${MAX_TEXT}`}>
+      <FormField label="Review (optional)" name="review-text" hint={`${text.length}/${MAX_TEXT}`} error={fieldErrors.text}>
         <Textarea value={text} maxLength={MAX_TEXT} onChange={(e) => setText(e.target.value)} />
       </FormField>
       <div className="flex flex-wrap gap-2">
