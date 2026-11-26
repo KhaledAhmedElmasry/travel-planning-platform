@@ -52,3 +52,34 @@ test("a guest is sent to login and back to /my/posts", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/login\?returnTo=%2Fmy%2Fposts$/);
 });
+
+// source: Khaled's popup answers 26 Nov ("Empty-page text", "Go to page 1"); Excel GEN-05 pagination
+test("a page past the last one says it is empty and links back to page 1", async ({ page }) => {
+  await loginAsDemo(page, "demo.user@yallaway.local");
+  const mine = (await (await page.request.get("/api/posts/mine?page=1")).json()) as MyPostList;
+  expect(mine.total, "demo.user needs at least one post").toBeGreaterThan(0);
+
+  await page.goto("/my/posts?page=99");
+
+  await expect(page.getByText("This page is empty")).toBeVisible();
+  await expect(page.getByText("No posts yet")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Go to page 1" })).toHaveAttribute("href", "/my/posts");
+});
+
+// source: Khaled's popup answers 26 Nov ("Add hidden text", "Keep singular"); Excel BLG-03 like and comment counts
+test("screen readers hear the like and comment counts as words", async ({ page }) => {
+  await loginAsDemo(page, "demo.user@yallaway.local");
+  const mine = (await (await page.request.get("/api/posts/mine?page=1")).json()) as {
+    items: { title: string; likeCount: number; commentCount: number }[];
+  };
+
+  await page.goto("/my/posts");
+
+  for (const post of mine.items) {
+    const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: post.title, exact: true }) });
+    const likes = `${post.likeCount} ${post.likeCount === 1 ? "like" : "likes"}`;
+    const comments = `${post.commentCount} ${post.commentCount === 1 ? "comment" : "comments"}`;
+    await expect(card.locator(".sr-only", { hasText: new RegExp(`^${likes}$`) })).toHaveCount(1);
+    await expect(card.locator(".sr-only", { hasText: new RegExp(`^${comments}$`) })).toHaveCount(1);
+  }
+});
