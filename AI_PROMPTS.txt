@@ -2017,3 +2017,18 @@ Codex built the private itinerary editor and its day, activity, budget and
 transport controls from the existing UI kit and API contract. The editor
 also uses the lead's booking-link and PDF tools.
 ================================================
+
+================================================
+Date: 2026-11-26
+Student: <Full name>
+Tool: Codex
+Related Requirement: ITN-25
+
+Prompt:
+Build the T3 hotel-search panel on its own branch using the handout and the
+existing hotel search API and UI kit.
+
+How the output was used:
+Codex added city-group selection, the derived stay dates, guest and room
+controls, and paginated hotel results linked to the hotel detail page.
+================================================

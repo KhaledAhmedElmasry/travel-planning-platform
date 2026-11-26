@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { CityGroupHeader, type CityGroup } from "@/components/app/itineraries/city-group-header";
 import { DayCard, DayForm, type Day } from "@/components/app/itineraries/day-card";
 import type { Option } from "@/components/app/itineraries/editor-form";
+import { FindHotelsPanel } from "@/components/app/itineraries/find-hotels-panel";
 import type { LinkedBooking } from "@/components/app/itineraries/link-booking-dialog";
 import type { Transport } from "@/components/app/itineraries/transport-row";
 import { PaginationBar } from "@/components/app/pagination-bar";
@@ -64,6 +65,7 @@ export function ItineraryDays({ id, days, groups, cities, currencies, transport,
         );
       })}
       <PaginationBar page={page} totalPages={totalPages} total={days.length} hrefFor={(page) => `?dayPage=${page}`} />
+      <FindHotelsPanel itineraryId={id} groups={groups} cities={cities} />
     </section>
   );
 }
