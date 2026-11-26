@@ -75,7 +75,7 @@ test("shows the hotel, the dates, the check-in and check-out times, the rooms wi
 test("shows the refund status and amount", () => {
   render(
     <HotelBookingDetails
-      booking={{ ...booking, status: "cancelled", refund: { amount: 51000, currency: "USD", refundPercentage: 100, status: "failed" } }}
+      booking={{ ...booking, status: "cancelled", refund: { id: "r1", amount: 51000, currency: "USD", refundPercentage: 100, status: "failed" } }}
       now={NOW}
     />,
   );
