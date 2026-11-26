@@ -133,3 +133,31 @@ test("more than 10 posts shows pagination links to /my/posts?page=N", () => {
   const nav = screen.getByRole("navigation", { name: "Pagination" });
   expect(within(nav).getByRole("link", { name: "Next page" }).getAttribute("href")).toBe("/my/posts?page=2");
 });
+
+// source: team leader popup answer 26 Nov ("Empty-page text"); Excel GEN-05 paginated lists; GEN-04 friendly empty states
+test("a page past the last one, while the user has posts, says the page is empty and links to page 1", () => {
+  view([], { page: 99, total: 2, totalPages: 1 });
+
+  expect(screen.getByText("This page is empty")).toBeTruthy();
+  const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+  expect(hrefs).toContain("/my/posts");
+  expect(screen.queryByText("No posts yet")).toBeNull();
+});
+
+// source: team leader popup answer 26 Nov - keep "No posts yet" only when total is 0; Excel GEN-04
+test("no posts at all keeps the No posts yet empty state", () => {
+  view([], { page: 1, total: 0, totalPages: 0 });
+
+  expect(screen.getByText("No posts yet")).toBeTruthy();
+  expect(screen.queryByText("This page is empty")).toBeNull();
+});
+
+// source: team leader popup answer 26 Nov ("Add hidden text": e.g. "3 likes" and "2 comments" for screen readers); Excel BLG-03
+test("like and comment counts have screen-reader text", () => {
+  view([{ ...published, likeCount: 3, commentCount: 2 }]);
+
+  const likes = screen.getByText("3 likes");
+  const comments = screen.getByText("2 comments");
+  expect(likes.className).toContain("sr-only");
+  expect(comments.className).toContain("sr-only");
+});
