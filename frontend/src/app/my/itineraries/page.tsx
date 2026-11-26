@@ -59,10 +59,10 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       ) : data.items.length === 0 ? (
         // A page number past the last page (e.g. after deleting the last itinerary of a page).
         <EmptyState
-          title="Nothing on this page"
+          title="This page is empty"
           action={
-            <Button asChild variant="outline">
-              <Link href="/my/itineraries">Back to page 1</Link>
+            <Button asChild>
+              <Link href="/my/itineraries">Go to page 1</Link>
             </Button>
           }
         />
