@@ -41,7 +41,8 @@ test("an upcoming flight shows its reference, flight, route and local departure,
   expect(link.textContent).toContain("NA101");
   expect(link.textContent).toContain("CAI");
   expect(link.textContent).toContain("DXB");
-  expect(link.textContent).toContain("2027-03-01 08:00");
+  // team leader decision 26 Nov: same airport-local format as My bookings (GEN-06)
+  expect(link.textContent).toContain("Mon, 1 Mar 2027 08:00");
 });
 
 // source: MILESTONE2_FRONTEND_SPEC.md section 2 - upcoming trips; P-22 row: reference, hotel, dates
