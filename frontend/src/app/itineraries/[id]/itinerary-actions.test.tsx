@@ -105,3 +105,29 @@ test("an admin gets no Clone and no Save button, but can still report", async ()
   expect(screen.queryByRole("button", { name: "Clone" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Save to favourites" })).toBeNull();
 });
+
+// source: Excel GEN-10 - "an admin can hide or delete any post, comment, review or itinerary directly"
+test("an admin gets Hide and Delete for this itinerary", async () => {
+  backend({ "GET /api/auth/me": me("admin") });
+  render(<ItineraryActions itineraryId={ID} navigate={vi.fn()} />);
+
+  expect(await screen.findByRole("button", { name: "Hide" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
+});
+
+// source: Excel GEN-10 - hidden content stays visible to admins, who can unhide it
+test("on a hidden itinerary an admin gets Unhide", async () => {
+  backend({ "GET /api/auth/me": me("admin") });
+  render(<ItineraryActions itineraryId={ID} hidden navigate={vi.fn()} />);
+
+  expect(await screen.findByRole("button", { name: "Unhide" })).toBeTruthy();
+});
+
+test("registered users and guests get no admin buttons", async () => {
+  backend({ "GET /api/auth/me": me("user"), [FAV]: json(200, { items: [], page: 1, pageSize: 10, total: 0, totalPages: 0 }) });
+  render(<ItineraryActions itineraryId={ID} navigate={vi.fn()} />);
+
+  await screen.findByRole("button", { name: "Clone" });
+  expect(screen.queryByRole("button", { name: "Hide" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+});

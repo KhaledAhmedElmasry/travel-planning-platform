@@ -7,10 +7,12 @@
 // source: team leader decision 24 Nov - P-28 Clone: registered user -> toast "Copied to My itineraries" and
 // /my/itineraries/{newId}; guest -> /login?returnTo=<this page> (ACC-10); admins and moderators: the backend
 // refuses them (POST /api/itineraries/{id}/clone is @Roles(Role.User)), so no button.
+// Admins also get Hide / Unhide / Delete (GEN-10: hide or delete any itinerary directly; team leader 26 Nov).
 import { useEffect, useState } from "react";
 import { CopyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ReportButton } from "@/components/app/report-button";
+import { AdminContentActions } from "@/components/app/shared/admin-content-actions";
 import { FavouriteButton } from "@/components/app/shared/favourite-button";
 import { Button } from "@/components/ui/button";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -21,9 +23,12 @@ type Viewer = { role: Role | null; favouriteId: string | null };
 
 export function ItineraryActions({
   itineraryId,
+  hidden = false,
   navigate = (path) => window.location.assign(path),
 }: {
   itineraryId: string;
+  /** true when an admin hid it (only its author and admins can open it then, GEN-10). */
+  hidden?: boolean;
   navigate?: (path: string) => void;
 }) {
   const [viewer, setViewer] = useState<Viewer | undefined>(undefined);
@@ -82,6 +87,9 @@ export function ItineraryActions({
       )}
       <FavouriteButton type="itinerary" targetId={itineraryId} favouriteId={favouriteId} role={role} navigate={navigate} />
       <ReportButton contentType="itinerary" contentId={itineraryId} />
+      {role === "admin" && (
+        <AdminContentActions type="itinerary" id={itineraryId} hidden={hidden} onDeleted={() => navigate("/itineraries")} />
+      )}
     </div>
   );
 }

@@ -1,13 +1,15 @@
 // P-28 Public itinerary: /itineraries/[id]
 // Part: Lead (foundation)
-// Requirements: ITN-21, GEN-09, BON-02 (Bonus)
-// Endpoints: GET /api/itineraries/public/{id}; POST /api/itineraries/{id}/clone; GET /api/countries; GET /api/cities; GET /api/auth/me; GET, POST /api/favourites; DELETE /api/favourites/{id}; POST /api/reports
+// Requirements: ITN-21, GEN-09, GEN-10, BON-02 (Bonus)
+// Endpoints: GET /api/itineraries/public/{id}; POST /api/itineraries/{id}/clone; GET /api/countries; GET /api/cities; GET /api/auth/me; GET, POST /api/favourites; DELETE /api/favourites/{id}; POST /api/reports; PATCH /api/admin/content/{type}/{id}/hide; PATCH /api/admin/content/{type}/{id}/unhide; DELETE /api/admin/content/{type}/{id}
 // Rendering: ISR / Static. Source: .md section 9 "Public Itinerary Detail"; add SEO metadata (public page).
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-28). Use a shell and kit components (frontend/README.md).
 // Built (24 Nov): author, days, activities, budget as entered (PublicItineraryView); Clone, Save, Report are a
 // Client Component (ItineraryActions) that finds out who is viewing in the browser. The backend is called
 // WITHOUT cookies and cached with the tag itinerary:<id>, which the backend refreshes when the itinerary is
 // edited, hidden, made private or deleted, or its author changes (B5); 404 for private/hidden/unknown ones.
+// A hidden one is then shown to its author and admins by the 404 boundary (not-found.tsx, GEN-10); admins
+// get Hide / Unhide / Delete in ItineraryActions (team leader 26 Nov).
 // Full country and city names (team leader answer 24 Nov) from the public lists, also fetched WITHOUT cookies.
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
