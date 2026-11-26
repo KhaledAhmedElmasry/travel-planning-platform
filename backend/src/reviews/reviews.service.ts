@@ -39,7 +39,8 @@ export interface OwnReviewResponse extends ReviewResponse {
   hidden: boolean;
 }
 
-export interface HotelReviewsResponse extends PaginatedList<ReviewResponse> {
+// GEN-10: hidden reviews reach only their author and admins; the flag lets the page mark them.
+export interface HotelReviewsResponse extends PaginatedList<OwnReviewResponse> {
   averageRating: number;
   ratingCount: number;
 }
@@ -55,6 +56,7 @@ interface LeanReview {
   user: Types.ObjectId;
   rating: number;
   text?: string;
+  hidden: boolean;
   reply?: { text: string; createdAt: Date };
   createdAt?: Date;
 }
@@ -316,7 +318,7 @@ export class ReviewsService {
       authors.map((author) => [author._id.toString(), author]),
     );
 
-    const items: ReviewResponse[] = reviews.map((review) => {
+    const items: OwnReviewResponse[] = reviews.map((review) => {
       const author = authorNames.get(review.user.toString());
       return {
         id: review._id.toString(),
@@ -332,6 +334,7 @@ export class ReviewsService {
         reply: review.reply
           ? { text: review.reply.text, date: review.reply.createdAt }
           : null,
+        hidden: review.hidden,
       };
     });
 
