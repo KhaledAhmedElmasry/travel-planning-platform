@@ -5,7 +5,7 @@
 // Requirements: ITN-05, ITN-07, ITN-08
 // Used by: P-26
 // Spec: MILESTONE2_FRONTEND_SPEC.md sections 3 and 6. Build it from kit parts (design-system/yallaway/MASTER.md 6.2).
-import { useState, type ReactNode } from "react";
+import { Children, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EmptyState } from "@/components/app/empty-state";
@@ -19,7 +19,7 @@ import { apiFetch } from "@/lib/api";
 import { formatDay } from "@/lib/dates";
 import { ActivityCard, type Activity } from "./activity-card";
 import { BudgetRow, type Budget } from "./budget-row";
-import { DeleteEntry, EditorForm, EditorSelect, type Option } from "./editor-form";
+import { DeleteEntry, EditorForm, EditorSelect, InlinePages, type Option } from "./editor-form";
 import { LinkBookingDialog, UnlinkBookingButton, type LinkedBooking } from "./link-booking-dialog";
 import { TransportRow, type Transport } from "./transport-row";
 
@@ -71,6 +71,7 @@ export function DayCard({ day, itineraryId, cities, currencies, days, transport,
         <CardTitle className="flex flex-wrap items-baseline justify-between gap-2">
           <span>Day {day.number}</span><span className="text-sm font-normal">{formatDay(day.date)}</span>
         </CardTitle>
+        <p className="text-sm text-muted-foreground">{cities.find((city) => city.value === day.cityId)?.label ?? day.cityId}</p>
         {day.notes && <p className="whitespace-pre-wrap">{day.notes}</p>}
       </CardHeader>
       <CardContent className="grid gap-5">
@@ -82,6 +83,10 @@ export function DayCard({ day, itineraryId, cities, currencies, days, transport,
                 event.dataTransfer.setData("text/plain", day.id);
                 event.dataTransfer.effectAllowed = "move";
               }} onClick={() => onMove(day.id, Number(position))} disabled={moving}>Move day</Button>
+              <Button variant="outline" size="sm" disabled={moving || day.number === 1}
+                aria-label={`Move day ${day.number} up`} onClick={() => onMove(day.id, day.number - 1)}>Move up</Button>
+              <Button variant="outline" size="sm" disabled={moving || day.number === days.length}
+                aria-label={`Move day ${day.number} down`} onClick={() => onMove(day.id, day.number + 1)}>Move down</Button>
               <EditorSelect name="position" label="Move to position" value={position} onChange={setPosition}
                 options={days.map((option, index) => ({ value: String(index + 1), label: option.label }))} />
             </>
@@ -129,7 +134,7 @@ function DaySection({ title, size, empty, children }: {
   return (
     <section className="grid gap-2">
       <h3 className="font-semibold">{title}</h3>
-      {size === 0 ? <EmptyState title={empty} compact /> : children}
+      {size === 0 ? <EmptyState title={empty} compact /> : <InlinePages items={Children.toArray(children)} />}
     </section>
   );
 }

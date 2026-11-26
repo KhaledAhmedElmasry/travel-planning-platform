@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/app/confirm-dialog";
 import { FormErrorSummary } from "@/components/app/form-error-summary";
 import { FormField } from "@/components/app/form-field";
+import { PaginationBar } from "@/components/app/pagination-bar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,6 +15,31 @@ import { fieldErrorMap } from "@/lib/api-error";
 
 export type Option = { value: string; label: string };
 export type Errors = Record<string, string>;
+
+export function InlinePages({ items }: { items: ReactNode[] }) {
+  const id = useId();
+  const [requestedPage, setPage] = useState(1);
+  const size = 10;
+  const pageCount = Math.max(1, Math.ceil(items.length / size));
+  const page = Math.min(requestedPage, pageCount);
+  const prefix = `#list-${id}-`;
+  return (
+    <>
+      {items.slice((page - 1) * size, page * size)}
+      {pageCount > 1 && (
+        <div onClick={(event) => {
+          const link = event.target instanceof Element ? event.target.closest("a") : null;
+          const href = link?.getAttribute("href");
+          if (!href?.startsWith(prefix)) return;
+          event.preventDefault();
+          setPage(Number(href.slice(prefix.length)));
+        }}>
+          <PaginationBar page={page} totalPages={pageCount} total={items.length} hrefFor={(value) => `${prefix}${value}`} />
+        </div>
+      )}
+    </>
+  );
+}
 
 export function EditorSelect({ name, label, options, value, onChange, error, required }: {
   name: string; label: string; options: Option[]; value: string;
