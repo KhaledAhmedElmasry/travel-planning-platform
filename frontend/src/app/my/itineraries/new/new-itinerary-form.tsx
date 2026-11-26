@@ -11,6 +11,8 @@ import { FormField } from "@/components/app/form-field";
 import { MultiSelect, type Option } from "@/components/app/multi-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { ApiError, apiFetch } from "@/lib/api";
 import { fieldErrorMap } from "@/lib/api-error";
 
@@ -26,6 +28,7 @@ export function NewItineraryForm({ countries }: { countries: Option[] }) {
   const [title, setTitle] = useState("");
   const [countryCodes, setCountryCodes] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<string>();
+  const [visibility, setVisibility] = useState("private");
   const [submitting, setSubmitting] = useState(false);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string>();
@@ -50,8 +53,19 @@ export function NewItineraryForm({ countries }: { countries: Option[] }) {
         method: "POST",
         json: { title: trimmedTitle, countryCodes, startDate },
       });
-      toast.success("Itinerary created");
-      router.replace(`/my/itineraries/${encodeURIComponent(itinerary.id)}`);
+      const id = encodeURIComponent(itinerary.id);
+      if (visibility === "public") {
+        try {
+          await apiFetch(`/api/itineraries/${id}`, { method: "PATCH", json: { visibility } });
+          toast.success("Public itinerary created");
+        } catch (error) {
+          const detail = error instanceof ApiError ? error.message : "Try again in the editor.";
+          toast.error(`Itinerary created, but publishing failed. ${detail}`);
+        }
+      } else {
+        toast.success("Itinerary created");
+      }
+      router.replace(`/my/itineraries/${id}`);
     } catch (error) {
       setFields(error instanceof ApiError ? fieldErrorMap(error.body) : {});
       setMessage(error instanceof ApiError ? error.message : "Could not create the itinerary.");
@@ -71,7 +85,19 @@ export function NewItineraryForm({ countries }: { countries: Option[] }) {
       <FormField label={labels.startDate} name="startDate" required error={fields.startDate}>
         <DatePicker value={startDate} onChange={setStartDate} />
       </FormField>
-      <p className="text-sm text-muted-foreground">New itineraries are private by default.</p>
+      <fieldset className="grid gap-2">
+        <legend className="mb-2 text-sm font-medium">Visibility</legend>
+        <RadioGroup value={visibility} onValueChange={setVisibility} aria-label="Visibility" disabled={submitting}>
+          <div className="flex items-center gap-2">
+            <RadioGroupItem value="private" id="new-itinerary-private" />
+            <Label htmlFor="new-itinerary-private">Private</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <RadioGroupItem value="public" id="new-itinerary-public" />
+            <Label htmlFor="new-itinerary-public">Public</Label>
+          </div>
+        </RadioGroup>
+      </fieldset>
       <div className="flex flex-wrap gap-3">
         <Button type="submit" loading={submitting}>Create itinerary</Button>
         <Button variant="outline" asChild>

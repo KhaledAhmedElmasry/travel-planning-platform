@@ -2,6 +2,7 @@
 // Part: T3 Itinerary editor
 // Requirements: ITN-01, ITN-20, GEN-12
 // Endpoints: POST /api/itineraries; GET /api/countries
+// PATCH /api/itineraries/{id} publishes a new itinerary when Public is selected.
 // Rendering: Dynamic SSR + Client Components. Source: .md section 9 "Itinerary Editor".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-25). Use a shell and kit components (frontend/README.md).
 import { Suspense } from "react";
