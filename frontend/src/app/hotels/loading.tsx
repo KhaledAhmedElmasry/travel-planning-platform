@@ -1,14 +1,7 @@
-import { Skeleton } from "@/components/ui/skeleton";
+// P-15 (GEN-16): shown while the hotel search runs (So3ad scrolling on her phone, handout).
+// Also covers /hotels/[id] and /hotels/[id]/book until they have their own loading state.
+import { SearchLoading } from "@/components/app/search-loading";
 
 export default function Loading() {
-  return (
-    <main className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:px-6 lg:px-8">
-      <Skeleton className="h-10 w-56" />
-      <div className="grid gap-4 rounded-xl border border-border bg-card p-4 sm:p-6">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-40" />
-      </div>
-    </main>
-  );
+  return <SearchLoading />;
 }
