@@ -73,7 +73,7 @@ export function HotelResults({ result, state, cityNames, countryNames }: { resul
   const router = useRouter();
   const sort = <SortSelect kind="hotels" value={state.sort} onChange={(next) => router.push(href(state.initial, state.filters, next, 1))} />;
   if (result.items.length === 0) {
-    return <EmptyState title="No hotels found" line="Nothing here... try other dates?" pose="shrug" />;
+    return <EmptyState title="No hotels found" line="Nothing here… try other dates?" pose="shrug" />;
   }
   return (
     <div className="grid gap-6">
