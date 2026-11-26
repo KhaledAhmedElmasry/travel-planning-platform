@@ -5,9 +5,10 @@
 // Spec: MILESTONE2_FRONTEND_SPEC.md sections 3 and 6. Build it from kit parts (design-system/yallaway/MASTER.md 6.2).
 //
 // <FlightResultCard flight={item} selectedCabin={picked?.cabinClass} onSelect={(flight, cabinClass) => ...} />
-// One flight of GET /api/flights/search. Team leader (23 Nov): one row per matching cabin with its
+// One flight of GET /api/flights/search, with a "View details" link to P-13 /flights/{id} (FLT-17). Team leader (23 Nov): one row per matching cabin with its
 // own Select button; each row shows the total for the searched passengers (infants 10%, FLT-12)
 // and the fare per person. Times are shown in each airport's own time zone (GEN-06).
+import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
 import { LocalTime } from "@/components/app/local-time";
 import { Price } from "@/components/app/price";
@@ -61,7 +62,13 @@ export function FlightResultCard({ flight, onSelect, selectedCabin }: Props) {
         <h3 id={titleId} className="font-semibold">
           {flight.airline.name} · {flight.flightNumber}
         </h3>
-        <span className="text-sm text-muted-foreground">{duration(flight.durationMinutes)}</span>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-muted-foreground">{duration(flight.durationMinutes)}</span>
+          {/* FLT-17: team leader (26 Nov), every result links to P-13 */}
+          <Link href={`/flights/${flight.id}`} className="text-sm font-medium text-link hover:underline">
+            View details
+          </Link>
+        </div>
       </header>
       <div className="flex items-center gap-3">
         <LocalTime
