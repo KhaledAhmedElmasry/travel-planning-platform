@@ -66,7 +66,6 @@ type Quote = {
 type Booking = { id: string; holdExpiresAt: string; totalAmount: number; currency: string };
 
 const STEPS = ["Passengers", "Summary", "Policies", "Payment"];
-const MAX_PASSENGERS = 9;
 
 type Props = {
   /** One flight for one-way, the outbound then the return flight for a round trip (FLT-12). */
@@ -204,7 +203,6 @@ export function FlightBookingSummary({ flights, cabins, counts: initialCounts, s
               hint="12+"
               value={counts.adults}
               min={1}
-              max={MAX_PASSENGERS - counts.children - counts.infants}
               onChange={(adults) => changeCounts({ ...counts, adults })}
             />
             <NumberStepper
@@ -212,7 +210,6 @@ export function FlightBookingSummary({ flights, cabins, counts: initialCounts, s
               hint="2-11"
               value={counts.children}
               min={0}
-              max={MAX_PASSENGERS - counts.adults - counts.infants}
               onChange={(children) => changeCounts({ ...counts, children })}
             />
             <NumberStepper
@@ -220,7 +217,7 @@ export function FlightBookingSummary({ flights, cabins, counts: initialCounts, s
               hint="Under 2, on a lap"
               value={counts.infants}
               min={0}
-              max={Math.min(counts.adults, MAX_PASSENGERS - counts.adults - counts.children)}
+              max={counts.adults}
               onChange={(infants) => changeCounts({ ...counts, infants })}
             />
           </div>

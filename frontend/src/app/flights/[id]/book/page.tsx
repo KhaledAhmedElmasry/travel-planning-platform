@@ -38,7 +38,7 @@ function first(value: string | string[] | undefined): string | undefined {
 
 function count(value: string | string[] | undefined, fallback: number, min: number): number {
   const n = Number(first(value));
-  return Number.isInteger(n) && n >= min ? Math.min(n, 9) : fallback;
+  return Number.isInteger(n) && n >= min ? n : fallback;
 }
 
 async function loadFlight(id: string): Promise<FlightForBooking | null> {
