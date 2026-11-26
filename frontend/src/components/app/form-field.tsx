@@ -4,8 +4,9 @@
 //   <Input type="email" autoComplete="email" />
 // </FormField>
 // FormField gives the child its id, name, aria-invalid and aria-describedby,
-// so the input itself needs no extra props for accessibility.
-import { cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
+// so the input itself needs no extra props for accessibility. The id is unique per field (useId),
+// so the same form can be on a page twice (e.g. desktop and phone filter panels, GEN-16).
+import { cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from "react";
 import { CircleAlertIcon } from "lucide-react";
 import { cn } from "cn";
 import { Label } from "@/components/ui/label";
@@ -33,7 +34,7 @@ type FormFieldProps = {
 };
 
 export function FormField({ label, name, error, hint, required, children, className }: FormFieldProps) {
-  const id = `field-${name.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const id = `field-${name.replace(/[^a-zA-Z0-9_-]/g, "-")}-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [errorId, hintId].filter(Boolean).join(" ") || undefined;
