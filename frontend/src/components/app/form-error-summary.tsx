@@ -4,7 +4,7 @@
 // After a failed submit with several errors, show this at the top of the form.
 // It takes focus so keyboard and screen-reader users hear what to fix, and each
 // item links to its field. The inline errors under each field stay (GEN-02).
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
 import { CircleAlertIcon } from "lucide-react";
 import { cn } from "cn";
 
@@ -19,6 +19,15 @@ type FormErrorSummaryProps = {
   autoFocus?: boolean;
   className?: string;
 };
+
+/** FormField ids are unique (useId), so find the field by name in this form; ids like signup's checkbox still work by href. */
+function focusField(event: MouseEvent<HTMLAnchorElement>, field: string) {
+  const root = event.currentTarget.closest("form") ?? document;
+  const target = root.querySelector<HTMLElement>(`[name="${CSS.escape(field)}"]`);
+  if (!target) return;
+  event.preventDefault();
+  target.focus();
+}
 
 export function FormErrorSummary({ errors, labels = {}, message, autoFocus = true, className }: FormErrorSummaryProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -48,6 +57,7 @@ export function FormErrorSummary({ errors, labels = {}, message, autoFocus = tru
             <li key={field} className="list-disc">
               <a
                 href={`#field-${field.replace(/[^a-zA-Z0-9_-]/g, "-")}`}
+                onClick={(event) => focusField(event, field)}
                 className="text-link underline underline-offset-4"
               >
                 {labels[field] ?? field}
