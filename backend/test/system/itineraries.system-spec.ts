@@ -1124,6 +1124,9 @@ describe('Itineraries', () => {
       });
       await addDay(user, source.id, 'cairo');
       await publish(user, source.id);
+      const original = await t
+        .guest()
+        .get(`/api/itineraries/public/${source.id}`);
       const clone = (
         await other.client.post(`/api/itineraries/${source.id}/clone`)
       ).body;
@@ -1140,6 +1143,10 @@ describe('Itineraries', () => {
       const kept = await get(other, clone.id);
       expect(kept.days).toHaveLength(1);
       expect(kept.originalAuthorId).toBe(user.id);
+      expect(kept.cloneAttribution).toEqual({
+        title: source.title,
+        authorName: original.body.author.name,
+      });
     });
   });
 

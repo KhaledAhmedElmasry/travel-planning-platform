@@ -1,6 +1,21 @@
 AI PROMPT LOG — Travel Planning & Booking Platform
 Software Project I, Winter 2026
 
+================================================
+Date: 2026-11-26
+Student: <Full name>
+Tool: Codex
+Related Requirement: ITN-26 / FLT-02
+
+Prompt:
+Build the T3 flight-search panel on its own branch using the handout and the
+existing flight search API and UI kit.
+
+How the output was used:
+Codex added itinerary-based airport and date defaults, one-way and round-trip
+search, and booking links for selected flights and cabins.
+================================================
+
 Every team member records the prompts that materially contributed to the project,
 in chronological order, using the format below (project description, section 11).
 Add your entry in the same pull request as the work it relates to.
@@ -2018,6 +2033,23 @@ as demo.user, on desktop and at 375 px.
 
 ================================================
 Date: 2026-11-26
+Student: <Full name>
+Tool: Codex
+Related Requirement: ITN-01 / ITN-05 / ITN-07–10 / ITN-12 / ITN-14 / ITN-16 / ITN-18 / ITN-20 / ITN-27 / ITN-28
+
+Prompt:
+Implement the assigned T3 pages in separate branches, with each page's
+required components on its branch. Use the handout while the frontend spec
+is unavailable.
+
+How the output was used:
+Codex built the private itinerary editor and its day, activity, budget and
+transport controls from the existing UI kit and API contract. The editor
+also uses the lead's booking-link and PDF tools.
+================================================
+
+================================================
+Date: 2026-11-26
 Student: Ibrahim El Shafey
 Tool: Claude
 Related Requirement: FLT-19, FLT-21, FLT-22, FLT-08, FLT-12, PAY-02 (P-14 Book a flight)
@@ -2044,6 +2076,21 @@ summary shows each passenger's fare and baggage fee, a refused hold shows the ba
 after the hold a refresh goes to payment instead of holding again. Verified with npm run lint, npm
 run typecheck and npm run build, and in the browser as demo.user (one-way and round trip) and as a
 guest, on desktop and at 375 px.
+================================================
+
+================================================
+Date: 2026-11-26
+Student: <Full name>
+Tool: Codex
+Related Requirement: ITN-25
+
+Prompt:
+Build the T3 hotel-search panel on its own branch using the handout and the
+existing hotel search API and UI kit.
+
+How the output was used:
+Codex added city-group selection, the derived stay dates, guest and room
+controls, and paginated hotel results linked to the hotel detail page.
 ================================================
 
 ================================================
