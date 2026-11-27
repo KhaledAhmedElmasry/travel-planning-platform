@@ -91,7 +91,7 @@ export function DayCard({ day, itineraryId, cities, currencies, days, transport,
                 options={days.map((option, index) => ({ value: String(index + 1), label: option.label }))} />
             </>
           )}
-          <DeleteEntry label="Delete day" description="The day and its entries will be removed. The remaining days will be renumbered." remove={() => apiFetch(path, { method: "DELETE" })} />
+          <DeleteEntry label="Delete day" description="The day and its entries will be removed. The remaining days will be renumbered." remove={() => apiFetch(`${path}?confirm=true`, { method: "DELETE" })} />
         </div>
         <DaySection title="Activities" size={activities.length} empty="No activities yet">
           {activities.map((activity) => <ActivityCard key={activity.id} activity={activity} dayPath={path} currencies={currencies} />)}
