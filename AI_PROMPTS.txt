@@ -1,6 +1,21 @@
 AI PROMPT LOG — Travel Planning & Booking Platform
 Software Project I, Winter 2026
 
+================================================
+Date: 2026-11-26
+Student: <Full name>
+Tool: Codex
+Related Requirement: ITN-26 / FLT-02
+
+Prompt:
+Build the T3 flight-search panel on its own branch using the handout and the
+existing flight search API and UI kit.
+
+How the output was used:
+Codex added itinerary-based airport and date defaults, one-way and round-trip
+search, and booking links for selected flights and cabins.
+================================================
+
 Every team member records the prompts that materially contributed to the project,
 in chronological order, using the format below (project description, section 11).
 Add your entry in the same pull request as the work it relates to.

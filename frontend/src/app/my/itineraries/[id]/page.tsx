@@ -5,6 +5,7 @@
 // Rendering: Dynamic SSR + Client Components. Source: .md section 9 "Private Itinerary Detail" and Source: .md section 9 "Itinerary Editor".
 // Spec: MILESTONE2_FRONTEND_SPEC.md (page P-25, P-26). Use a shell and kit components (frontend/README.md).
 // GET /api/countries supplies the predefined list for editing trip countries (ITN-01, GEN-12).
+// GET /api/airports supplies the airport options for itinerary flight search (FLT-02).
 // GET /api/itineraries/public/{id} supplies public clone attribution (ITN-21).
 import { Suspense } from "react";
 import type { Metadata } from "next";
@@ -13,10 +14,12 @@ import { BudgetCurrency, BudgetSummary, type Summary } from "@/components/app/it
 import type { CityGroup } from "@/components/app/itineraries/city-group-header";
 import type { Day } from "@/components/app/itineraries/day-card";
 import { ExportPdfButton } from "@/components/app/itineraries/export-pdf-button";
+import { FindFlightsPanel } from "@/components/app/itineraries/find-flights-panel";
 import type { LinkedBooking } from "@/components/app/itineraries/link-booking-dialog";
 import type { Transport } from "@/components/app/itineraries/transport-row";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
+import type { Airport } from "@/components/app/search/flight-search-form";
 import { AppShell } from "@/components/layout/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { allPages } from "@/lib/all-pages";
@@ -56,7 +59,7 @@ async function ItineraryDetails({ id, dayPage, budgetCurrency }: { id: string; d
   if (!response?.ok) return <ItineraryLoadError />;
 
   const itinerary = (await response.json()) as Details;
-  const [countryList, cityList, currencyList, budget, original] = await Promise.allSettled([
+  const [countryList, cityList, currencyList, budget, original, airportList] = await Promise.allSettled([
     referenceList<Reference>("/api/countries"),
     referenceList<City>("/api/cities"),
     referenceList<Reference>("/api/currencies"),
@@ -64,6 +67,7 @@ async function ItineraryDetails({ id, dayPage, budgetCurrency }: { id: string; d
     itinerary.originalItineraryId && !itinerary.cloneAttribution
       ? backendJson<Original>(`/api/itineraries/public/${encodeURIComponent(itinerary.originalItineraryId)}`)
       : null,
+    referenceList<Airport>("/api/airports"),
   ]);
   const countries = countryList.status === "fulfilled"
     ? countryList.value.map(({ code, name }) => ({ value: code, label: name }))
@@ -79,6 +83,11 @@ async function ItineraryDetails({ id, dayPage, budgetCurrency }: { id: string; d
     title: publicOriginal.title,
     authorName: publicOriginal.author.name,
   });
+  const firstDay = itinerary.days[0];
+  const destination = firstDay && {
+    id: firstDay.cityId,
+    name: cities?.find((city) => city.value === firstDay.cityId)?.label ?? firstDay.cityId,
+  };
 
   return (
     <div className="grid gap-6">
@@ -118,6 +127,11 @@ async function ItineraryDetails({ id, dayPage, budgetCurrency }: { id: string; d
             : <ItineraryLoadError title="Could not load the budget summary" />}
         </aside>
       </div>
+      {airportList.status === "fulfilled"
+        ? <FindFlightsPanel key={`${destination?.id}-${itinerary.startDate}-${itinerary.days.at(-1)?.date}`}
+            itineraryId={itinerary.id} airports={airportList.value} city={destination}
+            departure={itinerary.startDate} lastDay={itinerary.days.at(-1)?.date} />
+        : <ItineraryLoadError title="Could not load airports" />}
     </div>
   );
 }
