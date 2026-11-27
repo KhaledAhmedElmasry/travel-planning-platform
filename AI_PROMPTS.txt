@@ -2054,3 +2054,16 @@ end offers page 1, a new user sees the empty state with the New itinerary button
 to log in. Verified with npm run lint, npm run typecheck and npm run build, and in the browser as
 demo.user and as a guest, on desktop and at 375 px.
 ================================================
+
+================================================
+Date: 2026-11-27
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-22
+
+Prompt:
+Gave Claude AGENTS.md, my T6 handout, the Milestone 2 spec, the stub files, the kit component props and the openapi contract for GET /api/hotels/{id}/reservations, and asked for the P-47 Reservations page built from kit parts only.
+
+How the output was used:
+Used the generated server page (DashboardShell, PageHeader, DataTable, PaginationBar, StatusBadge, EmptyState, Suspense skeleton). Checked it against the openapi item shape, ran lint, typecheck and build, and tested as hotel, user and guest roles on desktop and phone width.
+================================================
