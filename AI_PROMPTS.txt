@@ -1,21 +1,6 @@
 AI PROMPT LOG — Travel Planning & Booking Platform
 Software Project I, Winter 2026
 
-================================================
-Date: 2026-11-26
-Student: <Full name>
-Tool: Codex
-Related Requirement: ITN-26 / FLT-02
-
-Prompt:
-Build the T3 flight-search panel on its own branch using the handout and the
-existing flight search API and UI kit.
-
-How the output was used:
-Codex added itinerary-based airport and date defaults, one-way and round-trip
-search, and booking links for selected flights and cabins.
-================================================
-
 Every team member records the prompts that materially contributed to the project,
 in chronological order, using the format below (project description, section 11).
 Add your entry in the same pull request as the work it relates to.
@@ -50,7 +35,7 @@ Used AI assistance to assemble the existing SSR shell, wizard layout, room and g
 
 ================================================
 Date: 2026-11-26
-Student: <Full name>
+Student: Hussien Shata
 Tool: Codex
 Related Requirement: ITN-01 / ITN-20 / GEN-12
 
@@ -2033,7 +2018,7 @@ as demo.user, on desktop and at 375 px.
 
 ================================================
 Date: 2026-11-26
-Student: <Full name>
+Student: Hussien Shata
 Tool: Codex
 Related Requirement: ITN-01 / ITN-05 / ITN-07–10 / ITN-12 / ITN-14 / ITN-16 / ITN-18 / ITN-20 / ITN-27 / ITN-28
 
@@ -2080,7 +2065,7 @@ guest, on desktop and at 375 px.
 
 ================================================
 Date: 2026-11-26
-Student: <Full name>
+Student: Hussien Shata
 Tool: Codex
 Related Requirement: ITN-25
 
@@ -2141,4 +2126,19 @@ field errors and success/error feedback. Frontend lint passed. Typecheck remains
 blocked by the pre-existing undefined LayoutProps in src/app/layout.tsx; build is
 blocked in this environment by the unavailable Google Fonts request. Browser/API
 testing remains to be performed with the demo admin account.
+================================================
+
+================================================
+Date: 2026-11-26
+Student: Hussien Shata
+Tool: Codex
+Related Requirement: ITN-26 / FLT-02
+
+Prompt:
+Build the T3 flight-search panel on its own branch using the handout and the
+existing flight search API and UI kit.
+
+How the output was used:
+Codex added itinerary-based airport and date defaults, one-way and round-trip
+search, and booking links for selected flights and cabins.
 ================================================
