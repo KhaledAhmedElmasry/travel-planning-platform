@@ -34,6 +34,21 @@ Used AI assistance to assemble the existing SSR shell, wizard layout, room and g
 ================================================
 
 ================================================
+Date: 2026-11-26
+Student: <Full name>
+Tool: Codex
+Related Requirement: ITN-01 / ITN-20 / GEN-12
+
+Prompt:
+Implement the assigned T3 itinerary pages in separate branches and keep
+components required by a page on the same branch.
+
+How the output was used:
+Codex implemented the P-25 create form using the existing app shell, form kit,
+country reference endpoint and create-itinerary endpoint.
+================================================
+
+================================================
 Date: 2026-11-06
 Student: Salaheldin Mahmoud
 Tool: Copilot
@@ -2046,4 +2061,54 @@ summary shows each passenger's fare and baggage fee, a refused hold shows the ba
 after the hold a refresh goes to payment instead of holding again. Verified with npm run lint, npm
 run typecheck and npm run build, and in the browser as demo.user (one-way and round trip) and as a
 guest, on desktop and at 375 px.
+================================================
+
+================================================
+Date: 2026-11-26
+Student: Ibrahim El Shafey
+Tool: Claude
+Related Requirement: ITN-03 (P-24 My itineraries)
+
+Prompt:
+Build page P-24 My itineraries (/my/itineraries) from my T1 handout and AGENTS.md. Keep the stub's
+header comment and its rendering (Dynamic SSR, registered users only, a guest logs in and comes
+back). Call GET /api/itineraries with the page number and GET /api/countries for the full country
+names, and show each itinerary with the shared ItineraryCard (title, countries, start date, number
+of days, Private / Public) linking to /my/itineraries/{id}, 10 per page with PaginationBar, a "New
+itinerary" button to /my/itineraries/new, and the handout's empty state (So3ad, "So empty! Let's plan
+something."). Use AppShell and kit components only and don't touch shared files.
+
+How the output was used:
+Used as app/my/itineraries/page.tsx. I checked it against the handout, AGENTS.md and openapi.yaml:
+the list keeps the backend's order (most recently updated first), countries show their full names,
+each card shows Private or Public and opens the itinerary, page 2 shows the next 10, a page past the
+end offers page 1, a new user sees the empty state with the New itinerary button, and a guest is sent
+to log in. Verified with npm run lint, npm run typecheck and npm run build, and in the browser as
+demo.user and as a guest, on desktop and at 375 px.
+================================================
+
+================================================
+Date: 2026-11-26
+Student: Abdallah Mahmoud Abou Hussein
+Tool: Codex
+Related Requirement: ACC-14, ACC-15, ACC-16, ACC-07a (P-48 Accounts)
+
+Prompt:
+Build P-48 Accounts (/admin/accounts) on its own branch from the T7 handout and
+AGENTS.md. Keep the header comment and Dynamic SSR + Client Components strategy.
+Work only on the assigned Accounts page and AccountsTable component. Use the
+documented admin accounts, suspend/reactivate, and temporary-password reset
+endpoints. Require the admin role, use DashboardShell and kit components, keep
+filters and pagination in the URL, show field-level errors for the password form,
+and confirm account suspension or reactivation. Do not add routes, custom CSS,
+tests, libraries, or backend changes.
+
+How the output was used:
+Used AI assistance to implement the admin Accounts page and its assigned table
+component: role/status/search filters, server-backed pagination, status badges,
+suspend/reactivate confirmations, and temporary-password reset with backend
+field errors and success/error feedback. Frontend lint passed. Typecheck remains
+blocked by the pre-existing undefined LayoutProps in src/app/layout.tsx; build is
+blocked in this environment by the unavailable Google Fonts request. Browser/API
+testing remains to be performed with the demo admin account.
 ================================================
