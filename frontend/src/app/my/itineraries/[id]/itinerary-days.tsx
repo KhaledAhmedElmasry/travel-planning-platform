@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/app/empty-state";
 import { CityGroupHeader, type CityGroup } from "@/components/app/itineraries/city-group-header";
@@ -19,7 +19,6 @@ export function ItineraryDays({ id, days, groups, cities, currencies, transport,
   transport: Transport[]; bookings: LinkedBooking[]; requestedPage: number;
 }) {
   const router = useRouter();
-  const params = useSearchParams();
   const [moving, setMoving] = useState(false);
   const path = `/api/itineraries/${id}/days`;
   const totalPages = Math.max(1, Math.ceil(days.length / 10));
@@ -69,11 +68,7 @@ export function ItineraryDays({ id, days, groups, cities, currencies, transport,
           </section>
         );
       })}
-      <PaginationBar page={page} totalPages={totalPages} total={days.length} hrefFor={(page) => {
-        const query = new URLSearchParams(params.toString());
-        query.set("dayPage", String(page));
-        return `?${query}`;
-      }} />
+      <PaginationBar page={page} totalPages={totalPages} total={days.length} hrefFor={(page) => `?dayPage=${page}`} />
     </section>
   );
 }
