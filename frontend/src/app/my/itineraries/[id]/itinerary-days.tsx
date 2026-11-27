@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { CityGroupHeader, type CityGroup } from "@/components/app/itineraries/city-group-header";
 import { DayCard, DayForm, type Day } from "@/components/app/itineraries/day-card";
 import type { Option } from "@/components/app/itineraries/editor-form";
+import { FindHotelsPanel } from "@/components/app/itineraries/find-hotels-panel";
 import type { LinkedBooking } from "@/components/app/itineraries/link-booking-dialog";
 import type { Transport } from "@/components/app/itineraries/transport-row";
 import { PaginationBar } from "@/components/app/pagination-bar";
@@ -54,9 +55,13 @@ export function ItineraryDays({ id, days, groups, cities, currencies, transport,
           return day ? [day] : [];
         });
         if (!groupDays.length) return null;
+        const cityName = cities.find((city) => city.value === group.cityId)?.label ?? group.cityId;
         return (
           <section key={group.dayIds[0]} className="grid gap-3">
-            <CityGroupHeader name={cities.find((city) => city.value === group.cityId)?.label ?? group.cityId} group={group} />
+            <div className="grid gap-2">
+              <CityGroupHeader name={cityName} group={group} />
+              <div><FindHotelsPanel key={`${group.startDate}-${group.endDate}`} itineraryId={id} group={group} cityName={cityName} /></div>
+            </div>
             {groupDays.map((day) => (
               <DayCard key={day.id} day={day} itineraryId={id} cities={cities} currencies={currencies}
                 days={positions} transport={transport} bookings={bookings} moving={moving} onMove={move} />

@@ -2080,6 +2080,21 @@ guest, on desktop and at 375 px.
 
 ================================================
 Date: 2026-11-26
+Student: <Full name>
+Tool: Codex
+Related Requirement: ITN-25
+
+Prompt:
+Build the T3 hotel-search panel on its own branch using the handout and the
+existing hotel search API and UI kit.
+
+How the output was used:
+Codex added city-group selection, the derived stay dates, guest and room
+controls, and paginated hotel results linked to the hotel detail page.
+================================================
+
+================================================
+Date: 2026-11-26
 Student: Ibrahim El Shafey
 Tool: Claude
 Related Requirement: ITN-03 (P-24 My itineraries)
