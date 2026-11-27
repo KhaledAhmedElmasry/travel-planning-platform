@@ -2155,3 +2155,16 @@ Apply the supplied P-43 Rooms page, RoomForm and RoomsManager code on feature/HT
 How the output was used:
 Applied the supplied RoomForm, RoomsManager and server rooms page. Verified with npm run lint, npm run typecheck and npm run build. Browser testing remains to be performed.
 ================================================
+
+================================================
+Date: 2026-11-27
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-03 / HTL-05 / HTL-06
+
+Prompt:
+Gave Claude AGENTS.md, my T6 handout, the Milestone 2 spec, the stub files, the kit component props and the openapi contract for the hotel room endpoints, and asked for the P-43 Rooms page and the RoomForm component built from kit parts only.
+
+How the output was used:
+Used the generated rooms page, RoomForm and a RoomsManager Client Component (table, add/edit dialog, deactivate and delete with confirm dialogs). Checked the request and response shapes against the openapi file, ran lint, typecheck and build, and tested add, edit, duplicate room number, deactivate and delete with a hotel account on desktop and phone width.
+================================================
