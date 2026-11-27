@@ -10393,6 +10393,18 @@ components:
         originalAuthorId:
           type: string
           description: Only on a clone, the author credited (ITN-21).
+        hidden:
+          type: boolean
+          description: Moderation flag returned in the owner's itinerary detail (GEN-10).
+        cloneAttribution:
+          type: object
+          description: Title and author as recorded when the clone was made, returned in the owner's itinerary detail when available (ITN-21).
+          required: [title, authorName]
+          properties:
+            title:
+              type: string
+            authorName:
+              type: string
         createdAt:
           type: string
           format: date-time

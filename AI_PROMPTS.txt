@@ -34,6 +34,21 @@ Used AI assistance to assemble the existing SSR shell, wizard layout, room and g
 ================================================
 
 ================================================
+Date: 2026-11-26
+Student: Hussien Shata
+Tool: Codex
+Related Requirement: ITN-01 / ITN-20 / GEN-12
+
+Prompt:
+Implement the assigned T3 itinerary pages in separate branches and keep
+components required by a page on the same branch.
+
+How the output was used:
+Codex implemented the P-25 create form using the existing app shell, form kit,
+country reference endpoint and create-itinerary endpoint.
+================================================
+
+================================================
 Date: 2026-11-06
 Student: Salaheldin Mahmoud
 Tool: Copilot
@@ -2003,6 +2018,23 @@ as demo.user, on desktop and at 375 px.
 
 ================================================
 Date: 2026-11-26
+Student: Hussien Shata
+Tool: Codex
+Related Requirement: ITN-01 / ITN-05 / ITN-07–10 / ITN-12 / ITN-14 / ITN-16 / ITN-18 / ITN-20 / ITN-27 / ITN-28
+
+Prompt:
+Implement the assigned T3 pages in separate branches, with each page's
+required components on its branch. Use the handout while the frontend spec
+is unavailable.
+
+How the output was used:
+Codex built the private itinerary editor and its day, activity, budget and
+transport controls from the existing UI kit and API contract. The editor
+also uses the lead's booking-link and PDF tools.
+================================================
+
+================================================
+Date: 2026-11-26
 Student: Ibrahim El Shafey
 Tool: Claude
 Related Requirement: FLT-19, FLT-21, FLT-22, FLT-08, FLT-12, PAY-02 (P-14 Book a flight)
@@ -2029,6 +2061,21 @@ summary shows each passenger's fare and baggage fee, a refused hold shows the ba
 after the hold a refresh goes to payment instead of holding again. Verified with npm run lint, npm
 run typecheck and npm run build, and in the browser as demo.user (one-way and round trip) and as a
 guest, on desktop and at 375 px.
+================================================
+
+================================================
+Date: 2026-11-26
+Student: Hussien Shata
+Tool: Codex
+Related Requirement: ITN-25
+
+Prompt:
+Build the T3 hotel-search panel on its own branch using the handout and the
+existing hotel search API and UI kit.
+
+How the output was used:
+Codex added city-group selection, the derived stay dates, guest and room
+controls, and paginated hotel results linked to the hotel detail page.
 ================================================
 
 ================================================
@@ -2066,4 +2113,45 @@ Gave Claude AGENTS.md, my T6 handout, the Milestone 2 spec, the stub files, the 
 
 How the output was used:
 Used the generated server page (DashboardShell, PageHeader, DataTable, PaginationBar, StatusBadge, EmptyState, Suspense skeleton). Checked it against the openapi item shape, ran lint, typecheck and build, and tested as hotel, user and guest roles on desktop and phone width.
+================================================
+
+================================================
+Date: 2026-11-26
+Student: Abdallah Mahmoud Abou Hussein
+Tool: Codex
+Related Requirement: ACC-14, ACC-15, ACC-16, ACC-07a (P-48 Accounts)
+
+Prompt:
+Build P-48 Accounts (/admin/accounts) on its own branch from the T7 handout and
+AGENTS.md. Keep the header comment and Dynamic SSR + Client Components strategy.
+Work only on the assigned Accounts page and AccountsTable component. Use the
+documented admin accounts, suspend/reactivate, and temporary-password reset
+endpoints. Require the admin role, use DashboardShell and kit components, keep
+filters and pagination in the URL, show field-level errors for the password form,
+and confirm account suspension or reactivation. Do not add routes, custom CSS,
+tests, libraries, or backend changes.
+
+How the output was used:
+Used AI assistance to implement the admin Accounts page and its assigned table
+component: role/status/search filters, server-backed pagination, status badges,
+suspend/reactivate confirmations, and temporary-password reset with backend
+field errors and success/error feedback. Frontend lint passed. Typecheck remains
+blocked by the pre-existing undefined LayoutProps in src/app/layout.tsx; build is
+blocked in this environment by the unavailable Google Fonts request. Browser/API
+testing remains to be performed with the demo admin account.
+================================================
+
+================================================
+Date: 2026-11-26
+Student: Hussien Shata
+Tool: Codex
+Related Requirement: ITN-26 / FLT-02
+
+Prompt:
+Build the T3 flight-search panel on its own branch using the handout and the
+existing flight search API and UI kit.
+
+How the output was used:
+Codex added itinerary-based airport and date defaults, one-way and round-trip
+search, and booking links for selected flights and cabins.
 ================================================
