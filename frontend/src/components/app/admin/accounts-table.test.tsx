@@ -187,3 +187,15 @@ test("a rejected temporary password shows the field message from the backend", a
   expect((await within(dialog).findAllByText("Password must contain a letter and a number.")).length).toBeGreaterThan(0);
   expect(refresh).not.toHaveBeenCalled();
 });
+
+// source: PDF .md section 4 "Administrator ... suspends/reactivates users and moderators";
+// Excel ACC-07a "reset a user's or moderator's password"; ACC-15 (moderator), ACC-16 (registered users): admins are not targets
+test("an admin row offers no suspend, reactivate or reset password action", () => {
+  const admin = { id: "a1", name: "Platform Admin", email: "admin@example.com", role: "admin" as const, status: "active" as const, registrationDate: "2026-09-01T09:00:00Z" };
+  render(<AccountsTable accounts={list([admin, mona])} filters={NO_FILTERS} />);
+
+  const r = within(row("Platform Admin"));
+  expect(r.queryAllByRole("button", { name: /suspend|reactivate|reset password/i }).map((b) => b.textContent)).toEqual([]);
+  // a registered user's row keeps its actions
+  expect(within(row("Mona Adel")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Suspend", "Reset password"]);
+});
