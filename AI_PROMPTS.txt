@@ -2149,8 +2149,17 @@ Tool: Codex
 Related Requirement: GEN-07 (P-53 Audit log)
 
 Prompt:
-Built the P-53 audit log page with action, from-date, and to-date filters and Date, Admin, Action, and Target columns.
+I gave Codex T7_CODEX_PROMPTS.md and asked it to follow the instructions.
+It worked on the first task: build P-53 Audit log (/admin/audit-log) on its
+own branch, following AGENTS.md. Use Dynamic SSR, the admin role, the UI kit
+and GET /api/admin/audit-logs. Show date, admin, action and target, with
+pagination, Action/From/To filters, loading, empty and error states, and
+invalid date range handling. Edit only the audit log page, its table
+component and AI_PROMPTS.txt. When Codex asked about the listed UI
+assumptions, I replied: "Use the listed assumptions".
 
 How the output was used:
-Built the audit log page and table files; frontend lint, typecheck, and build passed. Browser testing was not run.
+Codex built app/admin/audit-log/page.tsx and
+components/app/admin/audit-log-table.tsx. It reported that npm run lint,
+npm run typecheck and npm run build passed, and committed the work.
 ================================================
