@@ -2018,6 +2018,23 @@ as demo.user, on desktop and at 375 px.
 
 ================================================
 Date: 2026-11-26
+Student: <Full name>
+Tool: Codex
+Related Requirement: ITN-01 / ITN-05 / ITN-07–10 / ITN-12 / ITN-14 / ITN-16 / ITN-18 / ITN-20 / ITN-27 / ITN-28
+
+Prompt:
+Implement the assigned T3 pages in separate branches, with each page's
+required components on its branch. Use the handout while the frontend spec
+is unavailable.
+
+How the output was used:
+Codex built the private itinerary editor and its day, activity, budget and
+transport controls from the existing UI kit and API contract. The editor
+also uses the lead's booking-link and PDF tools.
+================================================
+
+================================================
+Date: 2026-11-26
 Student: Ibrahim El Shafey
 Tool: Claude
 Related Requirement: FLT-19, FLT-21, FLT-22, FLT-08, FLT-12, PAY-02 (P-14 Book a flight)
