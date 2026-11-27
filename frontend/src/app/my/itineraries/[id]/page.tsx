@@ -18,8 +18,8 @@ import { FindFlightsPanel } from "@/components/app/itineraries/find-flights-pane
 import type { LinkedBooking } from "@/components/app/itineraries/link-booking-dialog";
 import type { Transport } from "@/components/app/itineraries/transport-row";
 import { PageHeader } from "@/components/app/page-header";
-import type { Airport } from "@/components/app/search/flight-search-form";
 import { StatusBadge } from "@/components/app/status-badge";
+import type { Airport } from "@/components/app/search/flight-search-form";
 import { AppShell } from "@/components/layout/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { allPages } from "@/lib/all-pages";
@@ -78,16 +78,16 @@ async function ItineraryDetails({ id, dayPage, budgetCurrency }: { id: string; d
   const currencies = currencyList.status === "fulfilled"
     ? currencyList.value.map(({ code, name }) => ({ value: code, label: `${code} · ${name}` }))
     : null;
-  const firstDay = itinerary.days[0];
-  const destination = firstDay && {
-    id: firstDay.cityId,
-    name: cities?.find((city) => city.value === firstDay.cityId)?.label ?? firstDay.cityId,
-  };
   const publicOriginal = original.status === "fulfilled" ? original.value : null;
   const attribution = itinerary.cloneAttribution ?? (publicOriginal && {
     title: publicOriginal.title,
     authorName: publicOriginal.author.name,
   });
+  const firstDay = itinerary.days[0];
+  const destination = firstDay && {
+    id: firstDay.cityId,
+    name: cities?.find((city) => city.value === firstDay.cityId)?.label ?? firstDay.cityId,
+  };
 
   return (
     <div className="grid gap-6">
