@@ -2142,3 +2142,16 @@ How the output was used:
 Codex added itinerary-based airport and date defaults, one-way and round-trip
 search, and booking links for selected flights and cabins.
 ================================================
+
+================================================
+Date: 2026-11-28
+Student: Mostafa Elsallamy
+Tool: Claude Code (Claude Opus 5.5)
+Related Requirement: BLG-01 / BLG-04 / BLG-08 / BLG-10 / BLG-13 (P-34)
+
+Prompt:
+Next T4 part in its own pull request: P-34 post editor, both /my/posts/new and /my/posts/[id]/edit (Dynamic SSR + Client Components), with the PostEditor and AttachItineraryPicker (BLG-13 bonus) components.
+
+How the output was used:
+Claude built both pages (requireUser for registered users, AppShell, PageHeader) and the PostEditor: title (required, max 200), body (required), tags with the kit TagInput (max 5 x 30), images with the kit ImageUploader (GEN-08), Publish / Save as draft / Cancel, Delete with ConfirmDialog, frontend checks plus the backend's field errors (FormErrorSummary + FormField). For a new post the images and itinerary are sent after POST /api/posts (the API needs the post id); when editing, images are added and removed at once, with a confirmation before removing. The picker lists the author's itineraries from GET /api/itineraries; because GET /api/posts/{id} doesn't return the attached itinerary, editing offers "Keep the current itinerary". I reviewed the code and checked it with npm run lint, npm run typecheck and npm run build.
+================================================
