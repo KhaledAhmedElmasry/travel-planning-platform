@@ -21,6 +21,19 @@ How the output was used:
 ================================================
 
 ================================================
+Date: 2026-11-27
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: FLT-30 / P-36
+
+Prompt:
+Implement P-36 Airline Flights List at /airline/flights on feature/FLT-30-airline-flights. Follow the Milestone 2 frontend spec, repository instructions and OpenAPI contract; use the authenticated moderator's airlineId, existing dashboard shell and UI kit, API filters and pagination, airport-local flight times, and the specified links to P-38 and P-39. Do not implement flight management or booking management in this page or modify unrelated files.
+
+How the output was used:
+Used Codex assistance to assemble the P-36 server-rendered flights page using existing shared components and API/session utilities. Lint, typecheck and build could not run because frontend dependencies were not installed and the npm install attempt was interrupted; manual browser verification has not been performed.
+================================================
+
+================================================
 Date: 2026-11-26
 Student: Omar Ahmed Alaga
 Tool: Codex
@@ -2267,4 +2280,17 @@ Build my T4 Blog handout parts one by one, each in its own pull request, followi
 
 How the output was used:
 Claude read the page header, the spec section, the BLG rows of the Excel and GET /api/posts in openapi.yaml, then built the Dynamic SSR page from kit parts: PublicShell, PageHeader, keyword + tag search in the URL, PostCard (title, author link, date, excerpt, clickable tags, like and comment counts), PaginationBar (10 per page), EmptyState for "No results" / "No posts yet" / past the last page, and a loading skeleton. I reviewed the code and checked it with npm run lint, npm run typecheck and npm run build.
+================================================
+
+================================================
+Date: 2026-11-28
+Student: Mostafa Elsallamy
+Tool: Claude Code (Claude Opus 5.5)
+Related Requirement: BLG-02 / BLG-05 / BLG-06 / BLG-07 / GEN-09 / GEN-10 (P-30)
+
+Prompt:
+Next T4 part in its own pull request: P-30 post page (/blog/[id]), ISR + Client Components with SEO metadata, with the LikeButton, CommentsSection and CommentItem components, ReportButton and AdminContentActions from the kit.
+
+How the output was used:
+Claude built the ISR page like the existing public itinerary page (P-28): post read without cookies and cached with postTag(id), generateMetadata (article Open Graph). Likes, comments, report, author Edit/Delete and admin Hide/Delete are Client Components that ask GET /api/auth/me in the browser; guests are sent to login and back (ACC-10); deletes ask first (ConfirmDialog); comments are paginated in the URL and validated (non-empty, max 500) with field errors. A 404 boundary re-asks the backend with the session so authors see their drafts and hidden posts and admins see hidden posts (GEN-10). Claude pointed out that GET /api/posts/{id} returns neither the hidden flag nor the attached itinerary (BLG-13), so those are open questions for the team leader. I reviewed the code and checked it with npm run lint, npm run typecheck and npm run build (/blog/[id] is built as ISR).
 ================================================
