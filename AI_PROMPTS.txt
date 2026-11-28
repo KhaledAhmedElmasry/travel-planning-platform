@@ -21,6 +21,19 @@ How the output was used:
 ================================================
 
 ================================================
+Date: 2026-11-27
+Student: Ibrahim Alalamy
+Tool: OpenAI Codex
+Related Requirement: FLT-30 / P-36
+
+Prompt:
+Implement P-36 Airline Flights List at /airline/flights on feature/FLT-30-airline-flights. Follow the Milestone 2 frontend spec, repository instructions and OpenAPI contract; use the authenticated moderator's airlineId, existing dashboard shell and UI kit, API filters and pagination, airport-local flight times, and the specified links to P-38 and P-39. Do not implement flight management or booking management in this page or modify unrelated files.
+
+How the output was used:
+Used Codex assistance to assemble the P-36 server-rendered flights page using existing shared components and API/session utilities. Lint, typecheck and build could not run because frontend dependencies were not installed and the npm install attempt was interrupted; manual browser verification has not been performed.
+================================================
+
+================================================
 Date: 2026-11-26
 Student: Omar Ahmed Alaga
 Tool: Codex
