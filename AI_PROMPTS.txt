@@ -2157,16 +2157,6 @@ search, and booking links for selected flights and cabins.
 ================================================
 
 ================================================
-Date: 2026-11-28
-Student: Mostafa Elsallamy
-Tool: Claude Code (Claude Opus 5.5)
-Related Requirement: BLG-02 / BLG-09 (P-29)
-
-Prompt:
-Build my T4 Blog handout parts one by one, each in its own pull request, following AGENTS.md, the handout, MILESTONE2_FRONTEND_SPEC.md and docs/api/openapi.yaml. First part: P-29 Blog listing + search (/blog) with the PostCard and BlogSearchBar components.
-
-How the output was used:
-Claude read the page header, the spec section, the BLG rows of the Excel and GET /api/posts in openapi.yaml, then built the Dynamic SSR page from kit parts: PublicShell, PageHeader, keyword + tag search in the URL, PostCard (title, author link, date, excerpt, clickable tags, like and comment counts), PaginationBar (10 per page), EmptyState for "No results" / "No posts yet" / past the last page, and a loading skeleton. I reviewed the code and checked it with npm run lint, npm run typecheck and npm run build.
 Date: 2026-11-27
 Student: Salaheldin Mahmoud
 Tool: Codex
@@ -2264,4 +2254,27 @@ Build a read-only admin bookings table with type, status, and date filters; use 
 
 How the output was used:
 Built frontend/src/app/admin/bookings/page.tsx. Frontend checks have not passed or been completed; browser testing was not performed.
+================================================
+
+================================================
+Date: 2026-11-28
+Student: Mostafa Elsallamy
+Tool: Claude Code (Claude Opus 5.5)
+Related Requirement: BLG-02 / BLG-09 (P-29)
+
+Prompt:
+Build my T4 Blog handout parts one by one, each in its own pull request, following AGENTS.md, the handout, MILESTONE2_FRONTEND_SPEC.md and docs/api/openapi.yaml. First part: P-29 Blog listing + search (/blog) with the PostCard and BlogSearchBar components.
+
+How the output was used:
+Claude read the page header, the spec section, the BLG rows of the Excel and GET /api/posts in openapi.yaml, then built the Dynamic SSR page from kit parts: PublicShell, PageHeader, keyword + tag search in the URL, PostCard (title, author link, date, excerpt, clickable tags, like and comment counts), PaginationBar (10 per page), EmptyState for "No results" / "No posts yet" / past the last page, and a loading skeleton. I reviewed the code and checked it with npm run lint, npm run typecheck and npm run build.
+Date: 2026-11-27
+Student: Salaheldin Mahmoud
+Tool: Codex
+Related Requirement: HTL-09 / HTL-10
+
+Prompt:
+Provided Codex the P-46 Hotel policies page and form implementation, including the existing kit APIs and the GET /api/hotels/{id} and PUT /api/hotels/{id}/policies contract. Asked it to create the feature branch, apply the two supplied files, and run frontend lint, typecheck, and build.
+
+How the output was used:
+Used the generated server page and PoliciesForm to read the current hotel policy values and save check-in/check-out times and cancellation tiers. Lint, typecheck, and build passed. Browser/API testing remains to be performed.
 ================================================
