@@ -2216,3 +2216,29 @@ Gave Claude AGENTS.md, my T6 handout, the Milestone 2 spec, the stub files, the 
 How the output was used:
 Used the generated rooms page, RoomForm and a RoomsManager Client Component (table, add/edit dialog, deactivate and delete with confirm dialogs). Checked the request and response shapes against the openapi file, ran lint, typecheck and build, and tested add, edit, duplicate room number, deactivate and delete with a hotel account on desktop and phone width.
 ================================================
+
+================================================
+Date: 2026-11-27
+Student: Salaheldin Mahmoud
+Tool: Codex
+Related Requirement: HTL-01
+
+Prompt:
+Provided Codex the P-42 My hotel page and form implementation, including the existing kit APIs and the hotel profile, country, city, and multipart photo update contracts. Asked it to create the feature branch, apply the two supplied files, and run frontend lint, typecheck, and build.
+
+How the output was used:
+Used the generated server page and HotelProfileForm to load and update hotel details, amenities, photos, star class, country, and city. Lint, typecheck, and build passed. Browser/API testing remains to be performed.
+================================================
+
+================================================
+Date: 2026-11-27
+Student: Salaheldin Mahmoud
+Tool: Claude
+Related Requirement: HTL-01 / GEN-08 / GEN-12
+
+Prompt:
+Gave Claude AGENTS.md, my T6 handout, the Milestone 2 spec, the stub file, the kit props (ImageUploader, FormField, NumberStepper, Select) and the openapi contract for GET and PATCH /api/hotels/{id} and the countries and cities lists, and asked for the P-42 My hotel page built from kit parts only.
+
+How the output was used:
+Used the generated profile page and a HotelProfileForm Client Component (multipart PATCH with fields, amenities, new and removed photos; country and city selects). Checked the multipart field names against the openapi and the backend DTO, ran lint, typecheck and build, and tested validation errors, country change, amenities and photo limits with a hotel account, then restored the original data.
+================================================
