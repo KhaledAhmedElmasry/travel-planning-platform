@@ -25,7 +25,7 @@ import { getUnreadCount, requireUser } from "@/lib/server/session";
 export const metadata: Metadata = { title: "All bookings", robots: { index: false } };
 type SearchParams = { type?: string | string[]; status?: string | string[]; from?: string | string[]; to?: string | string[]; page?: string | string[] };
 type Filters = { type: "" | "flight" | "hotel"; status: string; from: string; to: string; page: number };
-type Booking = { id: string; type: string; reference: string | null; user: { name: string }; provider: { name: string }; dates: { from: string; to: string; startDate?: string; endDate?: string }; amount: number; currency: string; status: string };
+type Booking = { id: string; type: string; reference: string | null; user: { name: string }; provider: { name: string }; dates: { from: string; to: string; startDate?: string; endDate?: string }; amount: number; currency: string; status: "pending_payment" | "confirmed" | "completed" | "expired" | "cancelled" };
 type BookingList = { items: Booking[]; page: number; pageSize: number; total: number; totalPages: number };
 const statuses = ["pending_payment", "confirmed", "completed", "expired", "cancelled"];
 function first(v?: string | string[]) { return Array.isArray(v) ? v[0] ?? "" : v ?? ""; }
