@@ -236,7 +236,7 @@ async function FlightsTable({ airlineId, filters }: { airlineId: string; filters
         pageSize={data.pageSize}
         total={data.total}
         totalPages={data.totalPages}
-        hrefFor={(page) => queryString({ ...filters, page })}
+        hrefFor={(page) => `/airline/flights${queryString({ ...filters, page })}`}
         className="mt-4"
       />
     </>
